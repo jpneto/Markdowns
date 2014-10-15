@@ -1,0 +1,56 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = FALSE, echo = T,
+               fig.width = 10, fig.height = 5)
+```
+
+Benchmarking
+========================================================
+
+`system.time()` returns CPU (and other) times that expr used.
+
+```{r}
+x <- rep(NA,10000)
+system.time(for(i in 1:10000) x[i] <- mean(runif(1000)))  
+system.time(sort(x))  
+```
+
+`microbenchmark` serves as a more accurate replacement of the often seen system.time(replicate(1000, expr)) expression. It tries hard to accurately measure only the time it takes to evaluate expr. To achieved this, the sub-millisecond (supposedly nanosecond) accurate timing functions most modern operating systems provide are used. Additionally all evaluations of the expressions are done in C code to minimze any overhead.
+
+```{r}
+library(microbenchmark)
+m <- microbenchmark(
+  xs <- 1:1000,
+  for(i in 1:1000) {xs[i] <- i},
+  xs <- rnorm(1000),
+  times = 250
+)
+m
+boxplot(m)
+library(ggplot2) 
+qplot(y=time, data=m, colour=expr) + scale_y_log10()
+```
+
+The library consists of just one function, benchmark, which is a simple wrapper around `system.time`.
+
+Given a specification of the benchmarking process (counts of replications, evaluation environment) and an arbitrary number of expressions, `benchmark()` evaluates each of the expressions in the specified environment, replicating the evaluation as many times as specified, and returning the results conveniently wrapped into a data frame.
+
+```{r}
+library(rbenchmark)
+
+random.array = function(rows, cols, dist=rnorm) 
+                  array(dist(rows*cols), c(rows, cols))
+random.replicate = function(rows, cols, dist=rnorm)
+                      replicate(cols, dist(rows))
+
+results <- 
+  benchmark(random.array(100, 100),
+            random.replicate(100, 100),
+            columns=c('test', 'elapsed', 'replications'),
+            replications=c(20,40),
+            order="elapsed")
+
+results[results$test == "random.array(100, 100)",]
+results[results$test == "random.replicate(100, 100)",]
+```

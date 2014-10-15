@@ -1,0 +1,242 @@
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+               fig.width = 12, fig.height = 5, fig.align='center')
+```
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 300)
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+Noise
+========================================================
+
+Main Ref: 
++ Bart Kosko - Noise (2006)
+
+Other refs:
++ [Power laws and the generalized CLT](http://www.johndcook.com/blog/2009/08/19/generalized-central-limit-theorem/)
+
+White Noise
+------------
+
+White noise is a random signal which contains equal power within any frequency band with a fixed width. The width must be fixed, otherwise an unbounded white noise would require infinite energy. Here's an <a href="http://upload.wikimedia.org/wikipedia/commons/9/98/White-noise-sound-20sec-mono-44100Hz.ogg" class="internal">audio eg</a>
+
+The next diagrams show several types of white noise, each one assuming iid samples with a specific probability distribution.
+
+```{r}
+n  <- 1000 # number of samples
+xs <- seq(-5,5,len=250)
+
+set.seed(101)
+```
+
+```{r}
+# Gaussian
+par(mfrow=c(1,2))
+plot(xs, dnorm(xs,0,2.5), type="l", xlab="x", ylab="density", col="red", lwd=2) # pdf
+norm.set <- rnorm(n,0,2.5)
+plot(1:n, norm.set, type="l", xlab="t", ylab="f(t)", main="Gaussian White Noise")
+
+```
+
+```{r}
+# Laplacian
+par(mfrow=c(1,2))
+library(VGAM)
+laplace.set <- rlaplace(n, 0, 1) # pdf
+plot(xs, dlaplace(xs, 0, 1), type="l", xlab="x", ylab="density", col="red", lwd=2)
+plot(1:n, laplace.set, type="l", xlab="t", ylab="f(t)", main="Laplacian White Noise")
+```
+
+```{r}
+# Uniform
+par(mfrow=c(1,2))
+plot(xs, dunif(xs,-2,2), type="l", xlab="x", ylab="density", col="red", lwd=2) # pdf
+unif.set <- runif(n,-2,2)
+plot(1:n, unif.set, type="l", xlab="t", ylab="f(t)", main="Uniform White Noise")
+```
+
+Finding a bell shaped curve does not mean we are dealing with a normal distribution. The Cauchy distribution is also bell shaped (there are much more egs) however, like many others, the Cauchy distribution has much heavier tails than the Gaussian. Notice the huge spikes in the following diagram. They are useful to model systems with catastrophic events (egs, Stock Exchange crashes, biological extinctions).
+
+```{r}
+# Cauchy (oh heavy tails!)
+par(mfrow=c(1,2))
+plot(xs, dcauchy(xs,0,1), type="l", xlab="x", ylab="density", col="red", lwd=2) # pdf
+cauchy.set <- rcauchy(n,0,1)
+plot(1:n, cauchy.set , type="l", xlab="t", ylab="f(t)", main="Cauchy White Noise")
+```
+Some relationships:
++ Dividing two Gaussian quantities gives a cauchy quantity. 
++ Applying the tangent to an uniform quantity.
+
+```{r}
+par(mfrow=c(1,2))
+norm.set2 <- rnorm(n,0,2.5)
+plot(1:n, norm.set/norm.set2, type="l", xlab="t", ylab="f(t)", main="Ratio of Two Gaussians")
+plot(1:n, tan(unif.set), type="l", xlab="t", ylab="f(t)", main="Tangent of Uniform")
+```
+
+Stable Distributions
+----------
+
+Gaussians and Cauchy distributions are examples of [stable distributions](http://en.wikipedia.org/wiki/Stable_distribution), ie, a linear combination of two independent sequences of the variable has the same distribution, up to location and scale parameters. So, a sum of two Gaussians is a Gaussian, a sum of two Cauchy is still a Cauchy. These distributions follow a [generalized central limit theorem](http://en.wikipedia.org/wiki/Stable_distribution#A_generalized_central_limit_theorem) (GCLT).
+
+> [The generalized central limit theorem] states that a sum of independent random variables from the same distribution, when properly centered and scaled, belongs to the domain of attraction of a stable distribution. Further, the only distributions that arise as limits from suitably scaled and centered sums of random variables are stable distributions. [Wolfram Dem Project](http://demonstrations.wolfram.com/GeneralizedCentralLimitTheorem/)
+
+If the variance is finite, the Central Limit Theorem (CLT) holds for iid samples. If the variance is infinite the GCLT *might* hold. However, if it holds, the aggregation sequence will surely converge to a stable distribution. These distributions (except for the limit case of the Gaussian) have heavy tails which btw are asymptotically proportional to the tails of a power law distribution. Notice that this do not make the stable distributions power laws, just that their tails behave like the tails of power laws.
+
+Stable distributions can be specified by four parameters. One of the four parameters is the exponent parameter $0 < \alpha \leq 2$. Parameter $\alpha$ controls the thickness of the distribution tails. For $\alpha = 2$ we got the Gaussian. For $\alpha < 2$, the PDF is asymptotically proportional to $|x|^{-\alpha-1}$ and the CDF is asymptotically proportional to $|x|^{-\alpha}$ as $x \rightarrow \pm\infty$.
+
+There are only three stable distributions with a closed form [characteristic function](http://en.wikipedia.org/wiki/Characteristic_function_(probability_theory)) (the Fourier transform of its pdf, which is just another way to describe a random variable): those are the stable distributions with values $\alpha=2$, the Gaussian; $\alpha=1$, the Cauchy; and $\alpha=1/2$, the [Levy distribution](http://en.wikipedia.org/wiki/L%C3%A9vy_distribution)).
+
+The closer to zero, the higher the peaks. It's no surprise that the Levy white noise shows 'catastrophic' events of a larger scale than even the Cauchy:
+
+```{r}
+library(stabledist)
+
+par(mfrow=c(1,2))
+plot(xs, dstable(xs,alpha=0.5,beta=0), type="l", xlab="x", ylab="density", col="red", lwd=2) # pdf
+levy.set <- rstable(n,alpha=0.5,beta=0)    # beta is the skewness
+plot(1:n, levy.set , type="l", xlab="t", ylab="f(t)", main="Levy White Noise")
+```
+
+Dispersion does not imply variance (!)
+-----------------
+
+Dispersion is a measure of how data scatter around the central point, it is a symptom of uncertainty. This notion is usually captured by the standard deviation (the sqrt of variance), a deeply rooted assumption of our scientific worldview that can lead us astray in a context where it does not hold.
+
+Stable distributions (and models based on them) challenge this assumption since these are distribution with _infinite variance_ but finite dispersion! Dismissing these distributions because either infinite variance is physically impossible or because infinite variance does not convey information are, in general, both errors of jugdment. Making a Gaussian wider and wider to model vaguer and vaguer knowledge is not the same as having a heavy tail distribution with infinite variance (like the egs shown above).
+
+Variance gives much importance to outliers by squaring their distance to the mean. This results in divergence when evaluating the data of a stable non-Gaussian distribution. As a counter eg, the next diagrams show three distributions all with infinite variance but with different dispersions. Dispersion is a more elusive concept than expected...
+
+```{r}
+colors <- c("violet","blue","red")
+gammas <- c(.5,1,2) # gamma is the distribution scale parameter
+
+layout(matrix(c(1,1,1,2,3,4), 3, 2))
+plot(xs, dstable(xs,alpha=1.8,beta=0, gamma=0.5), type="n", main="PDFs for alpha = 1.8", xlab="t", ylab="f(t)")
+for (i in 1:length(gammas)) {
+  lines(xs, dstable(xs,alpha=1.8,beta=0, gamma=gammas[i]), type="l", lwd=2, col=colors[i])
+}
+par(mar=c(0.25,1.5,0.25,1.5))
+for (i in 1:length(gammas)) {
+  plot(1:n, rstable(n,,alpha=1.8,beta=0, gamma=gammas[i]) , type="l", col=colors[i], ylab="", xlab="")
+}
+```
+
+T Student
+-------
+
+Between the Gaussian and the Cauchy, there's the t-distribution. In the context of Student t distribution, the Cauchy corresponds to the knowledge of just one sample, while the Gaussian to the knowledge of an infinite amount of samples. Thus, the Student t has an extra parameter, the degrees of freedom, that reflects our skepticism from drawing conclusions from small sets of data, ie, the less data we know, the fatter should be the tail.
+
+```{r, height = 12 }
+colors <- c("violet","blue","green","red","orange")
+dfs    <- c(1,3,5,10,Inf) # the first number corresponds to the Cauchy (violet curve), the last to the Normal (orange curve)
+
+layout(matrix(c(1,1,1,1,1,2,3,4,5,6), 5, 2))
+plot(xs, dt(xs, df=Inf), type="n", main="Student t (for different degrees of freedom)", xlab="t", ylab="f(t)")
+for (i in 1:length(dfs)) {
+  lines(xs, dt(xs,df=dfs[i]), type="l", lwd=2, col=colors[i])
+}
+par(mar=c(0.25,1.5,0.25,1.5))
+for (i in 1:length(dfs)) {
+  plot(1:n, rt(n,df=dfs[i]) , type="l", col=colors[i], ylab="", xlab="")
+}
+```
+
+Colored Noise
+=============
+
+If the [frequency spectrum](http://en.wikipedia.org/wiki/Signal_spectrum) of a noise is not flat, then we have non-white noise. White noise does not show correlations among different frequencies $f$. Non-white noise include (perhaps low, perhaps high) correlations between frequencies, it is signal with structure. 
+
+Pink Noise
+-----------
+
+Pink noise has its signal falling with the inverse of the frequency, ie, it's proportional to $1/f$. That's why pink noise is also called $1/f$-noise. Sometimes this term is used to refer to any noise following $$S(f) \propto \frac{1}{f^\alpha}$$ where $\alpha \in ]0,2[$. Notice that the proportionality to $1/f$ holds for 1-D systems. For d dimensions, the proportionality is to $1/f^d$.
+
+Pink noise has been used to model an enormous amount of scientific fields (start at [wikipedia](http://en.wikipedia.org/wiki/Pink_noise) for more information). To the human ears it is pink noise that sounds like white noise.
+
+```{r}
+library(tuneR)
+library(GeneCycle)
+
+harmonics = 1:10000 # in Hz
+pink.set <- noise(kind = "pink")@left
+f.data <- GeneCycle::periodogram(pink.set)
+
+par(mfrow=c(1,2))
+plot(1:n, pink.set[1:n] , type="l", xlab="t", ylab="f(t)", main="Pink Noise")
+plot(f.data$freq[harmonics]*length(pink.set), 
+     f.data$spec[harmonics]/sum(f.data$spec), 
+     xlab="Harmonics (Hz)", ylab="Amplitute Density", type="l", log="xy")
+```
+
+Brown Noise
+-----------
+
+Brown noise has its frequency spectrum fall faster than pink noise, it is proportional to $1/f^2$ (again, in 1-D systems). Often Brownian process produce brown noise. While pink noise decreases 3 decibels per octave (ie, each doubling frequency), brown noise decreases 6 dB per octave. Some processes that denote pink noise, produce brown noise at high frequencies (possible because the energetic demands to maintain the $1/f$ proportionality cannot be satisfied).
+
+```{r}
+brown.set <- noise(kind = "power", alpha=2)@left
+f.data <- GeneCycle::periodogram(brown.set)
+
+par(mfrow=c(1,2))
+plot(1:n, brown.set[1:n] , type="l", xlab="t", ylab="f(t)", main="Brown Noise")
+plot(f.data$freq[harmonics]*length(brown.set), 
+     f.data$spec[harmonics]/sum(f.data$spec), 
+     xlab="Harmonics (Hz)", ylab="Amplitute Density", type="l", log="xy")
+```
+
+An intermediate noise is Red Noise which follows $$S(f) \propto \frac{1}{f^{1.5}}$$
+
+Black Noise
+-----------
+
+For $\alpha > 2$ we have black noise, or silence noise. This is noise that has a frequency spectrum of predominantly zero power level over all frequencies except for a few narrow bands or spikes. 
+
+Eg for $\alpha = 3$:
+
+```{r}
+black.set <- noise(kind = "power", alpha=3)@left
+f.data <- GeneCycle::periodogram(black.set)
+
+par(mfrow=c(1,2))
+plot(1:n, black.set[1:n] , type="l", xlab="t", ylab="f(t)", main="Black Noise")
+plot(f.data$freq[harmonics]*length(brown.set), 
+     f.data$spec[harmonics]/sum(f.data$spec), 
+     xlab="Harmonics (Hz)", ylab="Amplitute Density", type="l", log="xy")
+
+# btw, you can save these as WAV files to listen with your media:
+# writeWave(noise(kind = "white",          duration=4, xunit="time"), "white.wav", extensible=FALSE)
+# writeWave(noise(kind = "pink",           duration=4, xunit="time"), "pink.wav",  extensible=FALSE)
+# writeWave(noise(kind = "power", alpha=2, duration=4, xunit="time"), "brown.wav", extensible=FALSE)
+# 
+# writeWave(sine(440, duration=4, xunit="time"),                      "A4.wav",    extensible=FALSE)
+```
+
+We can compare these diagrams with, say, those concerning Gaussian white noise:
+
+```{r}
+f.data <- GeneCycle::periodogram(norm.set)
+
+par(mfrow=c(1,2))
+plot(1:n, norm.set[1:n] , type="l", xlab="t", ylab="f(t)", main="Gaussian White Noise")
+plot(f.data$freq[harmonics]*length(norm.set), 
+     f.data$spec[harmonics]/sum(f.data$spec), 
+     xlab="Harmonics (Hz)", ylab="Amplitute Density", type="l", log="xy")
+```
+

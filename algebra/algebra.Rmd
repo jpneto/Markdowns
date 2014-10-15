@@ -1,0 +1,883 @@
+---
+title: "Algebra"
+author: "João Neto"
+date: "September 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+# opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+#                tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+#                fig.width = 5, fig.height = 5, fig.align='center')
+# options(width = 300, warning = FALSE, message=FALSE)
+```
+
+Refs:
+
++ Gilbert Strang - **Introduction to Linear Albegra** (check his MIT 18.06 [videos](https://www.youtube.com/playlist?list=PLE7DDD91010BC51F8) & [recitations](https://www.youtube.com/playlist?list=PL221E2BBF13BECF6C))
+
+Help Functions
+------------
+
+```{r, echo=FALSE, eval=FALSE}
+# plots a sequence of 2d vectors
+# v is a R vector of length 4n, each quadruple contains the x0,y0,x1,y1 coordinates of a 2d vector
+plot2d <- function(v, col="red", reset=FALSE) {
+  if (reset)
+    plot(NA, xlim=c(min(v)*0.75,max(v)*1.25), ylim=c(min(v)*0.75,max(v)*1.25), 
+         xlab="X", ylab="Y")
+  elements <- matrix(v, ncol=4, byrow=TRUE)
+  mapply("arrows", elements[,1], elements[,2], elements[,3], elements[,4], col=col, angle=15, length=0.2)
+  invisible()  # does not show output
+}
+
+vecs <- c(0,0,1,2,
+          0,0,2,1,
+          0,0,3,3)
+plot2d(vecs, col=1:3, reset=TRUE)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+# http://cran.r-project.org/web/packages/rgl/rgl.pdf
+# http://scs.math.yorku.ca/index.php/MATH_6627_2012-13_Practicum_in_Statistical_Consulting/R_tutorials/rgl_tutorial
+library(rgl)
+
+set.seed(314)
+x <- rnorm(1000)
+y <- rnorm(1000)
+z <- rnorm(1000)
+open3d(windowRect = c(00,00, 1000, 5760) )
+plot3d(x, y, z, cex=1.5, size=4, type="s", col=rainbow(1000) )
+```
+
+For visual purposes we'll use package `plot3D`
+
+```{r, warning=FALSE}
+library(plot3D)
+
+arrows2D(x0=c(0,0,0), y0=c(0,0,0), x1=1:3, y1=c(2,1,3), col=1:3)
+
+plot2d <- function(v, col="red", reset=FALSE) {
+  if (reset)
+    plot(NA, xlim=c(min(v)*0.75,max(v)*1.25), ylim=c(min(v)*0.75,max(v)*1.25), 
+         xlab="X", ylab="Y")
+    arrows2D(x0=v[c(T,F,F,F)], y0=v[c(F,T,F,F)], x1=v[c(F,F,T,F)], y1=v[c(F,F,F,T)], col=col, add=TRUE)
+  invisible()  # does not show output
+}
+
+vecs <- c(0,0,1,2,
+          0,0,2,1,
+          0,0,3,3)
+plot2d(vecs, col=1:3, reset=TRUE)
+
+arrows3D(x0 = runif(10), y0 = runif(10), z0 = runif(10),
+         x1 = runif(10), y1 = runif(10), z1 = runif(10),
+         colvar = 1:10, code = 1:3, main = "Test arrows3D", colkey = FALSE)
+ 
+x <- c(0,1,1,0)
+y <- c(0,0,1,1)
+z <- c(0,1,1,0)
+border3D(0,0,0,1,1,1,theta=30, phi=45, col="lightgray", box=T)
+polygon3D(x, y, z, col="white", border="blue", alpha=0.5, lwd=2, add=T)
+arrows3D(0,0,0,    .5,.5,.5,   col="blue", add=T)
+arrows3D(.5,.5,.5, .32,.5,.68, col="black", add=T)
+arrows3D(0,0,0,    .32,.5,.68, col="red", lty=2, add=T)
+```
+
+Vectors
+-------
+
+In R, algebra vectors can be represented by the datatype vector or matrix. Herein, we use integers vectors as examples:
+
+```{r}
+vector1 <- c(1,2) 
+vector1
+# if vector1 is used in algebra operations, it will be converted into a nx1 matrix, just like the following:
+vector2 <- matrix(c(3,4), ncol=1)
+vector2
+plot2d(c(0,0,vector1,0,0,vector2), col=1:2, reset=TRUE)
+# Scalar product:
+vector3 <- 0.5 * vector2
+plot2d(c(0,0,vector3), col="green")
+```
+
+To transpose, use `t()`:
+
+```{r}
+vector3 <- t(vector1)
+vector3
+```
+
+The basic operations are vector sum $v + w$ and scalar multiplication $c v$, with allows for linear combinations of vector, like $c v + d w$.
+
+The dot product of two vectors is defined as $v \cdot w = \sum_i v_i w_i$. 
+
+The norm (the distance to the origin) of $v$ is $\lVert v \rVert = \sqrt{v \cdot v}$
+
+```{r}
+# Sum of vectors:
+v1 <- matrix(c(1,2,3,4),ncol=1)
+v2 <- matrix(c(5,6,7,8),ncol=1)
+v1 + v2
+# The dot product, aka inner product:
+sum( v1*v2 )
+# norm of a vector 
+v.norm <- function(v) {
+  sqrt(sum(v*v))
+}
+v.norm(v1)
+# check if two vectors are orthogonal, ie, if their dot product is zero
+is.orthonormal <- function(v1,v2) {
+  sum(v1*v2)==0
+}
+is.orthonormal(v1,v2)
+is.orthonormal(c(1,1),c(-1,1))
+```
+
+The dot product can be used to find the angle $\theta$ made by non-zero vectors $u$ and $v$:
+$$\frac{u \cdot v}{\lVert u \rVert \lVert v \rVert} = cos~\theta$$
+
+Since $|cos \theta| \leq 1$ we have two inequalities:
+
++ Schwarz Inequality $|v \cdot w| \leq \lVert v \rVert \lVert w \rVert$
+
++ Triangle Inequality $\lVert v + w \lVert \leq \lVert v \rVert + \lVert w \rVert$
+
+Matrices
+--------
+
+We'll use R matrix datatype to represent matrices. Some basic operations:
+
+```{r}
+A <- matrix(1:9,ncol=3)
+A
+B <- matrix(11:19,ncol=3,byrow=TRUE)
+B
+matrix(0,nrow=3,ncol=5) # eg of zero matrix
+# Matrix dimension
+dim(A)
+# Scalar Multiplication
+7*A
+c(1,2,3)*A
+# Sum of matrices
+A+B
+# Multiplication of matrix and vector (dimensions must be correct)
+v <- matrix(c(1,2,3),ncol=1)
+A %*% v  # 3x3 by 3x1: ok
+# v %*% A  # 3x1 by 3x3: nok
+# Multiplication of matrices
+A %*% B
+B %*% A
+# Identity matrix
+diag(3) 
+# Diagonal matrix
+diag(1:4)
+# Get the diagonal of a matrix
+diag(A)
+# Get the trace (the sum of the diagonal values)
+sum(diag(A))
+# Get the transpose
+t(A)
+# Get the determinant
+det(A)
+det(diag(1:3))
+```
+
+Some important rules:
+
+$$AB \neq BA$$
+$$c(A+B) = cA + cB$$
+$$(AB)C = A(BC)$$
+$$A(B+C) = AB + AC$$
+$$\alpha AB = A(\alpha B)$$
+$$AB = AC \nRightarrow B=C$$
+$$(A+B)^T = A^T + B^T$$
+$$(AB)^T = B^TA^T$$
+$$u \cdot v = u^Tv$$
+
+We'll denote $A^n = AA^{n-1}$, with $A^0=I$
+Matrix $A$ is **symmetric** iff $A=A^T$
+
+Let $R$ be any matrix, then both $R^TR$ and $RR^T$ are symmetric matrices.
+
+Linear Equations
+-------
+
+When we know matrix $A$ and vector $x$ we can compute its product $Ax = b$ (given adequate dimensions).
+What if we know $A$ and $b$ and wish to find $x$?
+
+Ie, solving systems of linear equations like
+
+$$x_1 = 1$$
+$$-x_1 + x_2 = 2$$
+$$-x_2 + x_3 = 3$$
+
+If $A$ has an inverse $A^{-1}$, it's just $x = A^{-1} b$
+
+The inverse $A^{-1}$ is a matrix such that $A^{-1} A = A A^{-1} = I$ with $I$ being the appropriate identity matrix.
+
+```{r}
+# The matrix of the previous equations
+A <- matrix(c( 1, 0, 0,
+              -1, 1, 0,
+               0,-1, 1), ncol=3, byrow=TRUE)
+A._1 <- solve(A) # get the inverse
+A._1
+A %*% A._1
+A._1 %*% A
+# Solve x = A^-1 b eg
+b <- matrix(c(1,2,3),ncol=1)
+b
+x <- A._1 %*% b
+x
+# just to check:
+A %*% x
+# A faster way to compute x
+solve(A,b)
+```
+
+Not every $A x = b$ will have a solution.
+
+For instance:
+
+```{r, error=TRUE}
+A <- matrix(c(1, 0, 1,
+             -1, 1, 0,
+              0,-1,-1), ncol=3, byrow=TRUE)
+b <- matrix(c(-1,0,1),ncol=1)
+solve(A,b)
+```
+
+Why? Because the three colums of $A$, say $u,v,w$ does not permit a linear combination $cu+dv+ew$ that fills the entire space $\mathbb{R}^3$, it just fills a plane within the space. In this specific case, the vector $b=(-1,0,1)$ is out of that plane, making the system unsolvable.
+
+This is the result that the 3rd vector can be defined as the sum of the first two, $w = u + v$, ie, $w$ is in the plane defined by $cu+dv$ (in this case, $c=d=1$)
+
+note: $Ax$ is seen as a combination of columns of $A$ weightned by the components of vector $x$, ie, $$Ax = x_1 \times (first~column~of~A) + \ldots + x_n \times (nth~column~of~A)$$
+
+Def: A vector **not** a linear combination of other vectors, is said to be **independent** from them.
+
+In the case of matrices 3x3 with column vector $u,v,w$, if they are independent then the only solution of $Ax=b$ is for $x=0$ (the zero vector). If they are not independent there are other solutions.
+
++ If $A$ consists of independent columns, then $A$ is **invertible**.
+
++ If $A$ has some dependent columns, then $A$ is **singular**.
+
+This 2nd bullet implies that if there are a non zero $x$ that solves $Ax=b$ then $A$ is not invertable.
+
+Some properties
+
+$$(AB)^{-1} = B^{-1}A^{-1}$$
+$$(ABC)^{-1} = C^{-1}B^{-1}A^{-1}$$
+$$A~is~symmetric \iff A^{-1}~is~symmetric$$
+$$(A^{-1})^T = (A^T)^{-1}$$
+
+Elimination
+----------
+
+Elimination is an process used to solve linear equations. It produces a upper triangular matrix $U$ (all zeros below the diagonal). This resulting matrix can be used to solve the system by back substitution, ie, find the value of the last component to compute the penultimate, and so on... The values of the diagonal of $U$ are called the **pivots** which are always non zero.
+
+An eg:
+
+```{r, warning=FALSE}
+library(matrixcalc)
+
+A <- matrix(c(1,-2,
+              2, 2), ncol=2, byrow=TRUE)
+
+lu.decomposition( A )$U       # the upper triangle matrix U
+diag(lu.decomposition( A )$U) # the pivots
+```
+
+This process is not garanteed to work, some element in the diagonal might not have a pivot:
+
+```{r}
+library(matrixcalc)
+
+A <- matrix(c(1,-2,     # notice how the 2nd row is the triple of the 1st one
+              3,-6), ncol=2, byrow=TRUE)
+
+lu.decomposition( A )$U       # the upper triangle matrix U
+```
+
+In these cases, the system might have no solution of an infinity of them (depends on vector $b$).
+
+**Say $A$ is a square nxn matrix. After elimination there are $n$ pivots iff $A$ is invertable.**
+
+The product of the pivots is equal to the determinant of the original matrix:
+
+```{r}
+A <- matrix(c(1,-2,
+              2, 2), ncol=2, byrow=TRUE)
+
+det(A)
+prod(diag(lu.decomposition( A )$U))
+```
+
+This also means that when a determinant is zero, the matrix is not invertable (since at least one of the pivots must be zero).
+
+Some other properties of the determinant:
+
++ The determinant of an identity matrix is 1
+
++ The determinant changes sign when two rows are exchanged
+
++ The determinant does not change if a row is multiplied by a scalar, or if two rows are sumed
+
++ The determinant is a linear function of each row separately
+
+Eg:
+
+$$
+\left| \begin{array}{cc}
+a & b \\
+c & d \end{array} \right|
++
+\left| \begin{array}{cc}
+a' & b' \\
+c & d \end{array} \right|
+=
+\left| \begin{array}{cc}
+a+a' & b+b' \\
+c & d \end{array} \right|
+$$
+
++ The abs(determinant) is the volume of the n-dimensional box its column (or row) vectors define
+
++ If two rows of $A$ are equal or one row has all zeros, then $|A|=0$
+
++ If $A$ is a triangular matrix, the determinant is the product of its diagonal values
+
++ If $A$ is singular the determinant is zero; if $A$ is invertable the determinant is non-zero
+
++ $|AB| = |A||B|$
+
++ $|A| = |A^T|$
+
+
+The matrix $A$ can be decomposed into two triangular matrices $A=LU$. Matrix $U$ is the upper triangular with the pivots, and $L$ is a lower triangular which its invert resumes which rows were combined in $A$ to achieve $U$.
+
+Eg:
+
+```{r}
+A
+lu.decomposition( A )
+solve(lu.decomposition( A )$L) # L^-1
+```
+
+In this case, the non diagonal element of $L$ is $L_{21}=-2$ which means that the 1st row was doubled at subtracted to the 2nd row in order to make $U$ out of $A$.
+
+Sometimes it is needed to swap rows for the elimination to work. This can be done with a permutation matrix that swaps rows of $A$. Let's swap the two rows of the previous eg (notice that `lu.decomposition` does not swap automatically...)
+
+```{r, error=TRUE}
+A <- matrix(c(0, 2,
+              1,-2), ncol=2, byrow=TRUE)
+lu.decomposition( A )
+
+P <- matrix(c(0, 1,  # permutation matrix
+              1, 0), ncol=2, byrow=TRUE)
+lu.decomposition( P %*% A )
+
+# other function that does everything
+library(Matrix)
+result <- expand(lu(A))
+result
+as.matrix(result$U)
+```
+
+So this decomposition can be stated in the following formula $$PA=LU$$
+
+note: for all permutation matrices, $P^T=P^{-1}$
+
+If $A$ is symmetric there is also the following decomposition $A= LDL^T$ where $D$ is a diagonal matrix. This requires less space to save the decomposition.
+
+Vector Spaces & Subspaces
+---------------
+
+**A vector space is a set of vectors plus rules for vector addition and scalar product. **
+
+Examples of vector spaces are $\mathbb{R}^n$, $\mathbb{F}$ (the vector set of all real functions), and $\mathbb{M}_{2,2}$ (the vector set of all 2 by 2 matrices). A subset of $\mathbb{F}$ (which is infinite-dimensional) is $\mathbb{P}_n$ the vector space of polynomials of degree $n$.
+
+A **subspace** is a subset of a space that is itself a space, and must include the vector ${\bf 0}$. $\mathbb{P}_n$ is a subspace of $\mathbb{F}$; a line or a plane that intersect the origin are subspaces of $\mathbb{R}^3$. A subspace that cointains vector $u,v$ must contain all linear combinations $cu+dv$.
+
+### Column Space of A
+
+When we try to solve $Ax=b$ if $A$ is not invertable, the system will be solved for some $b$ and not for others. The set of vectors $b$ for which there is a solution are called the **column space** of $A$, notation, $C(A)$. This subspace consists of all linear combinations of the columns of $A$, ie, giving all possible values in vector $x$. So, $Ax=b$ is solvable iff $b \in C(A)$.
+
+For a matrix $A$ with dimension $m\times n$, **$C(A)$ is a subspace of $\mathbb{R}^m$** (each column has *m* components). Notice that ${\bf 0} \in C(A)$ since $Ax=0$ is always possible with $x={\bf 0}$.
+
+### Null Space of A
+
+The null space of $A:m\times n$, $N(A)$, consists of all solutions $Ax=0$. This is a subspace of $\mathbb{R}^n$. $N(A)$ includes all vectors $x$ such that $Ax=0$.
+
+Eg, the null space of 
+
+$$\Big[ \matrix{ 1 & 2 \cr 3 & 6 } \Big]$$
+
+is
+
+$$c \Big[ \matrix{ -2 \cr 1 } \Big]$$
+
+This vector (or a scalar product of it) is called a special solution.
+
+```{r}
+library(MASS)
+
+A <- matrix(c(1,2,3,6), ncol=2, byrow=T)
+N.A <- Null(t(A))   # find the null space
+N.A / abs(min(N.A))
+round( A %*% N.A, 5)
+
+B <- matrix(c(1,2,2,4,0,2,0,4), ncol=4, byrow=T)
+N.B <- Null(t(B))
+N.B / abs(min(N.B))  # N(B) has two special solutions
+round( B %*% N.B, 5)
+```
+
+If $A$ is invertable, then $N(A) = \{ 0 \}$ 
+
+### Matrix Rank
+
+The rank of a matrix, $r$, is the number of its pivots.
+
+```{r, warning=FALSE}
+A <- matrix(c(1,1,2,4,
+              1,2,2,5,
+              1,3,2,6), ncol=4, byrow=T)
+expand(lu(A))$U                # it has two pivots
+r <- as.integer(rankMatrix(A)) # from library Matrix
+r
+```
+
+In other wrods, the rank of a matrix is the number of independent *rows* of $A$. This number is the dimension of the column space. The dimension of the null space is given by $n-r$.
+
+A matrix $A:m\times n$ with full row rank ($m=r$) has these properties:
+
++ All rows have pivots
+
++ Ax=b has a solution for every $b$ (if $m \lt n$ there are infinite solutions, if $m \gt n$ there are 0 or 1 solution)
+
++ $C(A) = \mathbb{R}^m$
+
++ There are $n-r$ special solutions in $N(A)$
+
++ The $m$ rows are linearly independent
+
++ If $A$ is square ($n=m$) then $A$ is invertable and there is one solution for each $b$
+
+### Independence
+
+Def: The columns of $A:m\times n$ are **linearly independent** when the only solution to $Ax=b$ is $x=0$, ie, rank($A$)=$n$
+
+When $N(A)=\{0\}$ the columns of $A$ are linearly independent.
+
+A set of vectors $v_1\ldots v_n$ are linearly independent when the only linear combination $c_iv_i=0$ is when $c_i=0$. Notice that if $v_i \in \mathbb{R}^m$, then if there are $n \gt m$ vectors $v_i$ they cannot all be independent, at least one of them is the linear combination of the rest.
+
+Def: A set of vectors **spans** a space if their linear combinations fill the space.
+
+The columns of $A$ span $C(A)$.
+
+The rows of $A$ span $C(A^T)$, which is called the *row space*.
+
+### Basis & Dimension
+
+Def: A **basis** for a vector space is a sequence of vectors (the basis vectors) which are linearly independent and span that space.
+
+For each vector, *there is only one way* to write it as a combination of the basis vectors.
+
+The columns of the identity matrix $I_n$ represent the *standard basis* for $\mathbb{R}^n$.
+
+The columns of every invertible matrix $n\times n$ give a basis for $\mathbb{R}^n$! Every basis as exactly the same number of vectors.
+
+Def: The **dimension** of a space is the number of vectors in every basis for that space.
+
+About the four subspaces of a matrix $A:m\times n$ with rank $r$:
+
++ The column space $C(A)$ is all $Ax$, a subspace of $\mathbb{R}^m$ with dimension $r$
+
++ The row space $C(A^T)$ is all $A^Ty$, a subspace of $\mathbb{R}^n$ with dimension $r$
+
++ The null space $N(A)$ is all $x, Ax=0$, a subspace of $\mathbb{R}^n$ with dimension $n-r$
+
++ The left null space $N(A^T)$ is all $y, A^Ty=0$, a subspace of $\mathbb{R}^m$ with dimension $m-r$
+
+
+Orthogonality
+----------------
+
+Def: Two vectors $u,v$ are **orthogonal** if they dot product $u\cdot v$ is zero ($u^Tv=0$). Notation $u \perp v$.
+
+Two subspaces $U,V$ are orthogonal, $U \perp V$, if every $u \in U, v \in V$, $u,v$ are orthogonal.
+
+For a matrix $A$, $C(A^T) \perp N(A)$ inside $\mathbb{R}^n$ and $C(A) \perp N(A^T)$ inside $\mathbb{R}^m$.
+
+Def: The **orthogonal complement** of a subspace $V$, $V^{\perp}$, contains all vectors orthogonal to $V$.
+
+Also, $C(A^T)$ and $N(A)$ are orthogonal complements, as well as $C(A)$ and $N(A^T)$.
+
+Projections
+------------
+
+Def: A **projection matrix** is every symmetric matrix $P$ where $P^2 = P$.
+
+The use of projection matrices is to project a vector $b$ onto a subspace, producing the projection vector $p = Pb$.
+
+In the next eg, the vector b is projected into the XY plane, producing vector $p$:
+
+```{r}
+border3D(0,0,0,1,1,1,theta=30, phi=15, col="lightgray", box=T)
+arrows3D(0,0,0, .5,.5,.5,   col="blue", add=T)
+text3D(.51,.51,.51, "b", col="blue", add=T)
+arrows3D(0,0,0, .5,.5, 0,   col="black", add=T)
+text3D(.51,.51,0, "p=Pb", col="black", add=T)
+arrows3D(.5,.5,0,.5,.5,.5,   col="red", lty=2, code=0, add=T)
+```
+
+For this projection, the projection matrix $P$ is 
+
+$$\left[ \begin{array}{ccc}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 0 \end{array} \right]$$
+
+The interesting problem is: given $A$ invertable, find the projection $p \in C(A)$ closest to $b$ and return $\hat{x}$ such that $A\hat{x}=p$. The vector $\hat{x}$ is the closest solution we'll find for the original -- and possibly unsolvable -- problem $Ax=b$.
+
+The vector $e=b-p$ is perpendicular to the subspace, and it's called the *error*. The distance of $b$ to the subspace is $\lVert e \rVert$.
+
+The next eg shows a projection onto a column space, which is a plane, as a subspace of $\mathbb{R}^3$:
+
+```{r}
+border3D(0,0,0,1,1,1,theta=30, phi=45, col="lightgray", box=T)
+polygon3D(c(0,1,1,0), c(0,0,1,1), c(0,1,1,0), col="white", border="black", alpha=0.5, lwd=2, add=T)
+arrows3D(0,0,0,    .5,.5,.5,   col="black", add=T)
+text3D(.51,.51,.51, "p", col="black", add=T)
+arrows3D(.5,.5,.5, .32,.5,.68, col="red", lty=3, add=T)
+text3D(.33,.51,.71, "e", col="red", add=T)
+arrows3D(0,0,0,    .32,.5,.68, col="blue", add=T)
+text3D(.27,.51,.71, "b", col="blue", add=T)
+```
+
+As seen, the error vector $e=b-p=b-A\hat{x}$ is perpendicular to all vector columns of $A$. So, for each column $a_i$, $a_i^T(b-A^T\hat{x})=0$. In matrix form: $$A^T(b-A^T\hat{x})=0 \iff A^TA\hat{x} = A^Tb$$
+
+The matrix $A^TA$ is symmetric, and since the $a_i$ are independent, it has an inverse, so $\hat{x}$ can be found: $$\hat{x} = (A^TA)^{-1}A^Tb$$
+
+The projection $p = A\hat{x}$ is $$p = A(A^TA)^{-1}A^Tb$$
+and the projection matrix $P$, since $p=Pb$ is $$P = A(A^TA)^{-1}A^T$$
+
+This technique can be used to perform least square approximations, eg:
+
+We wish for closest line that passes thru the points (1,1.1), (2,1.4), (3,2.2) and (5,2.9). This line will have equation $x_1 + x_2t = b$, with parameters $x_1,x_2$. We form a matrix with the values $1$ (for $x_1$) and $t$ (for $x_2$) and assign the vector $b$ with the values of the 2nd coordinate:
+
+```{r}
+A <- matrix(c(1.0, 1.0,
+              1.0, 2.0,
+              1.0, 3.0,
+              1.0, 5.0), ncol=2, byrow=T)
+b <- matrix(c(1.1,1.4,2.2,2.9), ncol=1)
+plot(A[,2], b, pch=19, xlim=c(0,6), ylim=c(0,4))
+```
+
+Notice that this sytem does not have an exact solution $Ax=b$. How can we find a solution with the minimum possible error? The best estimate, $\hat{x}$, which give us a result $A\hat{x}$ closest to $b$ can be found by geometry (find the vector with 90º angle and intersect with the subspace), by Calculus (set the derivate of the error to zero), by computation (use gradient descent based on the error derivate) or, herein, by Algebra (using the projection matrix):
+
+```{r}
+x.hat <- solve(t(A) %*% A) %*% t(A) %*% b
+x.hat
+# now let's plot it
+plot(A[,2], b, pch=19, xlim=c(0,6), ylim=c(0,4))
+abline(x.hat[1], x.hat[2], col="red", lwd=2)
+```
+
+Notice that this also works with more complex equations, *if the parameters are linear* (ie, they don't multiply themselves, or are subject to some function). 
+
+We can fit, say, with a polynomial. In this following eg we modeled a dataset $(a,b)$ with a cubic polynomial $b = x_3 a^3 + x_2 a^2 + x_1 a + x_0$ (I'm using x_i as the parameters here, because of vector $x$):
+
+```{r}
+as <- seq(-4,2,.1)
+n <- length(as)
+bs <- as^3 + 2*as^2 - 4 + runif(n,-3,3) # some unknown source with noise
+plot(as,bs)
+```
+
+We construct $A$ with the values of $a$ for the terms of our model, one column for the constant, one for the linear term, one for the quadratic term and one for the cubic term:
+
+```{r}
+A <- matrix(c(rep(1,n), as, as^2, as^3), ncol=4)
+head(A)
+b <- bs
+```
+
+Now we apply the projection and plot the estimate $\hat{x}$ onto the dataset:
+
+```{r}
+x.hat <- solve(t(A) %*% A) %*% t(A) %*% b
+x.hat
+ps <- A %*% x.hat # the projections for each original b value
+plot(as,bs)
+points(as,ps,ty="l",col="red",lwd=3)
+# we could also use function curve to draw the estimate:
+curve(x.hat[4] * x^3 + x.hat[3] * x^2 + x.hat[2] * x + x.hat[1], -4, 2, col="blue", add=T)
+```
+
+### Orthogonal Bases
+
+Def: a set of vectors $q_1,\ldots,q_n$ are **orthonormal** if $q_i^Tq_j$ is zero if $i \neq j$ (orthogonal vectors) or one if $i=j$ (unit vectors). They form 
+
+An matrix $Q$ has a set of column vectors that are orthonormal.
+
+Some properties:
+
++ $Q^TQ = I$ (if $Q$ is just orthogonal, $Q^TQ =$ diagonal matrix)
+
++ If $Q$ is square, $Q^T = Q^{-1}$ and is called an *orthogonal matrix*
+
++ $\lVert Qx \rVert = \lVert x \rVert$
+
++ preserve dot products: $(Qx)^T(Qy) = x^TQ^TQy = x^TIy = x^Ty$
+
+Some famous egs:
+
++ Rotation matrices. Eg, rotate clockwise by angle $\theta$:
+
+$$\left[ \begin{array}{cc}
+cos \theta & -sin \theta \\
+sin \theta & cos \theta \end{array} \right]$$
+
++ Permutation matrices. Eg, swap 2nd and 3rd coordinates:
+
+$$\left[ \begin{array}{ccc}
+1 & 0 & 0 \\
+0 & 0 & 1 \\
+0 & 1 & 0 \end{array} \right]$$
+
++ Reflection matrices (like in a mirror) where $Q=Q^T=Q^{-1}$. Given unit vector $u$, $Q=I - 2uu^T$. Reflecting twice $Q^2 = QQ = Q^TQ = I$ returns the original values.
+
+This simplifies lots of computations. The least square problem becomes:
+
+$$\hat{x} = Q^Tb, p = Q\hat{x}, P = QQ^T$$
+
+If $Q$ is square, the basis ocuppy the entire space and the projection is the vector b itself, so $x = \hat{x} = Q^Tb = Q^-1b$. The problem has an exact solution ($p=b$ and $P=I$).
+
+The **Gram-Schmidt** process is an algorithm that translates a matrix $A$ into an orthogonal matrix $Q$ with the same column space. This result is also called the **QR decomposition**: $$A = QR$$ where $R$ is the matrix connecting $A$ and $Q$
+
+```{r, warning=FALSE}
+library(pracma)
+A <- matrix(c(0,-4, 2, 
+              6,-3,-2, 
+              8, 1,-1), 3, 3, byrow=TRUE)
+A
+gs <- gramSchmidt(A)
+gs$Q  # the correspondent orthogonal matrix
+gs$R
+gs$Q %*% gs$R 
+```
+
+In the general case, the least squares becomes $$\hat{x}=R^{-1}Q^Tb$$
+
+Let's use the previous polynomial eg:
+
+```{r}
+A <- matrix(c(rep(1,n), as, as^2, as^3), ncol=4)
+b <- bs
+gs <- gramSchmidt(A)
+x.hat <- solve(gs$R) %*% t(gs$Q) %*% b
+x.hat
+ps <- A %*% x.hat # the projections for each original b value
+plot(as,bs)
+points(as,ps,ty="l",col="red",lwd=3)
+```
+
+Eigenvalues & Eigenvectors
+----------
+
+Def: An eigenvector $x$ of $A$ is one that satisfies $Ax=\lambda x$. The value $\lambda$ is called the eigenvalue.
+
+So, an eigenvector is one that does not change direction after the transformation provided by $A$. The eigenvalue states if it stretches ($\lambda \gt 1$), shrinks ($\lambda \lt 1$) or remains the same ($\lambda = 1$).
+
+The eigenvectors of $A$ make the null space of $A-\lambda I$. If $(A-\lambda I)x=0$ has a non-zero solution, then the null space has more than the zero vector, which means $A$ is singular, and thus non invertable. This means that $\lambda$ is an eigenvalue of $A$. We can find the eigenvalues computing $|A - \lambda I|=0$ and solving the equations. In R:
+
+```{r}
+A <- matrix(c(.8,.3, 
+              .2,.7), 2, 2, byrow=TRUE)
+eigen(A)
+```
+
++ The eigenvectors of $A$ are also the same for $A^n$, while the eigenvalues become $\lambda^n$.
+
++ The product of the eigenvalues is equal the determinant
+
++ The sum of the eigenvalues is equal the trace
+
+In the previous code chunk, the trace of $A$ is $1.5$ and the determinant is $0.5$, which corresponds to eigenvalues of $1.0$ and $0.5$.
+
+A rotation matrix changes all vectors, so there cannot be real eigenvalues, it has imaginary eigenvectors.
+
+```{r}
+A <- matrix(c(cos(pi/2),-sin(pi/2), 
+              sin(pi/2), cos(pi/2)), ncol=2, byrow=TRUE)
+eigen(A)
+```
+
+A matrix $A:n \times n$ can be diagonizable in the following way: $$A = S^{-1} \Lambda S$$ where $S$ is the matrix of its eigenvectors, and $\Lambda$ is a diagonal matrix with its lambda values. This only works if there are $n$ independent eigenvectors (so the inverse of $S$ exists), ie, there are $n$ different eigenvalues (since each eigenvalue has at least an eigenvector).
+
+```{r}
+A <- matrix(c(.8,.3, 
+              .2,.7), 2, 2, byrow=TRUE)
+es <- eigen(A)
+Lambda <- diag(es$values)
+S <- es$vectors
+S %*% Lambda %*% solve(S) # recovering the matrix
+```
+
+An important consequence is that $$A^n = S \Lambda^n S-{-1}$$ so we have a quick way to power matrices (especially useful for Markov Networks).
+
+```{r}
+# Power of a matrix A^n
+# pre: A must be diagonalizable
+"%^%" <- function(A, n) 
+  with(eigen(A), vectors %*% (values^n * solve(vectors)))
+
+A %^% 100
+
+solve(A)
+A %^% -1  # works also with negative numbers!
+```
+
++ If $A^k \rightarrow 0$, when $k \rightarrow \infty$ iff all $|\lambda| \lt 1$
+
+Symmetric Matrices
+---------
+
+**Symmetric** matrices have $A=A^T$. A symmetric matrix hsa only real eigenvalues and its eigenvectors can be chosen orthogonal. This means that the eigenvector matrix $S$ becomes a orthogonal matrix $Q$, such that $Q^{-1}=Q^T$.
+
+This leads to the following theorem:
+
+**Spectral Theorem**: Every symmetric matrix has factorization $A = Q\Lambda Q^T$, with real eigenvalues in $\Lambda$ and orthonormal eigenvectors in $Q$.
+
+```{r}
+A <- matrix(c(.8,.3,.1, 
+              .2,.7,.2,
+              .5,.5,.5), 3, 3, byrow=TRUE)
+A <- A %*% t(A)  # make a symmetric matrix
+A
+es <- eigen(A, symmetric=T)
+Lambda <- diag(es$values)
+Q <- es$vectors
+Q %*% Lambda %*% solve(Q)
+```
+
+Positive Definite Matrices
+--------
+
+Def: A **positive definitive matrix** $A$ is a symmetric matrix with only positive eigenvalues. For every non-zero $x$ we have $x^TAx \gt 0$.
+
+If it has some zero eigenvalues (but not negative values) the matrix is called positive semidefinitive.
+
++ The eigenvalues are positive iff the pivots are positive
+
++ If $A,B$ are positive definitive so is $A+B$
+
++ Given $R$ (possibily rectangular), $R^TR$ is positive definite if the columns of $R$ are independent
+
+There is a connection between positive definitive matrices and ellipsoids.
+
+Eg, let's say positive definitive $A$ is,
+
+$$\left[ \begin{array}{cc}
+5 & 4 \\
+4 & 5 \end{array} \right]$$
+
+The equation $x^TAx=1$ represents an ellipsoid:
+
+$$
+\left[ \begin{array}{cc}
+x_1 & x_2  \end{array} \right] 
+\left[ \begin{array}{cc}
+5 & 4 \\
+4 & 5 \end{array} \right] 
+\left[ \begin{array}{c}
+x_1 \\
+x_2 \end{array} \right] 
+=
+5x_1^2 + 8x_1x_2 + 5x_2^2 = 9 \big( \frac{x_1+x_2}{\sqrt{2}}^2 \big) + 1 \big( \frac{x_1-x_2}{\sqrt{2}}^2 \big) = 1
+$$
+
+```{r}
+A <- matrix(c(5,4,
+              4,5), 2, 2, byrow=TRUE)
+es <- eigen(A, symmetric=T)
+Lambda <- diag(es$values)
+Lambda
+Q <- es$vectors
+Q
+```
+
+The axis of the ellipsoid are along the eigenvectors, and the ellipsoid's half-lengths are provided by 1/sqrt(eigenvalues).
+
+```{r, fig.height=5, fig.width=5}
+# 2D eg
+draw.ellipse <- function(x0=0, y0=0, a=1, b=1, angle=0, definition=50, color="black") {
+  theta <- seq(0, 2 * pi, length=definition)
+  x <- x0 + a * cos(theta) * cos(angle) - b * sin(theta) * sin(angle)
+  y <- y0 + a * cos(theta) * sin(angle) + b * sin(theta) * cos(angle)
+  points(x, y, type = "l", col=color)
+} 
+
+plot(NA, xlim=c(-1,1), ylim=c(-1,1), xlab="x_1", ylab="x_2", pch=19)
+abline(h=0,lty=2); abline(v=0,lty=2)
+angle = acos(sum(Q[,1]*c(1,0))) # angle made between the x-axis and the 1st eigenvector
+draw.ellipse(a=1/sqrt(Lambda[1,1]), b=1/sqrt(Lambda[2,2]), angle=angle)
+plot2d(c(0,0,Q[,1]/sqrt(Lambda[1,1])), col="blue")  # draw first eigenvector
+plot2d(c(0,0,Q[,2]/sqrt(Lambda[2,2])), col="green") # draw second eigenvector
+```
+
+This relation between positive definite matrices and ellipsoids is an essential fact in convex optimization.
+
+Singular Value Decomposition (SVD)
+----------
+
+Above we could only diagonalize square matrices. But assume now that $A$ is any rectangular $m\times n$ matrix with rank $r$. What can we do?
+
+The **singular vectors** of $A$ are $u$ the eigenvectors of $AA^T$ and $v$ the eigenvectors of $A^TA$. Since $AA^T$ and $A^TA$ are symmetric its eigenvectors can be chosen orthonormal.
+
+It's possible to demonstrate that $$A = U \Sigma V^T$$ where $U,V$ are square orthogonal matrices and $\Sigma$ is a diagonal matrix (with zeros in the last $n-r$ diagonal positions) which holds the singular values. So $A = u_1\sigma_1v_1^T+\ldots+u_r\sigma_rv_r^T$.
+
+The singular values of $\Sigma$ become the eigenvalues of $\Lambda$ when $A$ is a positive (semi)definitive symmetric matrix $Q\Lambda Q^T$.
+
+```{r}
+A <- matrix(c(.8,.3,.1, 
+              .2,.7,.2,
+              .5,.5,.5), 3, 3, byrow=TRUE)
+svd(A)
+```
+
+The singular values are positioned in decreasing order which can be interpreted as the order of best approximations to the original matrix. This can be used in compression by dropping the smallest singular values and vectors and keep just the higher values.
+
+If we see $A$ as a linear transformation of, say, an image, then $A = U \Sigma V^T$ decomposes the process in three parts: (i) $V^T$ rotates/reflects the image to a proper axis, (ii) $\Sigma$ does the stretching, and (iii) $U$ rotates/reflects it back.
+
+Generalized inverse (pseudo-inverse)
+-----------------
+
+The generalized inverse (or pseudo-inverse) is a way to provide inverses to non-square matrices.
+
+Def: The pseudo-inverse of $A:m \times n$, $A^+:n \times m$, $$A^+ = V \Sigma^+ U^T$$ where $U,V$ are from the SVD decomposition, and $\Sigma^+$ is the diagonal matrix $\Sigma$ with values $1/\sigma_i$ instead of $\sigma_i$.
+
+```{r}
+library(MASS)
+
+A <- matrix(c(8,3,1,5, 
+              2,7,2,5,
+              5,5,5,2), ncol=4, byrow=TRUE)
+A._1 <- ginv(A)
+A._1
+A %*% A._1 %*% A
+A._1 %*% A %*% A._1
+```
+
+In least squares this is important because we can find a solution to $Ax=b$ when $A$ has dependent columns (rank $\lt n$) which is a common case. The solution is just $\hat{x} = A^+b$.
+

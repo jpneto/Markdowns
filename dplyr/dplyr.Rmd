@@ -1,0 +1,164 @@
+---
+title: "Package dplyr"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(MASS)  # get a dataset for manipulation
+
+my.data <- tbl_df(Boston)  # wraps a local data frame for better printing
+my.data
+```
+
+## Verbs
+
+These correspond to basic actions of data manipulation.
+
+### Filter rows with filter()
+
+```{r}
+filter(my.data, rad==4)
+filter(my.data, rad==1 & tax>320)
+filter(my.data, rad==1 & (tax<200|tax>300))
+```
+
+### Arrange rows with arrange()
+
+```{r}
+arrange(my.data, rad, tax) # order first by 'rad' then by 'tax'
+arrange(my.data, rad, desc(tax), age)
+```
+
+### Select columns with select()
+
+```{r}
+dplyr::select(my.data, rad, age) # explicit package since MASS masked dplyr's 'select'
+dplyr::select(my.data, nox:dis)  # select data frame features from 'nox' to 'dis' 
+dplyr::select(my.data, starts_with('c')) # select columns that start with 'c'
+dplyr::select(my.data, matches('^[cd]')) # select columns that start with 'c' or 'd' (regular expression)
+dplyr::select(my.data, -matches('^[cd]')) # drop columns that start with 'c' or 'd' (regular expression)
+```
+
+### Rename columns with rename()
+
+```{r}
+rename(my.data, Z.N=zn)
+```
+
+
+### Add new columns (that are functions of existing columns) with mutate()
+
+```{r}
+mutate(my.data, twice.age = 2*age, new.col = sqrt(twice.age)) # can refer to new columns of the spot
+transmute(my.data, twice.age = 2*age, new.col = sqrt(twice.age)) # transmute is like mutate bt only keeps the new columns
+```
+
+### Summarise values with summarise()
+ 
+```{r}
+summarise(my.data, mean.age = mean(age, na.rm = TRUE))
+```
+
+### Select rows by position with slice():
+
+```{r}
+slice(my.data, c(2:6,8))
+slice(my.data, n()) # last record
+```
+
+### Extract distinct (unique) rows with distict()
+
+```{r}
+d <- dplyr::select(my.data, tax)
+arrange( distinct(d, tax), tax)
+```
+
+### Create samples with sample_n() and sample_f()
+
+```{r}
+sample_n(my.data, 6)      # a sample of 6 records
+sample_frac(my.data, .03) # a sample of 3% of the records
+sample_frac(my.data, .03, replace=TRUE) # a bootstrap sample of 3% of the records
+```
+
+There is also an option `weight=vector` that allows us to sample a weightned sample of the dataset. The vector must have the same size as the number of rows of the dataset (weights are automatically standardised to sum to 1).
+
+Grouped operations
+--------------------
+
+> These verbs are useful, but they become really powerful when you combine them with the idea of "group by", repeating the operation individually on groups of observations within the tbl. In dplyr, you use the group_by() function to describe how to break a dataset down into groups of rows. You can then use the resulting object in the exactly the same functions as above; they'll automatically work "by group" when the input is a grouped tbl. [ref](http://cran.r-project.org/web/packages/dplyr/vignettes/introduction.html).
+
+
+```{r}
+taxes  <- group_by(my.data, tax) # group dataset by tax
+report <- summarise(taxes, count=n(), mean.age=mean(age, na.rm = TRUE))
+arrange(report, count, tax)
+```
+
+Some tools:
+
++ n(): number of observations in the current group
++ n_distinct(x): count the number of unique values in x.
++ first(x), last(x) and nth(x, n) - these work similarly to x[1], x[length(x)], and x[n] but give you more control of the result if the value isn't present.
++ min(), max(), mean(), sum(), sd(), median(), and IQR()
+
+```{r}
+rads <- group_by(my.data, rad)
+summarise(rads, n.taxes = n(), diff.taxes = n_distinct(tax), first.tax=first(tax), last.tax=last(tax))
+```
+
+We can provide our own functions (slower performance, [unless](http://cran.r-project.org/web/packages/dplyr/vignettes/hybrid-evaluation.html) is in C++)
+
+```{r}
+my.f <- function(x) sqrt(x)+1
+summarise(rads, f = my.f(mean(age)))
+```
+
+When you group by multiple variables, each summary peels off one level of the grouping. That makes it easy to progressively roll-up a dataset:
+
+```{r}
+taxes.rad <- group_by(my.data, tax, rad)
+by.rad    <- summarise(taxes.rad, size=n())
+arrange(by.rad, tax)
+by.tax    <- summarise(by.rad, sum=sum(size))
+arrange(by.tax,tax)
+```
+
+Operator %>%
+--------------
+
+It's the ability to chain operations together from left to right with the %>% operator. Expression `x %>% f(y)` turns into `f(x, y)` so this makes dplyr behave a little like a grammar of data manipulation:
+
+```{r}
+my.data %>% group_by(tax)
+my.data %>% group_by(tax) %>% summarise(total = sum(dis))
+my.data %>% group_by(tax) %>% summarise(total = sum(dis)) %>% arrange(desc(total))
+my.data %>% group_by(tax) %>% summarise(total = sum(dis)) %>% arrange(desc(total)) %>% filter(total < 50) %>% head(7)
+```
+
+
+```{r}
+df <- data.frame(Date=c("2014-01-01" ,"2014-01-01" ,"2014-01-01" ,"2014-01-01" ,"2014-01-02" ,"2014-01-02" ,"2014-01-02" ,"2014-01-03" ,"2014-01-03" ,"2014-01-03"),
+                 Col1=c(123,123,124,125,123,126,127,521,123,126))
+df
+
+# now: count unique values in Col1 for the each date (that did not repeat in previous date), and add to the previous count
+
+df %>% 
+  arrange(Date) %>% 
+  filter(!duplicated(Col1)) %>% 
+  group_by(Date) %>% 
+  summarise(Count=length(Date)) %>% 
+  mutate(Count = cumsum(Count))
+```
+
+To work with databases cf [http://cran.rstudio.com/web/packages/dplyr/vignettes/databases.html](http://cran.rstudio.com/web/packages/dplyr/vignettes/databases.html)

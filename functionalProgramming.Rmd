@@ -1,0 +1,559 @@
+Functional Programming
+========================================================
+
+Warning: _not so basic stuff for non functional language fans_ 8-)
+
+Check:
++ [https://github.com/hadley/devtools/wiki/Functional-programming](https://github.com/hadley/devtools/wiki/Functional-programming)
++ [http://adv-r.had.co.nz/Data-structures.html](http://adv-r.had.co.nz/Data-structures.html)
+
+Standard functionals
+--------------------
+
+```{r}
+func <- function(x) x%%2==0  # lambda expressions
+func(4)
+(function(x)x%%2==0)(4)  
+# Filter
+Filter((function(x)x%%2==0),1:20)
+# Map
+mapply((function(x)x*2),1:20)
+# Fold (foldl by default, use right=T for foldr)
+# use accumulate=T for scan
+Reduce((function(x,acc)x+acc),1:10,0)  # eg, vector sum
+Reduce((function(x,acc)x*acc),1:10,1)  # eg, vector product
+Reduce((function(x,acc)x*acc),1:10,1,accumulate=T)
+# returns the 1st element that satisfies the predicate
+Find((function(x)x%%2==0),20:1)  
+# returns the index of the 1st element that satisfies the predicate
+Position((function(x)x%%2==0),20:1)
+# these high-order functions work for every R function
+formals(function(x=4)x+5)
+body(function(x=4)x+5)
+environment(function(x=4)x+5)
+# eg, apply sd to all columns of mtcars data frame, and then
+# turn the resulting list into a vector
+unlist(lapply(mtcars,sd))
+```
+
+Applying functions over lists/vectors
+-------------------------------------
+
+ref: [http://stackoverflow.com/questions/3505701/r-grouping-functions-sapply-vs-lapply-vs-apply-vs-tapply-vs-by-vs-aggrega](http://stackoverflow.com/questions/3505701/r-grouping-functions-sapply-vs-lapply-vs-apply-vs-tapply-vs-by-vs-aggrega)
+
++ apply: apply a function to the rows or columns of a matrix
+
+```{r}
+# Two dimensional matrix
+M <- matrix(seq(1,16), 4, 4)
+M
+# apply min to rows
+apply(M, 1, min)
+# apply max to columns
+apply(M, 2, max)
+# apply double for each cell
+apply(M, c(1,2), function(x) 2*x)
+# 3 dimensional array
+M <- array( seq(32), dim = c(4,4,2))
+M
+# Apply f across each M[*, , ] - i.e across 2nd and 3rd dimension
+apply(M, 1, max)
+apply(M, 1, sum) # Result is one-dimensional
+
+# Apply sum across each M[*, *, ] - i.e Sum across 3rd dimension
+apply(M, c(1,2), sum)
+# Result is two-dimensional
+```
+
++ lapply(x,f): returns a list of the same length as x, each element of which is the result of applying f to the corresponding element of x
++ sapply(x,f): same but returns a vector
+
+```{r}
+f <- function(x) x^2
+as.vector(lapply(1:6,f), mode="integer") # change list to vector just for tidy output
+sapply(1:10,f)  # does the same thing
+matrix(sapply(1:25,f),5,5)
+
+add <- function(x, y) x + y
+sapply(1:10, add, 3)  # the 3 is passed to add() as its 2nd argument
+sapply(1:10, `+`, 3)  # search object *called* as '+'
+sapply(1:10, "+", 3)  # search object *named* as '+'
+x <- list(1:3, 4:9, 10:12)
+sapply(x, "[", 2)     # equivalent to sapply(x, function(x) x[2])
+```
+
+An eg with list of functions:
+
+```{r}
+summary <- function(x) {
+  funs <- c(mean, median, sd, mad, IQR)
+  lapply(funs, function(f) f(x, na.rm = TRUE))
+}
+summary(rnorm(100))
+```
+
++ replicates(n,expression): replicates expression n times
++ outer(xs,ys,f): returns a matrix with all f(x,y)
++ mapply(f,xs,ys,...): applies f to (xs,ys,...), each ith element from all the vectors for each iteration
+
+```{r}
+f(runif(10))
+replicate(3,f(runif(10)))  # replicates 3 times the previous instruction
+outer(1:5,1:3,"*")
+1:5 %o% 1:3  # same thing
+mapply(rep, 9:6, 1:4)
+f1 <- function(x,y,z) 100*x+10*y+z
+mapply(f1,1:3,4:6,7:9)
+```
+
+Other function stuff
+--------------------
+
+When calling a function you can specify arguments by position, by complete name, or by partial name. Arguments are matched first by exact name (perfect matching), then by prefix matching and finally by position.
+
+```{r}
+f <- function(abcdef, bcde1, bcde2) {
+  list(a = abcdef, b1 = bcde1, b2 = bcde2)
+}
+str(f(1, 2, 3))
+str(f(2, 3, abcdef = 1))
+# Can abbreviate long argument names:
+str(f(2, 3, a = 1))
+# But this doesn't work because abbreviation is ambiguous
+str(f(1, 3, b = 1))
+```
+
+Calling a function given a list of arguments
+
+```{r}
+args <- list(1:10, na.rm = TRUE)
+do.call(mean, args)  # same as mean(1:10, na.rm = TRUE)
+```
+
+R can check if an argument is missing:
+
+```{r}
+f <- function(x,y) {
+  c(missing(x),missing(y))  
+}
+
+f(x=1)
+f(y=2)
+f(,3)
+f(4,)
+```
+
+Lazy Eval: R uses lazy evaluation when dealing with function arguments, it olny computes them if necessary
+
+```{r}
+f <- function(x,y) {
+  x*2
+}
+
+f(4,stop("error!"))
+```
+
+This might bring some subtle problems:
+
+```{r}
+add <- function(x) {
+  function(y) x + y
+}
+adders <- lapply(1:10, add) # a list of functions
+adders[[1]](5)  # hmmm... (the last value of x in the vector cycle above is 10)
+adders[[10]](5) # ok
+
+# this is solved by forcing the evaluation of 'x' in each element of the vector cycle
+add <- function(x) {
+  force(x)
+  function(y) x + y
+}
+
+adders2 <- lapply(1:10, add)
+adders2[[1]](5)
+adders2[[10]](5)
+```
+
+Default arguments are evaluated inside the function. This means that if the expression depends on the current environment the results will differ depending on whether you use the default value or explicitly provide one
+
+```{r}
+f <- function(x = ls()) {
+  a <- 1
+  x
+}
+
+# ls() evaluated inside f:
+f()
+# ls() evaluated in global environment:
+f(ls())
+```
+
+> More technically, an unevaluated argument is called a promise, or (less commonly) a thunk. A promise is made up of two parts:
+
+> 1. the expression which gives rise to the delayed computation. It can be accessed with substitute()
+
+> 2. the environment where the expression was created and where it should be evaluated
+
+> The first time a promise is accessed the expression is evaluated in the environment where it was created. This value is cached, so that subsequent access to the evaluated promise does not recompute the value (but the original expression is still associated with the value, so substitute can continue to access it). [ref](http://adv-r.had.co.nz/Data-structures.html)
+
+```{r}
+substitute(expression(a + b), list(a = 1))
+```
+
+The special argument `...` passes all non-matched args to the inner functions 
+
+```{r}
+f <- function(...) {
+  names(list(...))
+}
+f(a = 1, b = 2)
+
+
+f <- function(x, y, ...) {
+  g <- function(z, w=1) {
+    x*1000+y*100+z*10+w
+  }
+}
+
+f1 <- f(1,2,z=3)
+f1(4)
+f1(w=4,z=5)
+```
+
+Infix Functions: use %name% to enclose the function name
+
+```{r}
+"%+%" <- function(a, b) paste(a, b, sep = "")
+"new" %+% " string"
+`%+%`("new", " string") # alternative call
+`+`(1, 5)
+# use \ for special chars
+"%/\\%" <- function(a, b) paste(a, b)
+"a" %/\% "b"
+```
+
+Closures
+--------
+
+>An object is data with functions. 
+>A closure is a function with data. -- John D Cook
+
+```{r}
+# returns a new function which as access to the environment
+# variable 'exponent'
+power <- function(exponent) {
+  function(x) x ^ exponent  
+}
+
+square <- power(2)
+square(2)
+square(4)
+cube <- power(3)
+cube(2)
+cube(4)
+as.list(environment(square)) # shows the closure's environment 
+
+# Closures are useful for making function factories, 
+
+missing_remover <- function(na) {
+  function(x) {
+    x[x == na] <- NA
+    x
+  }
+}
+
+remove_99 <- missing_remover(99)
+remove_99(c(99,100,101,99,98))
+remove_dot <- missing_remover(".")
+remove_dot(c(".","a",".","b"))
+# And are one way to manage mutable state in R. 
+new_counter <- function() {
+  i <- 0
+  function() {
+    i <<- i + 1  # operator '<<-' searches for 'i' in the parent environment
+    i
+  }
+}
+
+counter_one <- new_counter()
+counter_two <- new_counter()
+counter_one() 
+counter_one() 
+counter_two() 
+as.list(environment(counter_one)) # check its mutable state
+as.list(environment(counter_two))
+```
+
+Currying
+--------
+
+> currying is the technique of transforming a function that takes multiple 
+> arguments (or a tuple of arguments) in such a way that it can be called 
+> as a chain of functions, each with a single argument (partial application) -- Wikipedia
+
+```{r}
+# list of functions and currying
+
+#eg, mean functions
+
+compute_mean <- list(
+  base = function(x) mean(x),
+  sum = function(x) sum(x) / length(x),
+  manual = function(x) {
+    total <- 0
+    n <- length(x)
+    for (i in seq_along(x)) {
+      total <- total + x[i] / n
+    }
+    total
+  }
+)
+
+xs <- runif(1e5)
+system.time(compute_mean$base(xs))
+system.time(compute_mean$sum(xs))
+system.time(compute_mean$manual(xs))
+# or test all in one line
+lapply(compute_mean, function(f) system.time(f(xs)))
+Map(function(f) system.time(f(xs)), compute_mean)
+
+# another way
+call_fun <- function(f, ...) f(...)
+
+timer <- function(f) {
+  force(f)  # force the evaluation of expression
+  function(...) system.time(f(...))
+}
+
+timers <- lapply(compute_mean, timer) # return a list of functions
+lapply(timers, call_fun, xs)
+
+# implementation of currying:
+
+Curry <- function(FUN,...) { 
+  .orig <- list(...)
+  function(...) {
+    do.call(FUN, c(.orig, list(...)))
+  }
+}
+
+add <- function(x, y) x + y
+addOne <- Curry(add, y = 1)
+addOne(4) # 5
+
+# using curry in interesting ways:
+funs <- list(
+  sum = sum,
+  mean = mean,
+  median = median
+)
+# now turn that list elements, into functions that remove NAs
+funs2 <- lapply(funs, Curry, na.rm = TRUE)
+```
+
+Package `pryr` implements currying with partial()
+
+```{r}
+# library(devtools)
+# install_github("pryr")
+library(pryr)
+
+f <- function(x,y) 10*x+y
+f(5,6)
+f1 <- partial(f, x=5)
+f1(6)
+f2 <- partial(f, y=6)
+f2(5)
+```
+
+
+Function Operators
+-----------------
+
+Function operators (FO) are functions that take one (or more) functions as input and return a function as output.
+
+we'll explore four types of function operators (FOs):
+
++ Behavioural FOs. While leaving the function otherwise unchanged, this type can do things like automatically log when the function is run, ensure that a function is run only once, and delay the operation of a function.
+
++ Output FOs. This type can return different values depending on whether a function throws an error, or negates the result of a logical predicate.
+
++ Input FOs. This type can modify inputs like partially evaluating a function, convert a function that takes multiple arguments to one that takes a list, or automatically vectorise a function.
+
++ Combining FOs. This type can combine the results of predicate functions with boolean operators, or compose multiple function calls.
+
+Behavioural FOs leave the inputs and outputs of a function unchanged, but adds some extra behaviour.
+
+```{r}
+# add a delay to a function call:
+delay_by <- function(delay, f) {
+  function(...) {
+    Sys.sleep(delay)
+    f(...)
+  }
+}
+
+system.time(runif(100))
+system.time(delay_by(1, runif)(100))
+
+# add a dot every 10 processing units
+dot_every <- function(n, f) {
+  i <- 1
+  function(...) {
+    if (i %% n == 0) cat(".")
+    i <<- i + 1
+    f(...)
+  }
+}
+
+x <- lapply(1:100, runif)
+x <- lapply(1:100, dot_every(10, runif))
+```
+
+Memoisation
+------------
+
+```{r}
+fib <- function(n) {
+  if (n < 2) 
+    return(1)
+  fib(n - 2) + fib(n - 1)
+}
+system.time(fib(28))
+
+###### MEMOISE IT!
+library(memoise)
+
+fib2 <- memoise(
+  function(n) {
+    if (n < 2) 
+      return(1)
+    fib2(n - 2) + fib2(n - 1)
+  }
+)
+
+system.time(fib2(28))
+```
+
+Capturing function invocations
+--------------
+
+> One challenge with functionals is that it can be hard to see what's going on inside. It's not easy to pry open their internals like it is with a for loop. However, we can use FOs to help us. The tee function, defined below, has three arguments, all functions: f, the original function; on_input, a function that's called with the inputs to f, and on_output a function that's called with the output from f.
+
+```{r}
+ignore <- function(...) NULL
+tee <- function(f, on_input = ignore, on_output = ignore) {
+  function(...) {
+    input <- if (nargs() == 1) c(...) else list(...)
+    on_input(input)
+    output <- f(...)
+    on_output(output)
+    output
+  }
+}
+
+g <- function(x) cos(x) - x
+uniroot(g, c(-5, 5))
+
+uniroot(tee(g, on_input = print),  c(-5, 5))
+uniroot(tee(g, on_output = print), c(-5, 5))
+```
+
+Output FOs
+-----------
+
+How to modify the output of a function.
+
+```{r}
+Negate <- function(f) { # Negates the function output
+  function(...) !f(...)
+}
+
+(Negate(is.null))(NULL)
+
+# removes all null elements from a list
+compact <- function(x) Filter(Negate(is.null), x) 
+
+compact(c(NULL,3,3))
+
+# failwith() turns a function that throws an error into a function that returns a default value when there's an error
+
+failwith <- function(default = NULL, f, quiet = TRUE) {
+  function(...) {
+    out <- default
+    try(out <- f(...), silent = quiet) # silent a True does not show error msg
+    out
+  }
+}
+log("a")
+failwith(NA, log)("a")
+```
+
+Function composition
+
+An important way of combining functions is through composition: f(g(x)). 
+
+```{r}
+compose <- function(f, g) {
+  function(...) f(g(...))
+}
+
+"%.%" <- compose
+
+sqrt(3*4)
+(sqrt %.% `*`)(3,4)
+
+#  function operators that combine logical predicates:
+
+and <- function(f1, f2) {
+  function(...) {
+    f1(...) && f2(...)
+  }
+}
+or <- function(f1, f2) {
+  function(...) {
+    f1(...) || f2(...)
+  }
+}
+not <- function(f1) {
+  function(...) {
+    !f1(...)
+  }
+}
+
+# So something like:
+data <- Filter(function(x) is.character(x) || is.factor(x), iris)
+# becomes
+data <- Filter(or(is.character, is.factor), iris)
+```
+
+A note about lazy eval:
+
+```{r}
+wrap <- function(f) {
+  function(...) f(...)
+}
+
+fs <- list(sum = sum, mean = mean, min = min)
+gs <- lapply(fs, wrap)
+gs$sum(1:10)  # bug, it's returning the minimum
+environment(gs$sum)$f
+```
+
+It doesn't work well with lapply() because f is lazily evaluated. This means that if you give lapply() a list of functions and a FO to apply those functions, it will look like it repeatedly applied the last function.
+
+Another problem is that as designed, we have to pass a function object, rather than the name of a function, which is often more convenient. We can solve both problems by using match.fun(): it forces evaluation of f, and will find the function object if given its name:
+
+```{r}
+wrap2 <- function(f) {
+  f <- match.fun(f)
+  function(...) f(...)
+}
+
+fs <- c(sum = "sum", mean = "mean", min = "min")
+hs <- lapply(fs, wrap2)
+hs$sum(1:10)
+environment(hs$sum)$f
+```
+
+

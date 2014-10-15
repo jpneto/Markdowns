@@ -1,0 +1,114 @@
+Manipulate
+========================================================
+
+RStudio includes a manipulate package that enables the addition of interactive capabilities to standard R plots. This is accomplished by binding plot inputs to custom controls rather than static hard-coded values.
+
+Check [http://www.rstudio.com/ide/docs/advanced/manipulate](http://www.rstudio.com/ide/docs/advanced/manipulate)
+
+This egs do not work in HTML, we need to run them in RStudio.
+
+```{r}
+library(manipulate)
+
+## Specify a custom label for a slider
+manipulate(
+  barplot(seq(1,x,1/y)), 
+  x = slider(0, 20, label = "Limit", step=2, initial=12),
+  y = slider(1, 4, label = "Precision", step=1, initial=4)
+)
+
+## Filtering data with a picker
+manipulate(
+  barplot(as.matrix(longley[,factor]), 
+          beside = TRUE, main = factor),
+  factor = picker("GNP", "Unemployed", "Employed")
+)
+
+## Picker with groups
+manipulate(
+  barplot(as.matrix(mtcars[group,"mpg"]), beside=TRUE),
+  group = picker("Group 1" = 1:11, 
+                 "Group 2" = 12:22, 
+                 "Group 3" = 23:32)
+)
+
+## Histogram w/ picker to select type
+require(lattice)
+require(stats)
+manipulate(
+  histogram(~ height | voice.part, 
+            data = singer, type = type),
+  type = picker("percent", "count", "density"))
+
+## Using checkboxes for boolean parameters
+manipulate(
+  plot(cars, axes = axes, ann = label), 
+  axes = checkbox(TRUE, "Draw Axes"), 
+  label = checkbox(FALSE, "Draw Labels"))
+
+## Toggle boxplot outlier display using checkbox
+manipulate(
+  boxplot(Freq ~ Class, data = Titanic, outline = outline),
+  outline = checkbox(FALSE, "Show outliers"))
+
+
+## Combining controls
+
+manipulate(
+  plot(cars, xlim = c(0, x.max), type = type, ann = label),
+  x.max = slider(10, 25, step=5, initial = 25),
+  type = picker("Points" = "p", "Line" = "l", "Step" = "s"),
+  label = checkbox(TRUE, "Draw Labels"))
+
+manipulate(
+  plot(cars, xlim = c(x.min, x.max), type = type, 
+       axes = axes, ann = label),
+  x.min = slider(0,15),
+  x.max = slider(15,30, initial = 25),
+  type = picker("p", "l", "b", "c", "o", "h", "s", "S", "n"),
+  axes = checkbox(TRUE, "Draw Axes"),
+  label = checkbox(FALSE, "Draw Labels"))
+
+# Button Eg
+# When the user presses the button the manipulate expression will be executed with its associated value set to TRUE (in all other cases the value will be set to FALSE).
+manipulate(
+  {
+    if(resetSeed)
+      set.seed(sample(1:1000))
+
+    hist(rnorm(n=100, mean=0, sd=3), breaks=bins)
+  },
+  bins = slider(1, 20, step=1, initial =5, label="Bins"),
+  resetSeed = button("Reset Seed")
+)
+
+# Using manipulate to make 3D rotations
+manipulate(
+{
+  rotate       <- angle
+  tilt         <- angle.tilt
+  parallelness <- 5.0
+  shadeval     <- 0.05
+  perspcex     <- .7
+  
+  xs <- seq(0,1,.05)
+  ys <- seq(0,1,.05)
+  f <- function(x,y) {
+    dnorm(x,.5,.25) + dnorm(y,.5,.125)
+  }
+  zs <- outer(xs,ys,f)
+  
+  persp(xs , ys , zs,
+        xlab="x" , ylab="y" , zlab="f(x,y)" , 
+        main="Main Title" , cex=perspcex, lwd=0.1  , 
+        xlim=c(0,1) , ylim=c(0,1) , zlim=c(-1,4),
+        theta=rotate , phi=tilt , d=parallelness ,
+        shade=shadeval)
+},
+  angle = slider(-90,90,step=1,initial=-45, label="angle"),
+  angle.tilt = slider(-90,90,step=1,initial=30, label="tilt")
+)
+
+
+```
+

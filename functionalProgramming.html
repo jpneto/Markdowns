@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=9" >
+
+<title>Functional Programming</title>
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 12px;
+   margin: 8px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 { 
+   font-size:2.2em; 
+}
+
+h2 { 
+   font-size:1.8em; 
+}
+
+h3 { 
+   font-size:1.4em; 
+}
+
+h4 { 
+   font-size:1.0em; 
+}
+
+h5 { 
+   font-size:0.9em; 
+}
+
+h6 { 
+   font-size:0.8em; 
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre {	
+   margin-top: 0;
+   max-width: 95%;
+   border: 1px solid #ccc;
+   white-space: pre-wrap;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code.r, code.cpp {
+   background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * { 
+      background: transparent !important; 
+      color: black !important; 
+      filter:none !important; 
+      -ms-filter: none !important; 
+   }
+
+   body { 
+      font-size:12pt; 
+      max-width:100%; 
+   }
+       
+   a, a:visited { 
+      text-decoration: underline; 
+   }
+
+   hr { 
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote { 
+      padding-right: 1em; 
+      page-break-inside: avoid; 
+   }
+
+   tr, img { 
+      page-break-inside: avoid; 
+   }
+
+   img { 
+      max-width: 100% !important; 
+   }
+
+   @page :left { 
+      margin: 15mm 20mm 15mm 10mm; 
+   }
+     
+   @page :right { 
+      margin: 15mm 10mm 15mm 20mm; 
+   }
+
+   p, h2, h3 { 
+      orphans: 3; widows: 3; 
+   }
+
+   h2, h3 { 
+      page-break-after: avoid; 
+   }
+}
+
+</style>
+
+<!-- Styles for R syntax highlighter -->
+<style type="text/css">
+   pre .operator,
+   pre .paren {
+     color: rgb(104, 118, 135)
+   }
+
+   pre .literal {
+     color: rgb(88, 72, 246)
+   }
+
+   pre .number {
+     color: rgb(0, 0, 205);
+   }
+
+   pre .comment {
+     color: rgb(76, 136, 107);
+   }
+
+   pre .keyword {
+     color: rgb(0, 0, 255);
+   }
+
+   pre .identifier {
+     color: rgb(0, 0, 0);
+   }
+
+   pre .string {
+     color: rgb(3, 106, 7);
+   }
+</style>
+
+<!-- R syntax highlighter -->
+<script type="text/javascript">
+var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/</gm,"&lt;")}function f(r,q,p){return RegExp(q,"m"+(r.cI?"i":"")+(p?"g":""))}function b(r){for(var p=0;p<r.childNodes.length;p++){var q=r.childNodes[p];if(q.nodeName=="CODE"){return q}if(!(q.nodeType==3&&q.nodeValue.match(/\s+/))){break}}}function h(t,s){var p="";for(var r=0;r<t.childNodes.length;r++){if(t.childNodes[r].nodeType==3){var q=t.childNodes[r].nodeValue;if(s){q=q.replace(/\n/g,"")}p+=q}else{if(t.childNodes[r].nodeName=="BR"){p+="\n"}else{p+=h(t.childNodes[r])}}}if(/MSIE [678]/.test(navigator.userAgent)){p=p.replace(/\r/g,"\n")}return p}function a(s){var r=s.className.split(/\s+/);r=r.concat(s.parentNode.className.split(/\s+/));for(var q=0;q<r.length;q++){var p=r[q].replace(/^language-/,"");if(e[p]){return p}}}function c(q){var p=[];(function(s,t){for(var r=0;r<s.childNodes.length;r++){if(s.childNodes[r].nodeType==3){t+=s.childNodes[r].nodeValue.length}else{if(s.childNodes[r].nodeName=="BR"){t+=1}else{if(s.childNodes[r].nodeType==1){p.push({event:"start",offset:t,node:s.childNodes[r]});t=arguments.callee(s.childNodes[r],t);p.push({event:"stop",offset:t,node:s.childNodes[r]})}}}}return t})(q,0);return p}function k(y,w,x){var q=0;var z="";var s=[];function u(){if(y.length&&w.length){if(y[0].offset!=w[0].offset){return(y[0].offset<w[0].offset)?y:w}else{return w[0].event=="start"?y:w}}else{return y.length?y:w}}function t(D){var A="<"+D.nodeName.toLowerCase();for(var B=0;B<D.attributes.length;B++){var C=D.attributes[B];A+=" "+C.nodeName.toLowerCase();if(C.value!==undefined&&C.value!==false&&C.value!==null){A+='="'+m(C.value)+'"'}}return A+">"}while(y.length||w.length){var v=u().splice(0,1)[0];z+=m(x.substr(q,v.offset-q));q=v.offset;if(v.event=="start"){z+=t(v.node);s.push(v.node)}else{if(v.event=="stop"){var p,r=s.length;do{r--;p=s[r];z+=("</"+p.nodeName.toLowerCase()+">")}while(p!=v.node);s.splice(r,1);while(r<s.length){z+=t(s[r]);r++}}}}return z+m(x.substr(q))}function j(){function q(x,y,v){if(x.compiled){return}var u;var s=[];if(x.k){x.lR=f(y,x.l||hljs.IR,true);for(var w in x.k){if(!x.k.hasOwnProperty(w)){continue}if(x.k[w] instanceof Object){u=x.k[w]}else{u=x.k;w="keyword"}for(var r in u){if(!u.hasOwnProperty(r)){continue}x.k[r]=[w,u[r]];s.push(r)}}}if(!v){if(x.bWK){x.b="\\b("+s.join("|")+")\\s"}x.bR=f(y,x.b?x.b:"\\B|\\b");if(!x.e&&!x.eW){x.e="\\B|\\b"}if(x.e){x.eR=f(y,x.e)}}if(x.i){x.iR=f(y,x.i)}if(x.r===undefined){x.r=1}if(!x.c){x.c=[]}x.compiled=true;for(var t=0;t<x.c.length;t++){if(x.c[t]=="self"){x.c[t]=x}q(x.c[t],y,false)}if(x.starts){q(x.starts,y,false)}}for(var p in e){if(!e.hasOwnProperty(p)){continue}q(e[p].dM,e[p],true)}}function d(B,C){if(!j.called){j();j.called=true}function q(r,M){for(var L=0;L<M.c.length;L++){if((M.c[L].bR.exec(r)||[null])[0]==r){return M.c[L]}}}function v(L,r){if(D[L].e&&D[L].eR.test(r)){return 1}if(D[L].eW){var M=v(L-1,r);return M?M+1:0}return 0}function w(r,L){return L.i&&L.iR.test(r)}function K(N,O){var M=[];for(var L=0;L<N.c.length;L++){M.push(N.c[L].b)}var r=D.length-1;do{if(D[r].e){M.push(D[r].e)}r--}while(D[r+1].eW);if(N.i){M.push(N.i)}return f(O,M.join("|"),true)}function p(M,L){var N=D[D.length-1];if(!N.t){N.t=K(N,E)}N.t.lastIndex=L;var r=N.t.exec(M);return r?[M.substr(L,r.index-L),r[0],false]:[M.substr(L),"",true]}function z(N,r){var L=E.cI?r[0].toLowerCase():r[0];var M=N.k[L];if(M&&M instanceof Array){return M}return false}function F(L,P){L=m(L);if(!P.k){return L}var r="";var O=0;P.lR.lastIndex=0;var M=P.lR.exec(L);while(M){r+=L.substr(O,M.index-O);var N=z(P,M);if(N){x+=N[1];r+='<span class="'+N[0]+'">'+M[0]+"</span>"}else{r+=M[0]}O=P.lR.lastIndex;M=P.lR.exec(L)}return r+L.substr(O,L.length-O)}function J(L,M){if(M.sL&&e[M.sL]){var r=d(M.sL,L);x+=r.keyword_count;return r.value}else{return F(L,M)}}function I(M,r){var L=M.cN?'<span class="'+M.cN+'">':"";if(M.rB){y+=L;M.buffer=""}else{if(M.eB){y+=m(r)+L;M.buffer=""}else{y+=L;M.buffer=r}}D.push(M);A+=M.r}function G(N,M,Q){var R=D[D.length-1];if(Q){y+=J(R.buffer+N,R);return false}var P=q(M,R);if(P){y+=J(R.buffer+N,R);I(P,M);return P.rB}var L=v(D.length-1,M);if(L){var O=R.cN?"</span>":"";if(R.rE){y+=J(R.buffer+N,R)+O}else{if(R.eE){y+=J(R.buffer+N,R)+O+m(M)}else{y+=J(R.buffer+N+M,R)+O}}while(L>1){O=D[D.length-2].cN?"</span>":"";y+=O;L--;D.length--}var r=D[D.length-1];D.length--;D[D.length-1].buffer="";if(r.starts){I(r.starts,"")}return R.rE}if(w(M,R)){throw"Illegal"}}var E=e[B];var D=[E.dM];var A=0;var x=0;var y="";try{var s,u=0;E.dM.buffer="";do{s=p(C,u);var t=G(s[0],s[1],s[2]);u+=s[0].length;if(!t){u+=s[1].length}}while(!s[2]);if(D.length>1){throw"Illegal"}return{r:A,keyword_count:x,value:y}}catch(H){if(H=="Illegal"){return{r:0,keyword_count:0,value:m(C)}}else{throw H}}}function g(t){var p={keyword_count:0,r:0,value:m(t)};var r=p;for(var q in e){if(!e.hasOwnProperty(q)){continue}var s=d(q,t);s.language=q;if(s.keyword_count+s.r>r.keyword_count+r.r){r=s}if(s.keyword_count+s.r>p.keyword_count+p.r){r=p;p=s}}if(r.language){p.second_best=r}return p}function i(r,q,p){if(q){r=r.replace(/^((<[^>]+>|\t)+)/gm,function(t,w,v,u){return w.replace(/\t/g,q)})}if(p){r=r.replace(/\n/g,"<br>")}return r}function n(t,w,r){var x=h(t,r);var v=a(t);var y,s;if(v){y=d(v,x)}else{return}var q=c(t);if(q.length){s=document.createElement("pre");s.innerHTML=y.value;y.value=k(q,c(s),x)}y.value=i(y.value,w,r);var u=t.className;if(!u.match("(\\s|^)(language-)?"+v+"(\\s|$)")){u=u?(u+" "+v):v}if(/MSIE [678]/.test(navigator.userAgent)&&t.tagName=="CODE"&&t.parentNode.tagName=="PRE"){s=t.parentNode;var p=document.createElement("div");p.innerHTML="<pre><code>"+y.value+"</code></pre>";t=p.firstChild.firstChild;p.firstChild.cN=s.cN;s.parentNode.replaceChild(p.firstChild,s)}else{t.innerHTML=y.value}t.className=u;t.result={language:v,kw:y.keyword_count,re:y.r};if(y.second_best){t.second_best={language:y.second_best.language,kw:y.second_best.keyword_count,re:y.second_best.r}}}function o(){if(o.called){return}o.called=true;var r=document.getElementsByTagName("pre");for(var p=0;p<r.length;p++){var q=b(r[p]);if(q){n(q,hljs.tabReplace)}}}function l(){if(window.addEventListener){window.addEventListener("DOMContentLoaded",o,false);window.addEventListener("load",o,false)}else{if(window.attachEvent){window.attachEvent("onload",o)}else{window.onload=o}}}var e={};this.LANGUAGES=e;this.highlight=d;this.highlightAuto=g;this.fixMarkup=i;this.highlightBlock=n;this.initHighlighting=o;this.initHighlightingOnLoad=l;this.IR="[a-zA-Z][a-zA-Z0-9_]*";this.UIR="[a-zA-Z_][a-zA-Z0-9_]*";this.NR="\\b\\d+(\\.\\d+)?";this.CNR="\\b(0[xX][a-fA-F0-9]+|(\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";this.BNR="\\b(0b[01]+)";this.RSR="!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|\\.|-|-=|/|/=|:|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";this.ER="(?![\\s\\S])";this.BE={b:"\\\\.",r:0};this.ASM={cN:"string",b:"'",e:"'",i:"\\n",c:[this.BE],r:0};this.QSM={cN:"string",b:'"',e:'"',i:"\\n",c:[this.BE],r:0};this.CLCM={cN:"comment",b:"//",e:"$"};this.CBLCLM={cN:"comment",b:"/\\*",e:"\\*/"};this.HCM={cN:"comment",b:"#",e:"$"};this.NM={cN:"number",b:this.NR,r:0};this.CNM={cN:"number",b:this.CNR,r:0};this.BNM={cN:"number",b:this.BNR,r:0};this.inherit=function(r,s){var p={};for(var q in r){p[q]=r[q]}if(s){for(var q in s){p[q]=s[q]}}return p}}();hljs.LANGUAGES.cpp=function(){var a={keyword:{"false":1,"int":1,"float":1,"while":1,"private":1,"char":1,"catch":1,"export":1,virtual:1,operator:2,sizeof:2,dynamic_cast:2,typedef:2,const_cast:2,"const":1,struct:1,"for":1,static_cast:2,union:1,namespace:1,unsigned:1,"long":1,"throw":1,"volatile":2,"static":1,"protected":1,bool:1,template:1,mutable:1,"if":1,"public":1,friend:2,"do":1,"return":1,"goto":1,auto:1,"void":2,"enum":1,"else":1,"break":1,"new":1,extern:1,using:1,"true":1,"class":1,asm:1,"case":1,typeid:1,"short":1,reinterpret_cast:2,"default":1,"double":1,register:1,explicit:1,signed:1,typename:1,"try":1,"this":1,"switch":1,"continue":1,wchar_t:1,inline:1,"delete":1,alignof:1,char16_t:1,char32_t:1,constexpr:1,decltype:1,noexcept:1,nullptr:1,static_assert:1,thread_local:1,restrict:1,_Bool:1,complex:1},built_in:{std:1,string:1,cin:1,cout:1,cerr:1,clog:1,stringstream:1,istringstream:1,ostringstream:1,auto_ptr:1,deque:1,list:1,queue:1,stack:1,vector:1,map:1,set:1,bitset:1,multiset:1,multimap:1,unordered_set:1,unordered_map:1,unordered_multiset:1,unordered_multimap:1,array:1,shared_ptr:1}};return{dM:{k:a,i:"</",c:[hljs.CLCM,hljs.CBLCLM,hljs.QSM,{cN:"string",b:"'\\\\?.",e:"'",i:"."},{cN:"number",b:"\\b(\\d+(\\.\\d*)?|\\.\\d+)(u|U|l|L|ul|UL|f|F)"},hljs.CNM,{cN:"preprocessor",b:"#",e:"$"},{cN:"stl_container",b:"\\b(deque|list|queue|stack|vector|map|set|bitset|multiset|multimap|unordered_map|unordered_set|unordered_multiset|unordered_multimap|array)\\s*<",e:">",k:a,r:10,c:["self"]}]}}}();hljs.LANGUAGES.r={dM:{c:[hljs.HCM,{cN:"number",b:"\\b0[xX][0-9a-fA-F]+[Li]?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+(?:[eE][+\\-]?\\d*)?L\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+\\.(?!\\d)(?:i\\b)?",e:hljs.IMMEDIATE_RE,r:1},{cN:"number",b:"\\b\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\.\\d+(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"keyword",b:"(?:tryCatch|library|setGeneric|setGroupGeneric)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\.",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\d+(?![\\w.])",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\b(?:function)",e:hljs.IMMEDIATE_RE,r:2},{cN:"keyword",b:"(?:if|in|break|next|repeat|else|for|return|switch|while|try|stop|warning|require|attach|detach|source|setMethod|setClass)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"literal",b:"(?:NA|NA_integer_|NA_real_|NA_character_|NA_complex_)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"literal",b:"(?:NULL|TRUE|FALSE|T|F|Inf|NaN)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"identifier",b:"[a-zA-Z.][a-zA-Z0-9._]*\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"<\\-(?!\\s*\\d)",e:hljs.IMMEDIATE_RE,r:2},{cN:"operator",b:"\\->|<\\-",e:hljs.IMMEDIATE_RE,r:1},{cN:"operator",b:"%%|~",e:hljs.IMMEDIATE_RE},{cN:"operator",b:">=|<=|==|!=|\\|\\||&&|=|\\+|\\-|\\*|/|\\^|>|<|!|&|\\||\\$|:",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"%",e:"%",i:"\\n",r:1},{cN:"identifier",b:"`",e:"`",r:0},{cN:"string",b:'"',e:'"',c:[hljs.BE],r:0},{cN:"string",b:"'",e:"'",c:[hljs.BE],r:0},{cN:"paren",b:"[[({\\])}]",e:hljs.IMMEDIATE_RE,r:0}]}};
+hljs.initHighlightingOnLoad();
+</script>
+
+
+
+
+</head>
+
+<body>
+<h1>Functional Programming</h1>
+
+<p>Warning: <em>not so basic stuff for non functional language fans</em> 8-)</p>
+
+<p>Check:</p>
+
+<ul>
+<li><a href="https://github.com/hadley/devtools/wiki/Functional-programming">https://github.com/hadley/devtools/wiki/Functional-programming</a></li>
+<li><a href="http://adv-r.had.co.nz/Data-structures.html">http://adv-r.had.co.nz/Data-structures.html</a></li>
+</ul>
+
+<h2>Standard functionals</h2>
+
+<pre><code class="r">func &lt;- function(x) x%%2 == 0  # lambda expressions
+func(4)
+</code></pre>
+
+<pre><code>## [1] TRUE
+</code></pre>
+
+<pre><code class="r">(function(x) x%%2 == 0)(4)
+</code></pre>
+
+<pre><code>## [1] TRUE
+</code></pre>
+
+<pre><code class="r"># Filter
+Filter((function(x) x%%2 == 0), 1:20)
+</code></pre>
+
+<pre><code>##  [1]  2  4  6  8 10 12 14 16 18 20
+</code></pre>
+
+<pre><code class="r"># Map
+mapply((function(x) x * 2), 1:20)
+</code></pre>
+
+<pre><code>##  [1]  2  4  6  8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40
+</code></pre>
+
+<pre><code class="r"># Fold (foldl by default, use right=T for foldr) use accumulate=T for scan
+Reduce((function(x, acc) x + acc), 1:10, 0)  # eg, vector sum
+</code></pre>
+
+<pre><code>## [1] 55
+</code></pre>
+
+<pre><code class="r">Reduce((function(x, acc) x * acc), 1:10, 1)  # eg, vector product
+</code></pre>
+
+<pre><code>## [1] 3628800
+</code></pre>
+
+<pre><code class="r">Reduce((function(x, acc) x * acc), 1:10, 1, accumulate = T)
+</code></pre>
+
+<pre><code>##  [1]       1       1       2       6      24     120     720    5040
+##  [9]   40320  362880 3628800
+</code></pre>
+
+<pre><code class="r"># returns the 1st element that satisfies the predicate
+Find((function(x) x%%2 == 0), 20:1)
+</code></pre>
+
+<pre><code>## [1] 20
+</code></pre>
+
+<pre><code class="r"># returns the index of the 1st element that satisfies the predicate
+Position((function(x) x%%2 == 0), 20:1)
+</code></pre>
+
+<pre><code>## [1] 1
+</code></pre>
+
+<pre><code class="r"># these high-order functions work for every R function
+formals(function(x = 4) x + 5)
+</code></pre>
+
+<pre><code>## $x
+## [1] 4
+</code></pre>
+
+<pre><code class="r">body(function(x = 4) x + 5)
+</code></pre>
+
+<pre><code>## x + 5
+</code></pre>
+
+<pre><code class="r">environment(function(x = 4) x + 5)
+</code></pre>
+
+<pre><code>## &lt;environment: R_GlobalEnv&gt;
+</code></pre>
+
+<pre><code class="r"># eg, apply sd to all columns of mtcars data frame, and then turn the
+# resulting list into a vector
+unlist(lapply(mtcars, sd))
+</code></pre>
+
+<pre><code>##      mpg      cyl     disp       hp     drat       wt     qsec       vs 
+##   6.0269   1.7859 123.9387  68.5629   0.5347   0.9785   1.7869   0.5040 
+##       am     gear     carb 
+##   0.4990   0.7378   1.6152
+</code></pre>
+
+<h2>Applying functions over lists/vectors</h2>
+
+<p>ref: <a href="http://stackoverflow.com/questions/3505701/r-grouping-functions-sapply-vs-lapply-vs-apply-vs-tapply-vs-by-vs-aggrega">http://stackoverflow.com/questions/3505701/r-grouping-functions-sapply-vs-lapply-vs-apply-vs-tapply-vs-by-vs-aggrega</a></p>
+
+<ul>
+<li>apply: apply a function to the rows or columns of a matrix</li>
+</ul>
+
+<pre><code class="r"># Two dimensional matrix
+M &lt;- matrix(seq(1, 16), 4, 4)
+M
+</code></pre>
+
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    1    5    9   13
+## [2,]    2    6   10   14
+## [3,]    3    7   11   15
+## [4,]    4    8   12   16
+</code></pre>
+
+<pre><code class="r"># apply min to rows
+apply(M, 1, min)
+</code></pre>
+
+<pre><code>## [1] 1 2 3 4
+</code></pre>
+
+<pre><code class="r"># apply max to columns
+apply(M, 2, max)
+</code></pre>
+
+<pre><code>## [1]  4  8 12 16
+</code></pre>
+
+<pre><code class="r"># apply double for each cell
+apply(M, c(1, 2), function(x) 2 * x)
+</code></pre>
+
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    2   10   18   26
+## [2,]    4   12   20   28
+## [3,]    6   14   22   30
+## [4,]    8   16   24   32
+</code></pre>
+
+<pre><code class="r"># 3 dimensional array
+M &lt;- array(seq(32), dim = c(4, 4, 2))
+M
+</code></pre>
+
+<pre><code>## , , 1
+## 
+##      [,1] [,2] [,3] [,4]
+## [1,]    1    5    9   13
+## [2,]    2    6   10   14
+## [3,]    3    7   11   15
+## [4,]    4    8   12   16
+## 
+## , , 2
+## 
+##      [,1] [,2] [,3] [,4]
+## [1,]   17   21   25   29
+## [2,]   18   22   26   30
+## [3,]   19   23   27   31
+## [4,]   20   24   28   32
+</code></pre>
+
+<pre><code class="r"># Apply f across each M[*, , ] - i.e across 2nd and 3rd dimension
+apply(M, 1, max)
+</code></pre>
+
+<pre><code>## [1] 29 30 31 32
+</code></pre>
+
+<pre><code class="r">apply(M, 1, sum)  # Result is one-dimensional
+</code></pre>
+
+<pre><code>## [1] 120 128 136 144
+</code></pre>
+
+<pre><code class="r">
+# Apply sum across each M[*, *, ] - i.e Sum across 3rd dimension
+apply(M, c(1, 2), sum)
+</code></pre>
+
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]   18   26   34   42
+## [2,]   20   28   36   44
+## [3,]   22   30   38   46
+## [4,]   24   32   40   48
+</code></pre>
+
+<pre><code class="r"># Result is two-dimensional
+</code></pre>
+
+<ul>
+<li>lapply(x,f): returns a list of the same length as x, each element of which is the result of applying f to the corresponding element of x</li>
+<li>sapply(x,f): same but returns a vector</li>
+</ul>
+
+<pre><code class="r">f &lt;- function(x) x^2
+as.vector(lapply(1:6, f), mode = &quot;integer&quot;)  # change list to vector just for tidy output
+</code></pre>
+
+<pre><code>## [1]  1  4  9 16 25 36
+</code></pre>
+
+<pre><code class="r">sapply(1:10, f)  # does the same thing
+</code></pre>
+
+<pre><code>##  [1]   1   4   9  16  25  36  49  64  81 100
+</code></pre>
+
+<pre><code class="r">matrix(sapply(1:25, f), 5, 5)
+</code></pre>
+
+<pre><code>##      [,1] [,2] [,3] [,4] [,5]
+## [1,]    1   36  121  256  441
+## [2,]    4   49  144  289  484
+## [3,]    9   64  169  324  529
+## [4,]   16   81  196  361  576
+## [5,]   25  100  225  400  625
+</code></pre>
+
+<pre><code class="r">
+add &lt;- function(x, y) x + y
+sapply(1:10, add, 3)  # the 3 is passed to add() as its 2nd argument
+</code></pre>
+
+<pre><code>##  [1]  4  5  6  7  8  9 10 11 12 13
+</code></pre>
+
+<pre><code class="r">sapply(1:10, `+`, 3)  # search object *called* as &#39;+&#39;
+</code></pre>
+
+<pre><code>##  [1]  4  5  6  7  8  9 10 11 12 13
+</code></pre>
+
+<pre><code class="r">sapply(1:10, &quot;+&quot;, 3)  # search object *named* as &#39;+&#39;
+</code></pre>
+
+<pre><code>##  [1]  4  5  6  7  8  9 10 11 12 13
+</code></pre>
+
+<pre><code class="r">x &lt;- list(1:3, 4:9, 10:12)
+sapply(x, &quot;[&quot;, 2)  # equivalent to sapply(x, function(x) x[2])
+</code></pre>
+
+<pre><code>## [1]  2  5 11
+</code></pre>
+
+<p>An eg with list of functions:</p>
+
+<pre><code class="r">summary &lt;- function(x) {
+    funs &lt;- c(mean, median, sd, mad, IQR)
+    lapply(funs, function(f) f(x, na.rm = TRUE))
+}
+summary(rnorm(100))
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] 0.09745
+## 
+## [[2]]
+## [1] 0.1813
+## 
+## [[3]]
+## [1] 1.032
+## 
+## [[4]]
+## [1] 1.179
+## 
+## [[5]]
+## [1] 1.524
+</code></pre>
+
+<ul>
+<li>replicates(n,expression): replicates expression n times</li>
+<li>outer(xs,ys,f): returns a matrix with all f(x,y)</li>
+<li>mapply(f,xs,ys,&hellip;): applies f to (xs,ys,&hellip;), each ith element from all the vectors for each iteration</li>
+</ul>
+
+<pre><code class="r">f(runif(10))
+</code></pre>
+
+<pre><code>##  [1] 0.011645 0.071837 0.033036 0.287375 0.555313 0.402463 0.381245
+##  [8] 0.157712 0.004011 0.013123
+</code></pre>
+
+<pre><code class="r">replicate(3, f(runif(10)))  # replicates 3 times the previous instruction
+</code></pre>
+
+<pre><code>##          [,1]      [,2]      [,3]
+##  [1,] 0.29047 0.2192355 0.5787163
+##  [2,] 0.97908 0.0000207 0.0713255
+##  [3,] 0.62597 0.6117676 0.1662032
+##  [4,] 0.12913 0.5702262 0.0619908
+##  [5,] 0.84499 0.1108491 0.0002643
+##  [6,] 0.26375 0.6021286 0.0042931
+##  [7,] 0.03704 0.4141699 0.8034588
+##  [8,] 0.15760 0.5124898 0.3489303
+##  [9,] 0.12143 0.1565474 0.9899585
+## [10,] 0.31546 0.1476587 0.2271388
+</code></pre>
+
+<pre><code class="r">outer(1:5, 1:3, &quot;*&quot;)
+</code></pre>
+
+<pre><code>##      [,1] [,2] [,3]
+## [1,]    1    2    3
+## [2,]    2    4    6
+## [3,]    3    6    9
+## [4,]    4    8   12
+## [5,]    5   10   15
+</code></pre>
+
+<pre><code class="r">1:5 %o% 1:3  # same thing
+</code></pre>
+
+<pre><code>##      [,1] [,2] [,3]
+## [1,]    1    2    3
+## [2,]    2    4    6
+## [3,]    3    6    9
+## [4,]    4    8   12
+## [5,]    5   10   15
+</code></pre>
+
+<pre><code class="r">mapply(rep, 9:6, 1:4)
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] 9
+## 
+## [[2]]
+## [1] 8 8
+## 
+## [[3]]
+## [1] 7 7 7
+## 
+## [[4]]
+## [1] 6 6 6 6
+</code></pre>
+
+<pre><code class="r">f1 &lt;- function(x, y, z) 100 * x + 10 * y + z
+mapply(f1, 1:3, 4:6, 7:9)
+</code></pre>
+
+<pre><code>## [1] 147 258 369
+</code></pre>
+
+<h2>Other function stuff</h2>
+
+<p>When calling a function you can specify arguments by position, by complete name, or by partial name. Arguments are matched first by exact name (perfect matching), then by prefix matching and finally by position.</p>
+
+<pre><code class="r">f &lt;- function(abcdef, bcde1, bcde2) {
+    list(a = abcdef, b1 = bcde1, b2 = bcde2)
+}
+str(f(1, 2, 3))
+</code></pre>
+
+<pre><code>## List of 3
+##  $ a : num 1
+##  $ b1: num 2
+##  $ b2: num 3
+</code></pre>
+
+<pre><code class="r">str(f(2, 3, abcdef = 1))
+</code></pre>
+
+<pre><code>## List of 3
+##  $ a : num 1
+##  $ b1: num 2
+##  $ b2: num 3
+</code></pre>
+
+<pre><code class="r"># Can abbreviate long argument names:
+str(f(2, 3, a = 1))
+</code></pre>
+
+<pre><code>## List of 3
+##  $ a : num 1
+##  $ b1: num 2
+##  $ b2: num 3
+</code></pre>
+
+<pre><code class="r"># But this doesn&#39;t work because abbreviation is ambiguous
+str(f(1, 3, b = 1))
+</code></pre>
+
+<pre><code>## Error: argument 3 matches multiple formal arguments
+</code></pre>
+
+<p>Calling a function given a list of arguments</p>
+
+<pre><code class="r">args &lt;- list(1:10, na.rm = TRUE)
+do.call(mean, args)  # same as mean(1:10, na.rm = TRUE)
+</code></pre>
+
+<pre><code>## [1] 5.5
+</code></pre>
+
+<p>R can check if an argument is missing:</p>
+
+<pre><code class="r">f &lt;- function(x, y) {
+    c(missing(x), missing(y))
+}
+
+f(x = 1)
+</code></pre>
+
+<pre><code>## [1] FALSE  TRUE
+</code></pre>
+
+<pre><code class="r">f(y = 2)
+</code></pre>
+
+<pre><code>## [1]  TRUE FALSE
+</code></pre>
+
+<pre><code class="r">f(, 3)
+</code></pre>
+
+<pre><code>## [1]  TRUE FALSE
+</code></pre>
+
+<pre><code class="r">f(4, )
+</code></pre>
+
+<pre><code>## [1] FALSE  TRUE
+</code></pre>
+
+<p>Lazy Eval: R uses lazy evaluation when dealing with function arguments, it olny computes them if necessary</p>
+
+<pre><code class="r">f &lt;- function(x, y) {
+    x * 2
+}
+
+f(4, stop(&quot;error!&quot;))
+</code></pre>
+
+<pre><code>## [1] 8
+</code></pre>
+
+<p>This might bring some subtle problems:</p>
+
+<pre><code class="r">add &lt;- function(x) {
+    function(y) x + y
+}
+adders &lt;- lapply(1:10, add)  # a list of functions
+adders[[1]](5)  # hmmm... (the last value of x in the vector cycle above is 10)
+</code></pre>
+
+<pre><code>## [1] 15
+</code></pre>
+
+<pre><code class="r">adders[[10]](5)  # ok
+</code></pre>
+
+<pre><code>## [1] 15
+</code></pre>
+
+<pre><code class="r">
+# this is solved by forcing the evaluation of &#39;x&#39; in each element of the
+# vector cycle
+add &lt;- function(x) {
+    force(x)
+    function(y) x + y
+}
+
+adders2 &lt;- lapply(1:10, add)
+adders2[[1]](5)
+</code></pre>
+
+<pre><code>## [1] 6
+</code></pre>
+
+<pre><code class="r">adders2[[10]](5)
+</code></pre>
+
+<pre><code>## [1] 15
+</code></pre>
+
+<p>Default arguments are evaluated inside the function. This means that if the expression depends on the current environment the results will differ depending on whether you use the default value or explicitly provide one</p>
+
+<pre><code class="r">f &lt;- function(x = ls()) {
+    a &lt;- 1
+    x
+}
+
+# ls() evaluated inside f:
+f()
+</code></pre>
+
+<pre><code>## [1] &quot;a&quot; &quot;x&quot;
+</code></pre>
+
+<pre><code class="r"># ls() evaluated in global environment:
+f(ls())
+</code></pre>
+
+<pre><code>##  [1] &quot;add&quot;     &quot;adders&quot;  &quot;adders2&quot; &quot;args&quot;    &quot;f&quot;       &quot;f1&quot;      &quot;func&quot;   
+##  [8] &quot;M&quot;       &quot;summary&quot; &quot;x&quot;
+</code></pre>
+
+<blockquote>
+<p>More technically, an unevaluated argument is called a promise, or (less commonly) a thunk. A promise is made up of two parts:</p>
+
+<ol>
+<li><p>the expression which gives rise to the delayed computation. It can be accessed with substitute()</p></li>
+<li><p>the environment where the expression was created and where it should be evaluated</p></li>
+</ol>
+
+<p>The first time a promise is accessed the expression is evaluated in the environment where it was created. This value is cached, so that subsequent access to the evaluated promise does not recompute the value (but the original expression is still associated with the value, so substitute can continue to access it). <a href="http://adv-r.had.co.nz/Data-structures.html">ref</a></p>
+</blockquote>
+
+<pre><code class="r">substitute(expression(a + b), list(a = 1))
+</code></pre>
+
+<pre><code>## expression(1 + b)
+</code></pre>
+
+<p>The special argument <code>...</code> passes all non-matched args to the inner functions </p>
+
+<pre><code class="r">f &lt;- function(...) {
+    names(list(...))
+}
+f(a = 1, b = 2)
+</code></pre>
+
+<pre><code>## [1] &quot;a&quot; &quot;b&quot;
+</code></pre>
+
+<pre><code class="r">
+
+f &lt;- function(x, y, ...) {
+    g &lt;- function(z, w = 1) {
+        x * 1000 + y * 100 + z * 10 + w
+    }
+}
+
+f1 &lt;- f(1, 2, z = 3)
+f1(4)
+</code></pre>
+
+<pre><code>## [1] 1241
+</code></pre>
+
+<pre><code class="r">f1(w = 4, z = 5)
+</code></pre>
+
+<pre><code>## [1] 1254
+</code></pre>
+
+<p>Infix Functions: use %name% to enclose the function name</p>
+
+<pre><code class="r">&quot;%+%&quot; &lt;- function(a, b) paste(a, b, sep = &quot;&quot;)
+&quot;new&quot; %+% &quot; string&quot;
+</code></pre>
+
+<pre><code>## [1] &quot;new string&quot;
+</code></pre>
+
+<pre><code class="r">&quot;new&quot; %+% &quot; string&quot;  # alternative call
+</code></pre>
+
+<pre><code>## [1] &quot;new string&quot;
+</code></pre>
+
+<pre><code class="r">1 + 5
+</code></pre>
+
+<pre><code>## [1] 6
+</code></pre>
+
+<pre><code class="r"># use \ for special chars
+&quot;%/\\%&quot; &lt;- function(a, b) paste(a, b)
+&quot;a&quot; %/\% &quot;b&quot;
+</code></pre>
+
+<pre><code>## [1] &quot;a b&quot;
+</code></pre>
+
+<h2>Closures</h2>
+
+<blockquote>
+<p>An object is data with functions. 
+A closure is a function with data. &ndash; John D Cook</p>
+</blockquote>
+
+<pre><code class="r"># returns a new function which as access to the environment variable
+# &#39;exponent&#39;
+power &lt;- function(exponent) {
+    function(x) x^exponent
+}
+
+square &lt;- power(2)
+square(2)
+</code></pre>
+
+<pre><code>## [1] 4
+</code></pre>
+
+<pre><code class="r">square(4)
+</code></pre>
+
+<pre><code>## [1] 16
+</code></pre>
+
+<pre><code class="r">cube &lt;- power(3)
+cube(2)
+</code></pre>
+
+<pre><code>## [1] 8
+</code></pre>
+
+<pre><code class="r">cube(4)
+</code></pre>
+
+<pre><code>## [1] 64
+</code></pre>
+
+<pre><code class="r">as.list(environment(square))  # shows the closure&#39;s environment
+</code></pre>
+
+<pre><code>## $exponent
+## [1] 2
+</code></pre>
+
+<pre><code class="r">
+# Closures are useful for making function factories,
+
+missing_remover &lt;- function(na) {
+    function(x) {
+        x[x == na] &lt;- NA
+        x
+    }
+}
+
+remove_99 &lt;- missing_remover(99)
+remove_99(c(99, 100, 101, 99, 98))
+</code></pre>
+
+<pre><code>## [1]  NA 100 101  NA  98
+</code></pre>
+
+<pre><code class="r">remove_dot &lt;- missing_remover(&quot;.&quot;)
+remove_dot(c(&quot;.&quot;, &quot;a&quot;, &quot;.&quot;, &quot;b&quot;))
+</code></pre>
+
+<pre><code>## [1] NA  &quot;a&quot; NA  &quot;b&quot;
+</code></pre>
+
+<pre><code class="r"># And are one way to manage mutable state in R.
+new_counter &lt;- function() {
+    i &lt;- 0
+    function() {
+        i &lt;&lt;- i + 1  # operator &#39;&lt;&lt;-&#39; searches for &#39;i&#39; in the parent environment
+        i
+    }
+}
+
+counter_one &lt;- new_counter()
+counter_two &lt;- new_counter()
+counter_one()
+</code></pre>
+
+<pre><code>## [1] 1
+</code></pre>
+
+<pre><code class="r">counter_one()
+</code></pre>
+
+<pre><code>## [1] 2
+</code></pre>
+
+<pre><code class="r">counter_two()
+</code></pre>
+
+<pre><code>## [1] 1
+</code></pre>
+
+<pre><code class="r">as.list(environment(counter_one))  # check its mutable state
+</code></pre>
+
+<pre><code>## $i
+## [1] 2
+</code></pre>
+
+<pre><code class="r">as.list(environment(counter_two))
+</code></pre>
+
+<pre><code>## $i
+## [1] 1
+</code></pre>
+
+<h2>Currying</h2>
+
+<blockquote>
+<p>currying is the technique of transforming a function that takes multiple 
+arguments (or a tuple of arguments) in such a way that it can be called 
+as a chain of functions, each with a single argument (partial application) &ndash; Wikipedia</p>
+</blockquote>
+
+<pre><code class="r"># list of functions and currying
+
+# eg, mean functions
+
+compute_mean &lt;- list(base = function(x) mean(x), sum = function(x) sum(x)/length(x), 
+    manual = function(x) {
+        total &lt;- 0
+        n &lt;- length(x)
+        for (i in seq_along(x)) {
+            total &lt;- total + x[i]/n
+        }
+        total
+    })
+
+xs &lt;- runif(1e+05)
+system.time(compute_mean$base(xs))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##       0       0       0
+</code></pre>
+
+<pre><code class="r">system.time(compute_mean$sum(xs))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##       0       0       0
+</code></pre>
+
+<pre><code class="r">system.time(compute_mean$manual(xs))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##    0.13    0.00    0.12
+</code></pre>
+
+<pre><code class="r"># or test all in one line
+lapply(compute_mean, function(f) system.time(f(xs)))
+</code></pre>
+
+<pre><code>## $base
+##    user  system elapsed 
+##       0       0       0 
+## 
+## $sum
+##    user  system elapsed 
+##       0       0       0 
+## 
+## $manual
+##    user  system elapsed 
+##    0.12    0.00    0.12
+</code></pre>
+
+<pre><code class="r">Map(function(f) system.time(f(xs)), compute_mean)
+</code></pre>
+
+<pre><code>## $base
+##    user  system elapsed 
+##       0       0       0 
+## 
+## $sum
+##    user  system elapsed 
+##       0       0       0 
+## 
+## $manual
+##    user  system elapsed 
+##    0.14    0.00    0.16
+</code></pre>
+
+<pre><code class="r">
+# another way
+call_fun &lt;- function(f, ...) f(...)
+
+timer &lt;- function(f) {
+    force(f)  # force the evaluation of expression
+    function(...) system.time(f(...))
+}
+
+timers &lt;- lapply(compute_mean, timer)  # return a list of functions
+lapply(timers, call_fun, xs)
+</code></pre>
+
+<pre><code>## $base
+##    user  system elapsed 
+##       0       0       0 
+## 
+## $sum
+##    user  system elapsed 
+##       0       0       0 
+## 
+## $manual
+##    user  system elapsed 
+##    0.14    0.00    0.14
+</code></pre>
+
+<pre><code class="r">
+# implementation of currying:
+
+Curry &lt;- function(FUN, ...) {
+    .orig &lt;- list(...)
+    function(...) {
+        do.call(FUN, c(.orig, list(...)))
+    }
+}
+
+add &lt;- function(x, y) x + y
+addOne &lt;- Curry(add, y = 1)
+addOne(4)  # 5
+</code></pre>
+
+<pre><code>## [1] 5
+</code></pre>
+
+<pre><code class="r">
+# using curry in interesting ways:
+funs &lt;- list(sum = sum, mean = mean, median = median)
+# now turn that list elements, into functions that remove NAs
+funs2 &lt;- lapply(funs, Curry, na.rm = TRUE)
+</code></pre>
+
+<p>Package <code>pryr</code> implements currying with partial()</p>
+
+<pre><code class="r"># library(devtools) install_github(&#39;pryr&#39;)
+library(pryr)
+</code></pre>
+
+<pre><code>## Attaching package: &#39;pryr&#39;
+</code></pre>
+
+<pre><code>## The following object is masked _by_ &#39;.GlobalEnv&#39;:
+## 
+## f
+</code></pre>
+
+<pre><code class="r">
+f &lt;- function(x, y) 10 * x + y
+f(5, 6)
+</code></pre>
+
+<pre><code>## [1] 56
+</code></pre>
+
+<pre><code class="r">f1 &lt;- partial(f, x = 5)
+f1(6)
+</code></pre>
+
+<pre><code>## [1] 56
+</code></pre>
+
+<pre><code class="r">f2 &lt;- partial(f, y = 6)
+f2(5)
+</code></pre>
+
+<pre><code>## [1] 56
+</code></pre>
+
+<h2>Function Operators</h2>
+
+<p>Function operators (FO) are functions that take one (or more) functions as input and return a function as output.</p>
+
+<p>we&#39;ll explore four types of function operators (FOs):</p>
+
+<ul>
+<li><p>Behavioural FOs. While leaving the function otherwise unchanged, this type can do things like automatically log when the function is run, ensure that a function is run only once, and delay the operation of a function.</p></li>
+<li><p>Output FOs. This type can return different values depending on whether a function throws an error, or negates the result of a logical predicate.</p></li>
+<li><p>Input FOs. This type can modify inputs like partially evaluating a function, convert a function that takes multiple arguments to one that takes a list, or automatically vectorise a function.</p></li>
+<li><p>Combining FOs. This type can combine the results of predicate functions with boolean operators, or compose multiple function calls.</p></li>
+</ul>
+
+<p>Behavioural FOs leave the inputs and outputs of a function unchanged, but adds some extra behaviour.</p>
+
+<pre><code class="r"># add a delay to a function call:
+delay_by &lt;- function(delay, f) {
+    function(...) {
+        Sys.sleep(delay)
+        f(...)
+    }
+}
+
+system.time(runif(100))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##       0       0       0
+</code></pre>
+
+<pre><code class="r">system.time(delay_by(1, runif)(100))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##       0       0       1
+</code></pre>
+
+<pre><code class="r">
+# add a dot every 10 processing units
+dot_every &lt;- function(n, f) {
+    i &lt;- 1
+    function(...) {
+        if (i%%n == 0) 
+            cat(&quot;.&quot;)
+        i &lt;&lt;- i + 1
+        f(...)
+    }
+}
+
+x &lt;- lapply(1:100, runif)
+x &lt;- lapply(1:100, dot_every(10, runif))
+</code></pre>
+
+<pre><code>## ..........
+</code></pre>
+
+<h2>Memoisation</h2>
+
+<pre><code class="r">fib &lt;- function(n) {
+    if (n &lt; 2) 
+        return(1)
+    fib(n - 2) + fib(n - 1)
+}
+system.time(fib(28))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##    2.05    0.00    2.05
+</code></pre>
+
+<pre><code class="r">
+###### MEMOISE IT!
+library(memoise)
+
+fib2 &lt;- memoise(function(n) {
+    if (n &lt; 2) 
+        return(1)
+    fib2(n - 2) + fib2(n - 1)
+})
+
+system.time(fib2(28))
+</code></pre>
+
+<pre><code>##    user  system elapsed 
+##    0.00    0.00    0.03
+</code></pre>
+
+<h2>Capturing function invocations</h2>
+
+<blockquote>
+<p>One challenge with functionals is that it can be hard to see what&#39;s going on inside. It&#39;s not easy to pry open their internals like it is with a for loop. However, we can use FOs to help us. The tee function, defined below, has three arguments, all functions: f, the original function; on_input, a function that&#39;s called with the inputs to f, and on_output a function that&#39;s called with the output from f.</p>
+</blockquote>
+
+<pre><code class="r">ignore &lt;- function(...) NULL
+tee &lt;- function(f, on_input = ignore, on_output = ignore) {
+    function(...) {
+        input &lt;- if (nargs() == 1) 
+            c(...) else list(...)
+        on_input(input)
+        output &lt;- f(...)
+        on_output(output)
+        output
+    }
+}
+
+g &lt;- function(x) cos(x) - x
+uniroot(g, c(-5, 5))
+</code></pre>
+
+<pre><code>## $root
+## [1] 0.7391
+## 
+## $f.root
+## [1] -2.604e-07
+## 
+## $iter
+## [1] 6
+## 
+## $estim.prec
+## [1] 6.104e-05
+</code></pre>
+
+<pre><code class="r">
+uniroot(tee(g, on_input = print), c(-5, 5))
+</code></pre>
+
+<pre><code>## [1] -5
+## [1] 5
+## [1] 0.2837
+## [1] 0.8752
+## [1] 0.723
+## [1] 0.7386
+## [1] 0.7391
+## [1] 0.739
+## [1] 0.7391
+</code></pre>
+
+<pre><code>## $root
+## [1] 0.7391
+## 
+## $f.root
+## [1] -2.604e-07
+## 
+## $iter
+## [1] 6
+## 
+## $estim.prec
+## [1] 6.104e-05
+</code></pre>
+
+<pre><code class="r">uniroot(tee(g, on_output = print), c(-5, 5))
+</code></pre>
+
+<pre><code>## [1] 5.284
+## [1] -4.716
+## [1] 0.6764
+## [1] -0.2344
+## [1] 0.02686
+## [1] 0.0007601
+## [1] -2.604e-07
+## [1] 0.0001019
+## [1] -2.604e-07
+</code></pre>
+
+<pre><code>## $root
+## [1] 0.7391
+## 
+## $f.root
+## [1] -2.604e-07
+## 
+## $iter
+## [1] 6
+## 
+## $estim.prec
+## [1] 6.104e-05
+</code></pre>
+
+<h2>Output FOs</h2>
+
+<p>How to modify the output of a function.</p>
+
+<pre><code class="r">Negate &lt;- function(f) {
+    # Negates the function output
+    function(...) !f(...)
+}
+
+(Negate(is.null))(NULL)
+</code></pre>
+
+<pre><code>## [1] FALSE
+</code></pre>
+
+<pre><code class="r">
+# removes all null elements from a list
+compact &lt;- function(x) Filter(Negate(is.null), x)
+
+compact(c(NULL, 3, 3))
+</code></pre>
+
+<pre><code>## [1] 3 3
+</code></pre>
+
+<pre><code class="r">
+# failwith() turns a function that throws an error into a function that
+# returns a default value when there&#39;s an error
+
+failwith &lt;- function(default = NULL, f, quiet = TRUE) {
+    function(...) {
+        out &lt;- default
+        try(out &lt;- f(...), silent = quiet)  # silent a True does not show error msg
+        out
+    }
+}
+log(&quot;a&quot;)
+</code></pre>
+
+<pre><code>## Error: non-numeric argument to mathematical function
+</code></pre>
+
+<pre><code class="r">failwith(NA, log)(&quot;a&quot;)
+</code></pre>
+
+<pre><code>## [1] NA
+</code></pre>
+
+<p>Function composition</p>
+
+<p>An important way of combining functions is through composition: f(g(x)). </p>
+
+<pre><code class="r">compose &lt;- function(f, g) {
+    function(...) f(g(...))
+}
+
+&quot;%.%&quot; &lt;- compose
+
+sqrt(3 * 4)
+</code></pre>
+
+<pre><code>## [1] 3.464
+</code></pre>
+
+<pre><code class="r">(sqrt %.% `*`)(3, 4)
+</code></pre>
+
+<pre><code>## [1] 3.464
+</code></pre>
+
+<pre><code class="r">
+# function operators that combine logical predicates:
+
+and &lt;- function(f1, f2) {
+    function(...) {
+        f1(...) &amp;&amp; f2(...)
+    }
+}
+or &lt;- function(f1, f2) {
+    function(...) {
+        f1(...) || f2(...)
+    }
+}
+not &lt;- function(f1) {
+    function(...) {
+        !f1(...)
+    }
+}
+
+# So something like:
+data &lt;- Filter(function(x) is.character(x) || is.factor(x), iris)
+# becomes
+data &lt;- Filter(or(is.character, is.factor), iris)
+</code></pre>
+
+<p>A note about lazy eval:</p>
+
+<pre><code class="r">wrap &lt;- function(f) {
+    function(...) f(...)
+}
+
+fs &lt;- list(sum = sum, mean = mean, min = min)
+gs &lt;- lapply(fs, wrap)
+gs$sum(1:10)  # bug, it&#39;s returning the minimum
+</code></pre>
+
+<pre><code>## [1] 1
+</code></pre>
+
+<pre><code class="r">environment(gs$sum)$f
+</code></pre>
+
+<pre><code>## function (..., na.rm = FALSE)  .Primitive(&quot;min&quot;)
+</code></pre>
+
+<p>It doesn&#39;t work well with lapply() because f is lazily evaluated. This means that if you give lapply() a list of functions and a FO to apply those functions, it will look like it repeatedly applied the last function.</p>
+
+<p>Another problem is that as designed, we have to pass a function object, rather than the name of a function, which is often more convenient. We can solve both problems by using match.fun(): it forces evaluation of f, and will find the function object if given its name:</p>
+
+<pre><code class="r">wrap2 &lt;- function(f) {
+    f &lt;- match.fun(f)
+    function(...) f(...)
+}
+
+fs &lt;- c(sum = &quot;sum&quot;, mean = &quot;mean&quot;, min = &quot;min&quot;)
+hs &lt;- lapply(fs, wrap2)
+hs$sum(1:10)
+</code></pre>
+
+<pre><code>## [1] 55
+</code></pre>
+
+<pre><code class="r">environment(hs$sum)$f
+</code></pre>
+
+<pre><code>## function (..., na.rm = FALSE)  .Primitive(&quot;sum&quot;)
+</code></pre>
+
+</body>
+
+</html>
+

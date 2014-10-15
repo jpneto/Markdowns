@@ -1,0 +1,79 @@
+---
+title: "Profiling"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Refs:
+
++ [Advanced R by Hadley Wickham](http://adv-r.had.co.nz/Profiling.html)
+
+```{r, message=FALSE, warning=FALSE}
+# devtools::install_github("lineprof")
+library(lineprof)
+```
+
+Profiling code is necessary to find bottlenecks and try to optimize the use of time and memory by removing them.
+
+```{r}
+code = '
+  read_delim <- function(file, header = TRUE, sep = ",") {
+    # Determine number of fields by reading first line
+    first <- scan(file, what = character(1), nlines = 1,
+      sep = sep, quiet = TRUE)
+    p <- length(first)
+  
+    # Load all fields as character vectors
+    all <- scan(file, what = as.list(rep("character", p)),
+      sep = sep, skip = if (header) 1 else 0, quiet = TRUE)
+  
+    # Convert from strings to appropriate types (never to factors)
+    all[] <- lapply(all, type.convert, as.is = TRUE)
+  
+    # Set column names
+    if (header) {
+      names(all) <- first
+    } else {
+      names(all) <- paste0("V", seq_along(all))
+    }
+  
+    # Convert list into data frame
+    as.data.frame(all)
+  }
+'
+
+write(code, "source.R")
+source("source.R")  # this is necessary for lineprof to work
+library(ggplot2)
+write.csv(diamonds, "diamonds.csv", row.names = FALSE)
+l <- lineprof(read_delim("diamonds.csv"))
+l
+```
+
+A good way to see the results is to use an interactive explorer using the `shiny` package:
+
+```{r, eval=FALSE}
+library(shiny)
+# opens a web page that shows your source code annotated with information about how long each line took to run
+shine(l)
+```
+
+<center><img src="memory-lineprof.png" width="531" height="532"></center>
+
++ The t column visualises how much time in seconds is spent on each line.
+
++ The a is the memory (in megabytes) allocated by that line of code.
+
++ The r is the memory (in megabytes) released by that line of code (this may vary, since it depends on the garbage collector).
+
++ The d is the number of vector duplications that occurred. A vector duplication occurs when R copies a vector as a result of its copy on modify semantics.
+
+To see the values just hover the mouse over the required bar.
+

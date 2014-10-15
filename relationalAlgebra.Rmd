@@ -1,0 +1,205 @@
+---
+title: "Relational Algebra in R"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+
+[wikipedia] _In computer science, relational algebra is an offshoot of first-order logic and of algebra of sets concerned with operations over finitary relations, usually made more convenient to work with by identifying the components of a tuple by a name (called attribute) rather than by a numeric column index, which is what is called a relation in database terminology.
+
+The main application of relational algebra is providing a theoretical foundation for relational databases, particularly query languages for such databases, chiefly among which is SQL._
+
+Package `sqldf`
+-------------
+
+This package performs SQL queries on R data frames
+
+```{r, tidy=FALSE}
+library(sqldf)
+set.seed(101)
+size = 50
+get.name <- function(size)paste(sample(letters,size),collapse="")
+mydf <- data.frame(id=1:size,
+                   name=as.vector(Map(get.name, rep(5,size)), mode="character"),
+                   time=rpois(size,100),
+                   size=floor(runif(size,1,6)))
+head(mydf)
+sqldf("SELECT * 
+       FROM mydf 
+       LIMIT 6")
+sqldf("SELECT * 
+       FROM mydf 
+       WHERE name IN ('megku','qdaym')")
+sqldf("SELECT * 
+       FROM mydf 
+       WHERE name LIKE '%a%'")  # names with at least one 'a'
+sqldf("SELECT id, MAX(time) 
+       FROM mydf")
+sqldf("SELECT * 
+       FROM mydf 
+       WHERE time BETWEEN 90 AND 93")
+sqldf("SELECT * 
+       FROM mydf 
+       WHERE name BETWEEN 'a' AND 'g'")
+sqldf("SELECT time, count(*) AS n_refs
+       FROM mydf 
+       GROUP BY time HAVING count(*) > 2")
+sqldf("SELECT * 
+       FROM mydf 
+       WHERE time = 103")
+sqldf("SELECT id, time
+       FROM mydf 
+       WHERE time >= 70 AND time <= 86 
+       ORDER BY time;")
+sqldf("SELECT size, avg(time) as avg_time 
+       FROM mydf 
+       GROUP BY size;")
+
+size2 <- 200
+mydf2 <- data.frame(id=sample(1:50,size2,replace=TRUE),
+                    value=rexp(size2,1/50))
+head(mydf2)
+sqldf("SELECT count(*) AS n_values
+       FROM mydf2 
+       GROUP BY id
+       LIMIT 12")
+sqldf("SELECT id, SUM(value) AS sum_vals
+       FROM mydf2 
+       GROUP BY id
+       HAVING SUM(value) > 300")
+
+# Let the joins begin!
+# INNER JOIN, ie, returns rows when there is at least one match in both tables
+sqldf("SELECT mydf.name, mydf2.value 
+       FROM mydf JOIN mydf2 
+       ON mydf.id = mydf2.id 
+       ORDER BY mydf.name 
+       LIMIT 12")
+
+# LEFT (OUTER) JOIN keyword returns all rows from the left table (table_name1), 
+# even if there are no matches in the right table (table_name2).
+sqldf("SELECT mydf.name, mydf2.value 
+       FROM mydf LEFT JOIN mydf2 
+       ON mydf.id = mydf2.id 
+       ORDER BY mydf.name 
+       LIMIT 12")  # in this case there is no difference, all id's have values in mydf2
+
+mydf3 <- data.frame(id=sample(51:60,size2,replace=TRUE),
+                    value=rexp(size2,1/50))
+
+# UNION combines the result-set of two or more SELECT statements
+# It does not include repetitions (for that, use UNION ALL)
+sqldf("SELECT mydf2.id FROM mydf2 
+       UNION
+       SELECT mydf3.id FROM mydf3
+       ORDER BY id DESC
+       LIMIT 12") 
+```
+
+### Reading CSV files
+
+```{r, warning=FALSE}
+df <- read.csv("effort.csv")
+head(df, 10)
+df <- read.csv.sql("effort.csv", "SELECT * FROM file WHERE effort>10")
+head(df, 10)
+df <- read.csv.sql("effort.csv", "SELECT X, effort FROM file")
+head(df, 10)
+df <- read.csv.sql("effort.csv", "SELECT X, effort FROM file ORDER BY X DESC")
+head(df, 10)
+df <- read.csv.sql("effort.csv", "SELECT effort, COUNT(*) AS count FROM file GROUP BY effort")
+head(df, 10)
+```
+
+Package `relations`
+------------------
+
+_Data Structures and Algorithms for for k-ary relations with arbitrary domains, featuring relational algebra, predicate functions, and fitters for consensus relations_
+
+Check [http://cran.r-project.org/web/packages/relations/index.html](http://cran.r-project.org/web/packages/relations/index.html)
+
+```{r, tidy=FALSE}
+library(relations)
+PersonDF <-
+  data.frame(Name = c("Harry", "Sally", "George", "Helena", "Peter"),
+             Age = c(34, 28, 29, 54, 34),
+             Weight = c(80, 64, 70, 54, 80),
+             stringsAsFactors = FALSE)
+Person <- as.relation(PersonDF)
+## see relation
+relation_table(Person)
+## projection
+relation_table(relation_projection(Person, c("Age", "Weight")))
+## selection
+relation_table(R1 <- relation_selection(Person, Age < 29))
+relation_table(R2 <- relation_selection(Person, Age >= 34))
+relation_table(R3 <- relation_selection(Person, Age == Weight))
+## union
+relation_table(R1 %U% R2)
+## works only for the same domains:
+relation_table(R2 | R3)
+## complement
+relation_table(Person - R2)
+## intersection
+relation_table(relation_intersection(R2, R3))
+## works only for the same domains:
+relation_table(R2 & R3)
+## symmetric difference
+relation_table(relation_symdiff(R2, R3))
+## cartesian product
+Employee <-
+  data.frame(Name = c("Harry", "Sally", "George", "Harriet", "John"),
+             EmpId = c(3415, 2241, 3401, 2202, 3999),
+             DeptName = c("Finance", "Sales", "Finance", "Sales", "N.N."),
+             stringsAsFactors = FALSE)
+
+Employee <- as.relation(Employee)
+relation_table(Employee)
+Dept <- data.frame(DeptName = c("Finance", "Sales", "Production"),
+                   Manager = c("George", "Harriet", "Charles"),
+                   stringsAsFactors = FALSE)
+Dept <- as.relation(Dept)
+relation_table(Dept)
+relation_table(Employee %><% Dept)
+## Natural join
+relation_table(Employee %|><|% Dept)
+## left (outer) join
+relation_table(Employee %=><% Dept)
+## right (outer) join
+relation_table(Employee %><=% Dept)
+## full outer join
+relation_table(Employee %=><=% Dept)
+## antijoin
+relation_table(Employee %|>% Dept)
+relation_table(Employee %<|% Dept)
+## semijoin
+relation_table(Employee %|><% Dept)
+relation_table(Employee %><|% Dept)
+## division
+Completed <-
+  data.frame(Student = c("Fred", "Fred", "Fred", "Eugene",
+                         "Eugene", "Sara", "Sara"),
+             Task = c("Database1", "Database2", "Compiler1",
+                      "Database1", "Compiler1", "Database1",
+                      "Database2"),
+             stringsAsFactors = FALSE)
+Completed <- as.relation(Completed)
+relation_table(Completed)
+DBProject <- data.frame(Task = c("Database1", "Database2"),
+                        stringsAsFactors = FALSE)
+DBProject <- as.relation(DBProject)
+relation_table(DBProject)
+relation_table(Completed %/% DBProject)
+## division remainder
+relation_table(Completed %% DBProject)
+```
+
+
+

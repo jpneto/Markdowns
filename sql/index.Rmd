@@ -1,0 +1,776 @@
+---
+title: "SQL Tutorial"
+author: "João Neto"
+date: "Thursday, July 31, 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+---
+
+<!-- YAML options (above) -->
+
+Preliminaries
+-------------
+
+Herein we are using the open-source database postgreSQL (more details [below](#postgreSQL)).
+
+How to access a postgreSQL database using R:
+
+```{r, warning=FALSE, message=FALSE}
+library(RPostgreSQL)
+ 
+drv <- dbDriver("PostgreSQL")
+db <- dbConnect(drv, dbname="dvdrental", user="postgres", password="admin")
+```
+
+And to execute a query over the chosen database:
+ 
+```{r}
+query <- "SELECT
+            *
+          FROM
+            customer;"
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+SQL Language
+------------
+
+So SQL is a declarative language that specify relational algebra operations over tables (where rows represent records, and columns record attributes) in a relational database. Check [wikipedia](http://en.wikipedia.org/wiki/SQL) for more info.
+
+This exercises are from [http://sqlschool.modeanalytics.com/](http://sqlschool.modeanalytics.com/)
+
+### Selection
+
+A query is the SQL way to retrieve information from one or more tables.
+
+This is an eg of projection, ie, selection of just some columns:
+
+```{r}
+query <- "SELECT
+            first_name, email
+          FROM
+            customer;"
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+Rename the resulting columns:
+
+```{r}
+query <- 'SELECT
+            first_name AS "FIRST NAME", 
+            email AS "EMAIL"
+          FROM
+            customer;'
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+Fix a limit on the queried data:
+
+```{r}
+query <- "SELECT
+            first_name, email
+          FROM
+            customer
+          LIMIT 3;"
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+Another relational algebra operation is a filter:
+
+```{r}
+query <- "SELECT
+            first_name, address_id, store_id
+          FROM
+            customer
+          WHERE
+            (address_id > 15 AND first_name <= 'm') OR store_id != 1;"
+ 
+data <- dbGetQuery(db, query)
+head(data,10)
+```
+
+The logical operators are `AND`, `OR` and `NOT`
+
+To mix two columns:
+
+```{r}
+query <- "SELECT
+            customer_id, 
+            store_id, 
+            1000 * customer_id + store_id AS mix_id
+          FROM
+            customer;"
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+To make sorts:
+
+```{r}
+query <- "SELECT
+            first_name, 
+            last_name
+          FROM
+            customer
+          ORDER BY
+            first_name DESC, last_name;" # first name by decreasing order, then last name by increasing order
+ 
+data <- dbGetQuery(db, query)
+head(data,7)
+```
+
+Using (simple) regular expressions:
+
+```{r}
+query <- "SELECT
+            first_name, 
+            last_name
+          FROM
+            customer
+          WHERE
+            first_name LIKE 'W%a' OR last_name LIKE 'J_n%';"   # % means 0+ chars, _ means 1 char
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+`ILIKE` is for case insensitive.
+
+`IN` is used to compare with a set of values:
+
+```{r}
+query <- "SELECT
+            first_name,    -- btw, this is a SQL comment
+            last_name
+          FROM
+            customer
+          /* 
+                this is a multiline comment
+           */
+          WHERE
+            first_name IN ('Mary', 'Barbara');" 
+ 
+data <- dbGetQuery(db, query)
+head(data)
+```
+
+The next egs use this google stock [csv](stocks.csv). To include it in postgreSQL do:
+
+1. `CREATE DATABASE stocks;`
+2. `\c stocks;`
+3. `CREATE TABLE stocks (
+    DATE_STOCK varchar(8), 
+    YEAR integer,
+    MONTH integer,
+    OPEN double precision,
+    HIGH double precision,
+    LOW  double precision,
+    CLOSE  double precision,
+    VOLUME integer,
+    id integer PRIMARY KEY
+  );`
+4. `\COPY stocks FROM 'C:\Users\jpn\Downloads\stocks.csv' DELIMITER ',' CSV HEADER;`  (adjust to your local dir)
+
+Now we can access it here:
+
+```{r}
+db2 <- dbConnect(drv, dbname="stocks", user="postgres", password="admin")
+
+query <- "SELECT
+            *
+          FROM
+            stocks;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data,10)
+```
+
+We can aggregate information into some available functions:
+
+```{r}
+query <- "SELECT
+            COUNT(*),                 -- count the number of records
+            COUNT(high) AS highs,     -- count the number of not null values of column 'high'
+            SUM(high)   AS sum_highs, -- null values are treated as zero
+            MIN(volume) AS min_volume,
+            MAX(volume) AS max_volume,
+            AVG(low)    AS avg_low    -- ignore nulls
+          FROM
+            stocks;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data,10)
+```
+
+We can mix the aggregators with grouping the table into values:
+
+```{r}
+query <- "SELECT
+            year,
+            COUNT(*),                 -- count the number of records
+            COUNT(high) AS highs,     -- count the number of not null values of column 'high'
+            SUM(high)   AS sum_highs, -- null values are treated as zero
+            MIN(volume) AS min_volume,
+            MAX(volume) AS max_volume,
+            AVG(low)    AS avg_low    -- ignore nulls
+          FROM
+            stocks
+          GROUP BY
+            year;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data,10)
+```
+
+Groups can be nested:
+
+```{r}
+query <- "SELECT
+            year, month,
+            COUNT(*),                 -- count the number of records
+            COUNT(high) AS highs,     -- count the number of not null values of column 'high'
+            SUM(high)   AS sum_highs, -- null values are treated as zero
+            MIN(volume) AS min_volume,
+            MAX(volume) AS max_volume,
+            AVG(low)    AS avg_low    -- ignore nulls
+          FROM
+            stocks
+          GROUP BY
+            year, month
+          ORDER BY
+            year, month;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data,10)
+```
+
+Distinct values can be selected:
+
+```{r}
+query <- "SELECT DISTINCT
+            month
+          FROM
+            stocks;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data,10)
+```
+
+With more than one column, SQL returns all the distinct tuples it finds:
+
+```{r}
+query <- "SELECT DISTINCT
+            month, year
+          FROM
+            stocks;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data)
+```
+
+We can use it with count
+
+```{r}
+query <- "SELECT 
+            COUNT(DISTINCT month) -- how many distinct months?
+          FROM
+            stocks;" 
+ 
+data <- dbGetQuery(db2, query)
+head(data)
+```
+
+For the next egs let's use this [csv](rosters.csv).
+
+```{r}
+db3 <- dbConnect(drv, dbname="rosters", user="postgres", password="admin")
+
+query <- "SELECT
+            *
+          FROM
+            players;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data,10)
+```
+
+To deal with conditional statements, SQL uses `CASE WHEN ... THEN ... ELSE ... END`
+
+```{r}
+query <- "SELECT
+            player,
+            year,
+            CASE WHEN year = 'SR'   -- create a new column where only senior players have a 'yes' values
+              THEN 'yes'
+              ELSE NULL 
+            END AS is_a_senior
+          FROM
+            players;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data,10)
+```
+
+It's possible to have a sequence of conditionals:
+
+```{r}
+query <- "SELECT
+            player,
+            weight,
+            CASE WHEN weight > 250 THEN 'over 250'
+                 WHEN weight > 200 THEN '200-250'
+                 WHEN weight > 175 THEN '175-200'
+                                   ELSE 'under 175' 
+            END AS weight_group
+          FROM
+            players;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data,10)
+```
+
+Conditional statements can be mixed with aggregatorsto achieve more expression power:
+
+```{r}
+query <- "SELECT
+            CASE WHEN year = 'FR' 
+              THEN 'FR'
+              ELSE 'Not FR' 
+            END      AS year_group,
+            COUNT(1) AS count    -- 1 means the first column of the select, aka year_group
+          FROM
+            players
+          GROUP BY 1;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data)
+```
+
+Another eg:
+
+```{r}
+query <- "SELECT
+            CASE WHEN year = 'FR' THEN 'FR'
+                 WHEN year = 'SO' THEN 'SO'
+                 WHEN year = 'JR' THEN 'JR'
+                 WHEN year = 'SR' THEN 'SR'
+                                  ELSE 'No Year Data' 
+            END      AS year_group,
+            COUNT(1) AS count
+          FROM
+            players
+          GROUP BY 1;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data)
+```
+
+The previous eg now rotated, aka, pivoting:
+
+```{r}
+query <- "SELECT
+            COUNT(CASE WHEN year = 'JR' THEN 1 ELSE NULL END) AS jr_count,
+            COUNT(CASE WHEN year = 'FR' THEN 1 ELSE NULL END) AS fr_count,
+            COUNT(CASE WHEN year = 'SR' THEN 1 ELSE NULL END) AS sr_count,
+            COUNT(CASE WHEN year = 'SO' THEN 1 ELSE NULL END) AS so_count
+          FROM
+            players;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data)
+```
+
+### Joins
+
+Joins permit that two or more tables can be associated to recover common associated information.
+
+In the next egs we use a 2nd table names `teams` from the same database ([csv](teams.csv)).
+
+```{r}
+query <- "SELECT
+            *
+          FROM
+            teams;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data)
+```
+
+Say we want to know which conference (in teams table) has the highest average weight (in players table):
+
+```{r}
+query <- "SELECT
+            *                   -- this is the full table returned by join, not the solution
+          FROM
+            players JOIN teams  -- this is the new table, the joined table, where select is going to operate
+            ON players.school_name = teams.school_name;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data)
+
+
+query <- "SELECT
+            teams.conference    AS conference,
+            AVG(players.weight) AS average_weight
+          FROM
+            players JOIN teams
+            ON teams.school_name = players.school_name
+          GROUP BY teams.conference
+          ORDER BY AVG(players.weight) DESC;" 
+ 
+data <- dbGetQuery(db3, query)
+head(data)
+```
+
+This `JOIN` is an _inner join_, ie, it will only show rows that satisfy the `ON` condition. It is an intersection of the two tables (check _outer joins_ below).
+
+If there are columns in different tables with the same names but different information, we should use `AS` to give them distinct names.
+
+### Outer Join
+
+These are are tables for the next egs:
+
+```{r}
+db4 <- dbConnect(drv, dbname="crunchbase", user="postgres", password="admin")
+
+query <- "SELECT
+            *                
+          FROM
+            companies;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+nrow(data)
+
+query <- "SELECT
+            *                
+          FROM
+            acquisitions;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+nrow(data)
+```
+
+There are three types of Outer Join:
++ Left Outer Join, which includes unmatched rows from the left table
++ Right Outer Join, which includes unmatched rows from the right table (ie, `T2 LEFT JOIN T1` produces the same results as `T1 RIGHT JOIN T2`)
++ Full Outer Join, which includes unmatched rows from both tables
+
+First the inner join:
+
+```{r}
+query <- "SELECT
+            companies.permalink            AS companies_permalink,
+            companies.name                 AS companies_name,
+            acquisitions.company_permalink AS acquisitions_permalink
+          FROM companies JOIN acquisitions
+               ON companies.permalink = acquisitions.company_permalink;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+```
+
+Now a left join which includes several rows from companies table that does not have an entry at the acquisitions table:
+
+```{r}
+query <- "SELECT
+            companies.permalink            AS companies_permalink,
+            companies.name                 AS companies_name,
+            acquisitions.company_permalink AS acquisitions_permalink
+          FROM companies LEFT JOIN acquisitions
+               ON companies.permalink = acquisitions.company_permalink;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+```
+
+The next eg count the number of unique companies (not double-counting companies) and unique *acquired* companies by state. It does not include results for which there is no state data, and order by the number of acquired companies from highest to lowest.
+
+```{r}
+query <- "SELECT companies.state_code,
+                 COUNT(DISTINCT companies.permalink)            AS unique_companies,
+                 COUNT(DISTINCT acquisitions.company_permalink) AS unique_companies_acquired
+          FROM companies LEFT JOIN acquisitions
+              ON companies.permalink = acquisitions.company_permalink
+          WHERE companies.state_code IS NOT NULL
+          GROUP BY 1
+          ORDER BY 3 DESC;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+```
+
+If you want to provide a default value for the missing attributes, check function `COALESCE`.
+
+### Converting Data
+
+Functions `LEFT` and `RIGHT` allow to snip $n$ chars from a string. `LENGTH` returns the size of the string.
+
+```{r}
+query <- "SELECT
+            company_permalink,
+            LEFT(company_permalink, 6)  AS left_permalink,
+            RIGHT(company_permalink, 6) AS right_permalink,
+            LENGTH(company_permalink) AS length
+          FROM
+            acquisitions;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+```
+
+`TRIM` allows to remove certain chars from the extremeties of the string. It has 3 args: first from where we should start, then a string of char to remove, then a FROM followed by which column to process:
+
+```{r}
+query <- "SELECT
+            company_permalink,
+            TRIM(leading '/e' FROM company_permalink) AS trim_begin,
+            TRIM(trailing '/e' FROM company_permalink) AS trim_end,
+            TRIM(both '/e' FROM company_permalink) AS trim_begin_and_end
+          FROM
+            acquisitions;" 
+ 
+data <- dbGetQuery(db4, query)
+head(data)
+```
+
+Other functions:
++ `POSITION`, `STRPOS`, to find chars within a string
++ `SUBSTR`, `LEFT`, `RIGHT`, to produce substrings
++ `CONCAT`, `||`, to concatenate
++ `UPPER`, `LOWER`, to make uppercase/lowercase string
+
+For date manipulation let's recheck the second db:
+
+```{r}
+query <- "SELECT
+            date_stock, id
+          FROM
+            stocks;"
+ 
+data <- dbGetQuery(db2, query)
+head(data,20)
+```
+
+The `date_stock` column is a string with some quirks in it (different sizes for different dates). How to convert it to date?
+
+```{r}
+query <- "SELECT
+            id, 
+            date_stock,
+            CASE WHEN LENGTH(date_stock) = 6                                  -- months 1 to 9, days 1 to 9
+                    THEN ('20' || RIGHT(date_stock, 2) || '-' || 
+                                  LEFT(date_stock, 1) || '-' || 
+                                  SUBSTR(date_stock, 3, 1))::date 
+                 WHEN LENGTH(date_stock) = 8                                  -- months > 9, days > 9
+                    THEN ('20' || RIGHT(date_stock, 2) || '-' || 
+                                  LEFT(date_stock, 2) || '-' || 
+                                  SUBSTR(date_stock, 4, 2))::date 
+                 WHEN LENGTH(date_stock) = 7 AND SUBSTR(date_stock,2,1) = '/' -- months < 10, days > 9
+                    THEN ('20' || RIGHT(date_stock, 2) || '-' || 
+                                  LEFT(date_stock, 1) || '-' || 
+                                  SUBSTR(date_stock, 3, 2))::date 
+                    ELSE ('20' || RIGHT(date_stock, 2) || '-' ||              -- months > 9, days < 10
+                                  LEFT(date_stock, 2) || '-' || 
+                                  SUBSTR(date_stock, 4, 2))::date   -- notice the data cast (à lá Haskell)
+            END AS clean_date
+          FROM
+            stocks;"
+ 
+data <- dbGetQuery(db2, query)
+head(data, 20)
+```
+
+The function `NOW()` provides the current time (as a timestamp datatype):
+
+```{r}
+query <- "SELECT
+            date_stock, id, NOW() AS current_time
+          FROM
+            stocks;"
+ 
+data <- dbGetQuery(db2, query)
+head(data)
+```
+
+Timestamps have specific function to retrive their composite information:
+
+```{r}
+query <- "SELECT
+            EXTRACT('year' FROM temp_table.current_time) AS current_year
+          FROM
+            ( SELECT    -- make a sub_query, in order to get the timestamp for the eg
+                date_stock, id, NOW() AS current_time 
+              FROM stocks
+            ) AS temp_table;"
+ 
+data <- dbGetQuery(db2, query)
+head(data)
+```
+
+### Subqueries
+
+The previous eg has a subquery, the construction of a temporary (named) table needed to get the desired result.
+
+Here's another eg that shows the rows with the smaller date in the table (the result is not ok, since, as we seen, the dates do not follow a standard description, but let's assume that was not a problem here). In this case the temporary table was made in the `WHERE` clause:
+
+```{r}
+query <- "SELECT
+            date_stock, id
+          FROM
+            stocks
+          WHERE
+            date_stock = ( SELECT min(date_stock) FROM stocks );"
+ 
+data <- dbGetQuery(db2, query)
+head(data)
+```
+
+We can also have 2+ subqueries and then join them:
+
+```{r}
+query <- "SELECT
+            first_name, last_name
+          FROM
+            customer;"
+ 
+data <- dbGetQuery(db, query)
+head(data)
+
+# Show customers names that have last names started by 'An' or 'Ar'
+
+query <- "SELECT
+            temp.first_name, temp.last_name
+          FROM
+          ( SELECT first_name, last_name FROM customer WHERE last_name LIKE 'An%' 
+            UNION ALL
+            SELECT first_name, last_name FROM customer WHERE last_name LIKE 'Ar%' 
+          ) AS temp;"
+ 
+data <- dbGetQuery(db, query)
+head(data,20)
+```
+
+```{r, echo=FALSE}
+dbDisconnect(db)
+dbDisconnect(db2)
+dbDisconnect(db3)
+dbDisconnect(db4)
+```
+
+
+About postgreSQL
+-------------------
+
+<a name="postgreSQL"/>
+
++ To run postgreSQL in admin mode: `psql -Upostgres`
++ To create a new database: `CREATE DATABASE dvdrental;`
++ To add a database into `dvdrental` database (at shell): `pg_restore -U postgres -d dvdrental dvdrental.tar`
+
+More info at [http://www.postgresqltutorial.com/](http://www.postgresqltutorial.com/)
+
+Helpful postgreSQL commands ([ref](http://blog.jasonmeridth.com/posts/postgresql-command-line-cheat-sheet/)):
+
++ change to postgres user and open psql prompt: `sudo -u postgres psql postgres`
++ list databases: `postgres=# \l`
++ list roles: `postgres=# \du`
++ create role: `postgres=#CREATE ROLE demorole1 WITH LOGIN ENCRYPTED PASSWORD 'password1' CREATEDB;`
++ alter role: `postgres=#ALTER ROLE demorole1 CREATEROLE CREATEDB REPLICATION SUPERUSER;`
++ drop role: `postgres=#DROP ROLE demorole1;`
++ create database: `postgres=#CREATE DATABASE demodb1 WITH OWNER demorole1 ENCODING 'UTF8';`
++ grant privileges to new user: `GRANT ALL PRIVILEGES ON DATABASE demodb1 TO demorole1;`
++ drop database: `postgres=#DROP DATABASE demodb1;`
++ connect to database: `\c <databasename>`
++ list tables in connected database: `\dt`
++ list columns on table: `\d <tablename>`
++ backup database: `pg_dump <databasename> > <outfile>`
++ quit: `\q`
++ help commands: `\?`
++ help command: `\h COMMAND`
++ execute commands from file: `\i FILE`
++ execute command in shell: `\! COMMAND`
+
+Operations besides select using `RPostgreSQL`
+
+```{r, warning=FALSE, message=FALSE}
+library(RPostgreSQL)
+ 
+drv <- dbDriver("PostgreSQL")
+db <- dbConnect(drv, dbname="tests", user="postgres", password="admin")
+
+# delete if exists
+if (dbExistsTable(db, "books"))
+  dbSendQuery(db, "DROP TABLE books;") # or  dbRemoveTable("books");
+
+# create table
+dbSendQuery(db, "CREATE TABLE books (intcolumn integer, floatcolumn float);")
+
+# insert data, row by row
+dbSendQuery(db, "INSERT INTO books VALUES(12, 19.95);")
+dbSendQuery(db, "INSERT INTO books VALUES( 1,  9.95);")
+dbSendQuery(db, "INSERT INTO books VALUES(10, 14.95);")
+dbSendQuery(db, "INSERT INTO books VALUES( 2,  4.95);")
+dbSendQuery(db, "INSERT INTO books VALUES( 3,  1.45);")
+
+# get contents
+dbGetQuery(db, "SELECT * FROM books;")
+
+# get contents (lazy)
+data <- dbSendQuery(db, "SELECT * FROM books;")
+fetch(data, 3)       # get the next 2 records (use -1 to fetch all)
+dbGetRowCount(data)  # how many rows were processed so far
+fetch(data, 2) 
+dbGetRowCount(data)
+
+# get the DBMS statement of a given resulst
+dbGetStatement(data)
+dbGetRowsAffected(data) # how many rows were affected (-1 if none was)
+
+# get avalailable tables in database
+dbListTables(db)
+
+# get list of table's column names
+dbListFields(db, "books")
+
+# import table into data frame
+df <- dbReadTable(db, "books")
+df
+
+# export data frame into db table
+df2 <- data.frame(id=1:5, x=runif(10), y=sample(letters,10))
+df2
+dbWriteTable(db, "new_table", df2)
+dbReadTable(db, "new_table")
+
+dbClearResult(data) # flushes any pending data and frees the resources used by result set
+
+# postgreSQL transactions
+dbSendQuery(db, "BEGIN;")            # begin transaction
+dbRemoveTable(db,"new_table")
+dbExistsTable(db,"new_table")
+dbRollback(db)                       # rollback, ie, undo all changes since last begin
+dbExistsTable(db,"new_table")
+dbSendQuery(db, "BEGIN;")
+dbRemoveTable(db,"new_table")
+dbExistsTable(db,"new_table")
+dbCommit(db)                         # or dbSendQuery(db, "COMMIT;") 
+dbExistsTable(db,"new_table")
+
+dbDisconnect(db)    # disconnects with the database
+dbUnloadDriver(drv) # unload driver (frees all resources)
+```

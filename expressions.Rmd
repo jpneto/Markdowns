@@ -1,0 +1,296 @@
+---
+title: "Expressions"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Introduction
+--------------
+
+In R a **call** is an unevaluated expression which consists of the named function applied to the given arguments. Function `call` is used to create a call. It receives a function's name, plus a series of arguments to be applied to the function. `eval` is used to evaluate the final result.
+
+```{r}
+a <- 25
+b <- call("sqrt", a)
+b
+eval(b)
+a <- 16               # does not influence the previous environment
+eval(b)
+is.call(b)
+is.call(call)         # functions are not calls
+c <- call("^", 2, 4)  # call can receive multiple arguments
+eval(c)
+```
+
+`quote` returns the argument as non evaluated:
+
+```{r}
+a <- 25
+b <- call("sqrt", quote(a))
+eval(b)
+a <- 16               # now it influences, since R still not evaluated the parameter
+eval(b)  
+eval(quote(b), env=list(b=1)) # reads from an environment (can also be a list or a dataframe)
+```
+
+`do.call` constructs and executes a function call from a name or a function and a list of arguments to be passed to it.
+
+```{r}
+a <- 10
+b <- 2
+f <- function (a,b) a/b
+do.call("f", args=list(a+1, b))
+do.call("f", args=list(b=a, a=b))
+# make an environment
+env <- new.env()
+assign("a", 2, envir = env) # same as env$a <- 2
+assign("b", 8, envir = env)
+assign("f", function(a,b) a+b, envir = env)
+as.list(env)
+do.call("f", args=list(quote(a), quote(b)), envir=env)
+env$f <- function(a,b) a^b
+do.call("f", args=list(quote(a), quote(b)), envir=env)
+```
+
+`substitute` return the unevaluated expression, replacing any variables bound in the environment. The environment is a given list of assignments, or if omitted is the current evaluation environment.
+
+
+```{r}
+substitute(a+b, list(a=1))
+a <- substitute(a+b+c, list(a=1,c=5))
+a
+eval(a, list(b=10))
+```
+
+We can use `eval` and `substitute` to implement `subset`, a function that return subsets of vectors, matrices or data frames which meet conditions:
+
+```{r}
+df <- data.frame(x=11:18, y=18:11)
+df
+subset(df, x>y)
+
+my.subset <- function(x, condition) {
+  condition_call <- substitute(condition)
+  rows <- eval(condition_call, env=x, enclos=parent.frame()) # parent.frame is the var scope the user needs
+  x[rows, ]
+}
+
+my.subset(df, x>y)
+a <- 15
+my.subset(df, x>a)
+  
+```
+
+Notice that these type of functions are no longer referentially transparent. A function is referentially transparent if you can replace its arguments with their values and its behaviour doesn't change. For example, if a function, f(), is referentially transparent and both x and y are 10, then f(x), f(y), and f(10) will all return the same result. Check [here](http://adv-r.had.co.nz/Computing-on-the-language.html) for more info
+
+Expressions
+----------
+
+Expressions are calls in R. Function `expression` returns a vector of type "expression" containing its arguments (unevaluated).
+
+```{r}
+expr <- expression(x^2 + b*x)
+is.expression(expr)
+eval(expr, list(x=10, b=3))
+eval(expr, list(x=c(10,20,30), b=1:3))
+```
+
+`all.vars` return a character vector containing all the names which occur in an expression or call.
+
+```{r}
+expr <- expression(x^2 + b*x)
+all.vars(expr)
+all.vars(quote(expr))
+```
+
+
+Symbolic Computation
+----------------
+
+We can do some basic symbolic computation. `D` and `deriv` compute the derivate of an expression:
+
+```{r}
+expr <- expression(x^2 + b*x)
+de.dx <- D(expr, "x")   # for simple variable
+de.dx
+de.db <- D(expr, "b")
+de.db
+eval(de.dx, list(b=1, x=10))
+
+# computing n-th derivative
+# pre: n>0
+Dn <- function(expr, name, n=1) {
+   if (n == 1)
+     D(expr, name)
+   else
+     Dn(D(expr, name), name, n-1)
+}
+Dn(expression(sin(x^2)), "x", 3)
+
+expr <- expression(x^2 + b*x*y + y^3)
+deriv(expr, namevec=c("x","y"))               # for multiple variables
+d <- deriv(expr, namevec=c("x","y"), hessian=TRUE) # includes the Hessian, ie, the matrix of second derivatives 
+d
+eval(d, list(x=1,y=3))
+```
+
+A more complex eg
+------------------
+
+[Ref](http://oddhypothesis.blogspot.pt/2014/08/optimizing-with-r-expressions.html). We are trying to fit data $x$ into the nonlinear model:
+
+$$\frac{K y_0 e^{u(x-tl)}}{K + y_0(e^{u(x-tl)}-1)} + b_1 + (b_0-b_1)e^{-kx} + b_2x$$
+
+```{r}
+# the model equation
+expr <- expression( (K*y0*exp(u*(x-tl)))/(K + y0*(exp(u*(x-tl))-1)) + 
+                    b1 + (b0 - b1)*exp(-k*x) + b2*x )
+
+all.vars(expr)
+```
+
+The next line produces a list of the partial derivatives of the above equation with respect to each parameter:
+
+```{r}
+ds <- sapply(all.vars(expr), function(v) {D(expr, v)} )
+ds
+class(ds)
+class(ds[[1]])
+```
+
+Each element of this list is itself an expression.
+
+Now, if we assign values to the parameters, we can compute the Jacobian matrix $J$, necessary to compute the gradient:
+
+```{r}
+jacob <- function(expr, env) {
+   t( sapply(all.vars(expr), function(v) {eval(D(expr, v), env=env)} ) )
+}
+```
+
+So, let's give them some values:
+
+```{r}
+# this will be the environment for the evaluation of J
+ps <- c(y0=0.01, u=0.3, tl=5, K=2, b0=0.01, b1=1, b2=0.001, k=0.1)
+x  <- seq(0,10)
+
+J <- jacob(expr, env= c(as.list(ps), list(x=x)))
+J <- J[names(ps),,drop=F]  # drop 'x' row which refers to the independent variable
+J
+```
+
+The Hessian $H$ is approximately $H \approx J^TJ$
+
+```{r}
+H <- J %*% t(J)  # because linear algebra in R is a little strange, the transpose is applied to the 2nd Jacobian
+```
+
+The gradient is $g = -J r$ where $r$ are the residuals.
+
+We can box all this into a class:
+
+```{r}
+ModelObject = setRefClass('ModelObject', 
+                          
+  fields = list(
+    name = 'character',
+    expr = 'expression'
+  ),
+  
+  methods = list(
+    value = function(p, data){
+      eval(.self$expr, c(as.list(p), as.list(data)))
+    },
+  
+    jacobian = function(p, data){
+      J = t(sapply(all.vars(.self$expr), function(v, p, data){
+              eval(D(.self$expr, v), c(as.list(p), as.list(data)))
+            }, p=p, data=data))
+
+      return(J[names(p),,drop=F])
+    },
+    
+    gradient = function(p, data){
+        r = data$y - value(p, data)
+        return(-jacobian(p, data) %*% r)
+    },
+    
+    hessian = function(p, data){
+      J = jacobian(p, data)
+      return(J %*% t(J))
+    }
+  )
+)
+```
+
+So let's make some fake data and test the model:
+
+```{r}
+# the model expression
+expr <- expression( (K*y0*exp(u*(x-tl)))/(K + y0*(exp(u*(x-tl))-1)) + 
+                    b1 + (b0 - b1)*exp(-k*x) + b2*x )
+
+# make some data:
+xs <- seq(0,48,by=0.25)
+p0 <- c(y0=0.01, u=0.3, tl=5, K=2, b0=0.01, b1=1, b2=0.001, k=0.1)  # true values of the parameters
+xy <- list(x=xs,
+           y=eval(expr, envir=c(as.list(p0), list(x=xs)))
+          )
+  
+plot(xy, main='Fit Results', type="l", col="blue", lty=2, lwd=2); # target function
+xy$y <- xy$y+rnorm(length(xs),0,.15)  # add some noise
+points(xy$x, xy$y, pch=19)                                        # observational data
+                   
+mo <- ModelObject(
+        name = 'our eg',
+        expr = expr
+      )
+
+# initial values for the parameters (we are assuming that we don't know the true values)
+ps <- c(y0=0.05, u=1, tl=3, K=1, b0=0.1, b1=1, b2=0.01, k=0.5)
+
+fit <- nlminb(start     = ps, 
+              objective = function(p, data){
+                            r = data$y - mo$value(p,data)
+                            return(r %*% r)
+                          }, 
+              gradient  = mo$gradient, 
+              hessian   = mo$hessian, 
+              data      = xy)
+
+lines(xy$x, mo$value(fit$par, xy), col="red", lwd=2)             # model estimate
+```
+
+And another eg:
+
+```{r}
+# make some data:
+xy <- list(x=seq(0,10,by=0.25), y=dnorm(seq(0,10,by=0.25),10,2)) 
+p0 <- c(y0=0.01, u=0.2, l=5, A=log(1.5/0.01))
+
+mo <- ModelObject(
+        name = 'gompertz',
+        expr = expression( y0*exp(A*exp(-exp((u*exp(1)/A)*(l-x)+1))) )
+      )
+
+fit <- nlminb(start=p0, 
+              objective= function(p, data){
+                           r = data$y - mo$value(p,data)
+                           return(r %*% r)
+                         }, 
+              gradient = mo$gradient, 
+              hessian = mo$hessian, 
+              data=xy)
+
+plot(xy, main='Fit Results', pch=19);
+lines(xy$x, mo$value(fit$par, xy), col="red", lwd=2)
+```
+

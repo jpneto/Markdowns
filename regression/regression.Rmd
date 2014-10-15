@@ -1,0 +1,610 @@
+---
+title: "Regression"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Regression
+========================================================
+
+>Regression analysis is the statistical method you use when both the response variable and the explanatory variable are continuous variables. Perhaps the easiest way of knowing when regression is the appropriate analysis is to see that a scatterplot is the appropriate graphic. [The R Book, Crawley]
+
+Linear Regression
+================
+
+The essence of regression analysis is using sample data to estimate parameter values
+and their standard errors. First, however, we need to select a model which describes the relationship between the response variable and the explanatory variable(s). The simplest of all is the linear model $$y = a + b.x$$
+
+There are two variables and two parameters. The response variable is y, and x is a single continuous explanatory variable. The parameters are a and b: the intercept is a (the value of y when x = 0); and the slope is b (the change in y divided by the change in x which brought it about).
+
+```{r}
+reg.data<-read.table("regression.txt",header=TRUE)
+reg.data
+attach(reg.data)
+
+plot(tannin,growth,pch=16)
+# To find the linear regression fit use 'lm'
+# The response variable comes first (growth in our example), then the tilde ~, 
+# then the name of the continuous explanatory variable (tannin).
+fit <- lm(growth~tannin)
+
+fit$coefficients
+
+# draw the best fit line
+abline(fit,col="red")
+```
+
+The values of the coefficients mean that the maximal likehood estimation to the equation that minimizes the overall error is $$\text{growth} = 11.756 - 1.217 * \text{tannin}$$ ie, the line which is the best fit for the given dataset in the sense that it is the most probable line among all options.
+
+The difference between a measured value of y and the value predicted by the model for the same value of x is called a residual.
+
+Let's see the residuals:
+```{r}
+predt <- function(fit, x) {  # hand-made prediction function
+  return (fit$coefficients[[1]] + x * fit$coefficients[[2]])
+}
+
+plot(tannin,growth,pch=16)
+abline(fit,col="red")
+segments(tannin,predt(fit,tannin),tannin,growth,col="red",lty=2)
+
+# their specific values can also be accessed by this component:
+fit$residuals
+```
+For these regression models there are several important assumptions:
++ The variance in y is constant (i.e. the variance does not change as y gets bigger).
++ The explanatory variable, x, is measured without error.
++ Residuals are measured on the scale of y (i.e. parallel to the y axis).
++ The residuals are normally distributed.
+
+Under these assumptions, the maximum likelihood is given by the method of least squares, ie, minimizing the sum of the squared errors (the residuals).
+
+### Confidence Intervals
+
+> In statistics, a confidence interval (CI) is a measure of the reliability of an estimate. It is a type of interval estimate of a population parameter. It is an observed interval (i.e. it is calculated from the observations), in principle different from sample to sample, that frequently includes the parameter of interest if the experiment is repeated. How frequently the observed interval contains the parameter is determined by the confidence level [wikipedia](http://en.wikipedia.org/wiki/Confidence_interval)
+
+```{r}
+head(iris)
+
+pl <- iris$Petal.Length
+sl <- iris$Sepal.Length
+model <- lm(pl ~ sl)
+model
+pred <- predict(model, data.frame(sl = sort(sl)), level = 0.95, interval = "confidence")
+head(pred)
+lower <- pred[,2]
+upper <- pred[,3]
+
+# make plot 
+plot(sl, pl, pch=19, type="n")
+grid()
+polygon(c(sort(sl), rev(sort(sl))), c(upper, rev(lower)), col = "gray", border = "gray")
+points(sl, pl, pch=19, cex=0.6)
+abline(model, col="red", lwd=2)
+```
+
+
+Multi-linear Regression
+----------------------
+
+Most of the times, we have a dataset with more than one predictor $x_i$. One way is to apply simple linear regression to each predictor but this implies that each predictor does not care about the others which is not feasible. A better way is to fit all of them together:
+
+$$y = \beta_0 + \beta_1 x_1 + \ldots + \beta_n x_n + \epsilon$$
+
+Function `lm` is able to do it:
+
+```{r}
+marks.set <- read.csv(file="Advertising.csv", head=TRUE, sep=',')
+head(marks.set)
+
+fit <- lm(Sales ~ TV+Radio, data=marks.set) # fitting TV and Radio
+summary(fit)
+fit2 <- lm(Sales ~ ., data=marks.set) # all features are predictors
+summary(fit2)
+```
+
+Some predictors might have stronger correlations than others:
+
+```{r}
+cor(marks.set)
+```
+
+In multi-linear regression a coefficient may not produce an effect because it is considered in the context of other coefficients. In this dataset, newspaper seems like an eg.
+
+We can check for interactions, ie, 
+
+```{r}
+fit3 <- lm(Sales ~ TV*Radio, data=marks.set) # use TV, Radio and its interaction
+summary(fit3)
+```
+
+Notice that this is no longer a simple linear relationship.
+
+We should check for correlations between relevant coefficients (herein TV and Radio) to see if they complement each other in the estimation (low correlation) or just mirror the same effect (because they have high correlation). In this case, since Radio and TV have low correlation, it seems that a joint marketing in TV and Radio has some sinergetic effects.
+
+Another note: we should be careful when deciding to remove coefficients because of their perceived contributions. The hierarchy principle says the following:
+
+> If we include an interaction in a model, we should also include the main effects, even if the p-values associated with their coefficients are not significant.
+
+Polynomial Regression
+=====================
+
+Instead of using a line, we can generalize for polynomials. However, Polynomials are extremely flexible and the next example of approaching a sine wave (using just Calculus):
+
+Using Maclaurin expansion we know that sin(x) is given by expression
+
+$$x - \frac{x^3}{3!} + \frac{x^5}{5!} - \frac{x^7}{7!} + ...$$
+
+Let's do this in R:
+
+```{r, fig.width=12}
+x<-seq(-pi,pi,0.01)
+y<-sin(x)
+plot(x,y,type="l",ylab="sin(x)",lwd=2)
+
+a1<-x-x^3/factorial(3)
+lines(x,a1,col="green")  # 1st approximation
+
+a2<-x-x^3/factorial(3)+x^5/factorial(5)
+lines(x,a2,col="red")    # 2nd approximation
+
+a3<-x-x^3/factorial(3)+x^5/factorial(5)-x^7/factorial(7)
+lines(x,a3,col="blue")   # 3rd approximation
+```
+
+This is both a strength and a problem. If we use high-degree polynomials we risk overfitting, which is something we wish to avoid.
+
+```{r}
+poly<-read.table("diminish.txt",header=TRUE)
+attach(poly)
+head(poly)
+
+plot(xv,yv,pch=16)
+model1<-lm(yv~xv)  # fitting a linear model
+abline(model1,col="red")
+summary(model1)
+
+model2<-lm(yv~xv+I(xv^2)) # Fitting a quadratic polynomial
+x<-0:90
+y<-predict(model2,list(xv=x))
+plot(xv,yv,pch=16)
+lines(x,y,col="red")
+
+model3<-lm(yv~xv+I(xv^2)+I(xv^3)+I(xv^4)+I(xv^5)) # Fitting a quintic polynomial
+x<-0:90
+y<-predict(model3,list(xv=x))
+plot(xv,yv,pch=16)
+lines(x,y,col="red")
+```
+
+Another R tool is the function `poly()` (eg from Conway's "Machine Learning for Hackers", chapter 6):
+
+```{r}
+library(ggplot2)
+set.seed(1)
+x <- seq(0, 1, by = 0.01)
+y <- sin(2 * pi * x) + rnorm(length(x), 0, 0.1)
+df <- data.frame(X = x, Y = y)
+ggplot(df, aes(x = X, y = Y)) + 
+  geom_point()
+
+# using a linear regression:
+model <- lm(Y ~ X, data = df)
+summary(model)
+# it's possible to explain 58.9% of the variance
+ggplot(data.frame(X = x, Y = y), aes(x = X, y = Y)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE)
+# here's the polynomial regression with poly()
+model2 <- lm(Y ~ poly(X, degree = 3), data = df)
+summary(model2)
+df <- transform(df, PredictedY = predict(model2))
+ggplot(df, aes(x = X, y = PredictedY)) +
+  geom_point() +
+  geom_line()
+# if we exagerate in the polynomial degree, things get overfitted:
+model3 <- lm(Y ~ poly(X, degree = 25), data = df)
+summary(model3)
+df <- transform(df, PredictedY = predict(model3))
+ggplot(df, aes(x = X, y = PredictedY)) +
+  geom_point() +
+  geom_line()
+```
+
+
+Fitting a mechanistic model to the available data
+-------------------------------
+
+Rather than fitting some arbitrary model for curvature (as above, with a quadratic term for inputs), we sometimes have a mechanistic model relating the value of the response variable to the explanatory variable (e.g. a mathematical model of a physical process). In the following example we are interested in the decay of organic material in soil, and our mechanistic model is based on the assumption that the fraction of dry matter lost per year is a constant. This leads to a two-parameter model of exponential decay in which the amount of material remaining (y) is a function of time (t) $$y = y_0 e^{-bt}$$
+
+Taking logs on both sides: $$log(y) = log(y_0) - bt$$
+we can estimate the parameter of interest, $b$, as the slope of a linear
+regression of $log(y)$ on $t$ (i.e. we log-transform the $y$ axis but not the $x$ axis) and the value of $y_0$ as the antilog of the intercept.
+
+```{r}
+# get some data (y,t)
+data<-read.table("Decay.txt",header=TRUE)
+head(data)
+attach(data)
+plot(time,amount,pch=16)
+
+# if we apply log to both side of the equation:
+# log(y) = log(y0) - bt
+# which gives us a linear model, that can be fitted to the data:
+
+model<-lm( log(amount) ~ time )
+summary(model)
+
+# in this case, the slope b = -0.068 and the intercept is 4.547 = log(y0) <=> y0 = 94.38
+# which, without the errors, turns out to be: y = 94.38 exp(-0.068t)
+
+# let's include it in the plot:
+xv<-seq(0,30,0.2)
+yv<-exp(predict(model,list(time=xv)))
+lines(xv,yv,col="red")
+```
+
+Linear Regression after Transformation (Power Laws)
+-------------------
+
+Many mathematical functions that are non-linear in their parameters can be linearized by transformation. The most frequent transformations (in order of frequency of
+use), are logarithms, antilogs and reciprocals. Here is an example of linear regression associated with a power law: $$y = a x^b$$ with two parameters, where the parameter $a$ describes the slope of the function for low values of $x$ and $b$ is the shape parameter.
+
+```{r, fig.width=12}
+power<-read.table("power.txt",header=TRUE)
+attach(power)
+head(power)
+
+par(mfrow=c(1,2))
+plot(area,response,pch=16)
+model1 <- lm(response~area)
+abline(model1)
+plot(log(area),log(response),pch=16)
+model2 <- lm(log(response)~log(area))
+abline(model2)
+```
+The two plots look very similar in this case (they don't always), but we need to compare the two models.
+```{r}
+
+par(mfrow=c(1,1))
+plot(area,response)
+abline(lm(response~area))    # model1 fit
+xv<-seq(1,2.7,0.01)
+yv<-exp(0.75378)*xv^0.24818  # model2 fit: intercept&slope from model2
+lines(xv,yv)
+```
+They seem quite close, but if we extend the axis, we see how different they judge outliers:
+```{r}
+xv<-seq(0,5,0.01)
+yv<-exp(predict(model2,list(area=xv))) # same as yv<-exp(0.75378)*xv^0.24818
+plot(area,response,xlim=c(0,5),ylim=c(0,4),pch=16)
+abline(model1, col="red")
+lines(xv,yv, col="blue")
+```
+Both models are ok for interpolation (predicting within the range of known data), but offer quite different responses for extrapolation (predicting outside the range of known data)
+
+Another eg: data taken from the inclined plane experiment made with Sofia (Fev 2, 2013)
+
+```{r}
+height <- seq(4,32,4)
+time <- c(144,115,103,88,76,72,60,54)
+plot(time,height,xlim=c(20,180),ylim=c(0,60),pch=16) # wider 
+plot(time,height,xlim=c(20,180),ylim=c(0,60),pch=16)
+
+model<-lm(time~height+I(height^2)) # Fitting a quadratic polynomial
+x<-0:60
+y<-predict(model,list(height=x))
+lines(y,x,col="blue",lwd=2.5)
+
+model2 <- lm(log(time)~log(height)) # Fitting a power law
+x<-0:60
+y<-exp(predict(model2,list(height=x)))
+lines(y,x,col="red",lwd=2.5)
+
+model3 <- lm(time~log(height)) # Fitting a (semi?) power law (seems the best fit 
+x<-0:60                        # for interpolation, all are bad for extrapolation)
+y<-predict(model3,list(height=x))
+lines(y,x,col="green",lwd=2.5)
+
+legend("topright",  
+       c("quadratic poly","power law","semi power law"),
+       lty=c(1,1,1), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5,2.5),col=c("blue","red","green"))
+```
+
+Before moving on, let's just make a list of some possible symbols that can be used in the regression formulas.
+
++ '+' means include this variable (eg: y ~ x1 + x2)
++ '.' means all variables (y ~ .)
++ '-' means delete this variable (y ~ . - x2)
++ '\*' means include both variables plus their interaction (y ~ x1\*x2)
++ ':' means just the interaction between the variables (y ~ x1:x2)
++ '|' means conditioning, y ~ x|z include x given z
++ '\^n' means include the variables plus all the interaction up to n ways ( y~(x1+x2)\^3 is equal to y ~ x1 + x2 + x1:x2 + x1:x3 + x2:x3 + x1:x2:x3)
++ 'I' means as is, includes a new variable given the expression ( y ~ I(x\^2) )
++ '1' means the intercept, -1 deletes the intercept (regress thru the origin)
+
+The nature of the variables--binary, categorial (factors), numerical--will determine the nature of the analysis. For example, if "u" and "v" are factors, 
+$$y \sim u + v$$
+dictates an analysis of variance (without the interaction term). If "u" and "v" are numerical, the same formula would dictate a multiple regression. If "u" is numerical and "v" is a factor, then an analysis of covariance is dictated.
+
+Local regression
+----------------
+
+Instead of using the entire set to define a fit, at each point in the data set a low-degree polynomial is fitted to a subset of the data. Local regression (LOESS) uses a nearest neighbors algorithm that determines which data is going to be used to fit the local polynomial. The polynomial is fitted using weighted least squares, giving more weight to points near the point whose response is being estimated and less weight to points further away.
+
+Here's an animated gif (from [SimplyStatistics.org](http://simplystatistics.org/)) showing the process:
+
+<center><img src="loess.gif" height="50%" width="50%""></center>
+
+It has two main parameters
+
++ $\lambda$ - the degree of the local polynommial (usually linear or quadratic). If $\lambda=0$ then LOESS turns into a moving average.
++ $\alpha$ - the smoothing parameter (or span), ie, the proportion of data used in each fit. It must be between $(\lambda+1)/n and 1$ (for $n$ data points). The larger the $\alpha$ the smoother the fitting curve. Small values are bad since they tend to overfit the noise in the data (good values are 25%, 50%, 75%).
+
+
+```{r}
+set.seed(101)
+xs <- seq(0,2*pi,len=100)
+df <- data.frame(x=xs, y=sin(xs)+rnorm(100,0,0.5))  # noisy dataset
+
+plot(df$x, df$y, pch=19)
+lines(xs, sin(xs), col="red", lwd=1) # target function
+
+fit <- loess(y~x, data=df, span=0.75, degree=2)
+pred <- predict(fit, df$x)
+lines(df$x, pred, col="blue", lwd=2) # prediction
+
+# draw confidence bands
+library(msir)
+
+fit1 <- msir::loess.sd(df$x, df$y, span=0.75, degree=2)
+# lines(xs, fit2$y) # the same as the prediction line above
+lines(xs, fit1$upper, lty=2, col="cyan")  # one-sigma lines
+lines(xs, fit1$lower, lty=2, col="cyan")
+
+fit2 <- msir::loess.sd(df$x, df$y, span=0.75, degree=2, nsigma=2)
+lines(xs, fit2$upper, lty=2, col="blue")  # two-sigma lines
+lines(xs, fit2$lower, lty=2, col="blue")
+```
+
+Logistic Regression
+================
+
+The logistic function, or sigmoid function, has a real domain and a [0,1] range, which is appropriate to represent probability at some adequate contexts. Its formula is $$p(x) = \frac{1}{1+e^{-x}}$$
+
+```{r}
+logit <- function(x) {
+  return(1/(1+exp(-x)))
+}
+xs <- seq(-10,10,0.5)
+plot(xs,logit(xs), type="l") + abline(v=0,lty=2)
+```
+
+One popular use of the logistic function is in demographic models, where $p(x)$ is the population and $t$ is time, modeling a saturation limit. Another place that is used in is neural networks as an activation function.
+
+Logistic Regression fits a logistic function to a dataset:
+
+```{r}
+marks.set <- read.csv(file="Marks.csv", head=TRUE, sep=',')
+head(marks.set)
+sapply(marks.set,class)  # numbers were imported as factors, need to numeric the out of them
+marks.set$exam_1 <- as.numeric(levels(marks.set$exam_1))[marks.set$exam_1]
+marks.set$exam_2 <- as.numeric(levels(marks.set$exam_2))[marks.set$exam_2]
+sapply(marks.set,class)
+
+# apply the logistic regression
+model <- glm(admitted ~ exam_1 + exam_2, family = binomial("logit"), data=marks.set)
+new.sample <- data.frame(exam_1=60, exam_2=86)       # a new sample 
+predt <- predict(model, new.sample, type="response") # let's predict its class (admitted or not)
+predt
+if (round(predt)==1) {   # we can round the result to get a binary response
+  print("admmited")
+} else {
+  print("not admmited")
+}
+# Let's check the model's summary:
+summary(model)
+```
+
+The same prediction value could be computed by the formula $$logit(\theta^T \times X)$$where $\theta$ is the vector of coefficients, and $X$ is the vector with the sample data. We assume that $X_0=1$ and $\theta_0$ is the intercept. So:
+
+```{r}
+predictLogitModel <- function(theta,X) {  # compute logf(theta^T \times X)
+  return ( logit( t(theta) %*% X ) )
+}
+
+X <- as.matrix(c(1,60,86),nrow=3)         # the sample data
+C <- as.matrix(model$coefficients,nrow=3) # the model's coefficients
+predictLogitModel(C,X)                    # and, as we see, it's the same value as above
+```
+
+Logistic Regression is used in categorization (despite its name...), ie, the output is categorical, usually binary. The prediction output $y = h(\theta,x)$ is within 0 and 1 and can be interpreted has the estimated probability of $p(y=1|x,\theta)$.
+
+So, as we did before, if there's no different cost associated to each decision, we decide $y=1$ when $p(y=1|x,\theta) \gt 0.5$, or decide $y=0$ otherwise.
+
+This is the same to decide $y=1$ when $\theta^T \times X \geq 0$, and $y=0$ otherwise. The equation $$\theta^T \times X = 0$$ is called the _decision boundary_.
+
+There is nothing to prevent us to use non-linear decision boundaries:
+
+```{r}
+library(plotrix)
+set.seed(222)  
+round.data <- data.frame(x=rnorm(40,0,1),
+                         y=rnorm(40,0,1))
+data.class <- round.data$x^2 + round.data$y^2 > 1 # make a non-linear separable dataset: the decision boundary is the unit circle
+round.data$class <- data.class*1
+head(round.data)
+plot(x~y,data=round.data,col=round.data$class+1,xlim=c(-3,3),ylim=c(-3,3),pch=19)
+draw.circle(0,0,1,lty=2,border="red")
+```
+
+```{r}
+model <- glm(data.class ~ x+y++I(x^2)++I(y^2), 
+             family = binomial("logit"), data=round.data)
+theta <- model$coefficients  # get the coefficients
+# if we scale these values we notice that the regression approximates the unit circle equation x^2 + y^2 = 1
+theta/max(theta)
+predt <- round( predict(model, round.data[-3], type="response") )
+table(round.data$class, predt)
+```
+
+Let's draw the estimated boundary decision in comparisation with the unit circle (the real boundary):
+
+```{r}
+predModel <- function (x,y) {
+  return (theta[1] + theta[2]*x + theta[3]*y + theta[4]*x^2 + theta[5]*y^2)
+}
+xs <- seq(-4,4,0.1)
+ys <- seq(-4,4,0.1)
+zs <- outer(xs,ys,predModel)
+
+plot(x~y,data=round.data,col=round.data$class+1,xlim=c(-3,3),ylim=c(-3,3),pch=19)
+draw.circle(0,0,1,lty=2,border="red")
+contour(xs,ys,zs,nlev=0,add=TRUE,col="blue",lty=2)
+```
+
+Spline Regression
+================
+
+ref: James et al. - Intr to Statistical Learning with R Applications (2013)
+
+Instead of fitting a high-degree polynomial over the entire range of $X$, piecewise polynomial regression involves fitting separate low-degree polynomials over different regions of $X$. The points where the coefficients change are called __knots__. Using more knots leads to a more flexible piecewise polynomial. In general, if we place $K$ different knots throughout the range of $X$, then we will end up fitting $K+1$ different polynomials.
+
+To prevent jumps around the knots, the process adds restrictions to which polynommials can be choosen for each region. Usually, for polinomials of degree $d$ the constraints demand that each pair of polynomials must be continuous up to the $d-1$ derivative. Usually $d=3$, so the constraint goes until the second derivative. These are called __cubic splines__.
+
+```{r}
+library(splines)
+library(ISLR) # includes Wage dataset
+
+data(Wage) 
+agelims  <- range(Wage$age)
+age.grid <- seq(from=agelims[1],to=agelims[2])
+```
+
+In the next code we prespecified knots at ages 25, 40 and 60. This produces a
+spline with six basis functions. (recall that a cubic spline with three knots
+has seven degrees of freedom; these degrees of freedom are used up by an
+intercept, plus six basis functions.)
+
+```{r}
+fit <- lm(wage ~ bs(age, knots=c(25,40,60) ), # prespecified knots at ages 25, 40, and 60
+          data=Wage)
+
+pred <- predict(fit, newdata=list(age=age.grid), se.fit=TRUE)
+
+plot(Wage$age, Wage$wage, col="gray")
+lines(age.grid, pred$fit, lwd=2)
+lines(age.grid, pred$fit+2*pred$se.fit, lty="dashed")
+lines(age.grid, pred$fit-2*pred$se.fit, lty="dashed")
+for (i in c(25,40,60))
+  abline(v=i, col="red", lty=2)  # draw position of knots
+```
+
+We could also use the `df` option to produce a spline with knots at uniform quantiles of the data.
+
+```{r}
+dim(bs(Wage$age, knots=c(25,40,60)))
+dim(bs(Wage$age, df=6))
+my.knots <- attr(bs(Wage$age, df=6), "knots")
+```
+
+In this case R chooses knots at ages 33.8, 42.0, and 51.0, which correspond to the 25th, 50th, and 75th percentiles of age. 
+
+```{r}
+fit.2 <- lm(wage ~ bs(age, knots= my.knots), data=Wage)
+pred.2 <- predict(fit.2, newdata=list(age=age.grid), se.fit=TRUE)
+
+plot(Wage$age, Wage$wage, col="gray")
+lines(age.grid, pred.2$fit, lwd=2)
+lines(age.grid, pred.2$fit+2*pred$se.fit, lty="dashed")
+lines(age.grid, pred.2$fit-2*pred$se.fit, lty="dashed")
+for (i in 1:length(my.knots))
+  abline(v=my.knots[[i]], col="red", lty=2)  # draw position of knots
+```
+
+The function `bs()` also has a `degree` argument, so we can fit splines of any degree, rather than the default degree of 3 (which yields a cubic spline).
+
+Multiclass classification
+=========================
+
+If there's the need for multiclass classification the typical method is called one vs. all. For $n$ classes, we create $n$ predictors. For predictor $i$ we create a binary classification where class $i$ is considered as $1$ and all the others are $0$. With this process we get $n$ models $h^{(i)}(x)$, each one predicting that $y=i$.
+
+So, when we get a new input $x$, we apply it to the $n$ predictors and choose the one with higher value. If the $k^{th}$ predictor output the higher value, than our prediction will be $y=k$.
+
+Regularization
+==============
+
+From [http://horicky.blogspot.pt/2012/05/predictive-analytics-generalized-linear.html](http://horicky.blogspot.pt/2012/05/predictive-analytics-generalized-linear.html)
+
+With a large size of input variable but moderate size of training data, we are subjected to the overfitting problem, which is our model fits too specific to the training data and not generalized enough for the data we haven't seen.  Regularization is the technique of preventing the model to fit too specifically to the training data.
+
+In linear regression, it is found that overfitting happens when $\theta$ has a large value.  So we can add a penalty that is proportional to the magnitude of $\theta$.  In L2 regularization (also known as Ridge regression), $\sum_i \theta_i^2$ will be added to the cost function, while In L1 regularization (also known as Lasso regression), $\sum_i |\theta_i|$ will be added to the cost function.
+
+Both L1, L2 will shrink the magnitude of $\theta_i$, L2 tends to make dependent input variables having the same coefficient while L1 tends to pick of the coefficient of variable to be non-zero and other zero.  In other words, L1 regression will penalize the coefficient of redundant variables that are linearly dependent and is frequently used to remove redundant features.
+
+Combining L1 and L2, the general form of cost function becomes
+Cost == Non-regularization-cost + $\lambda (\alpha \sum_i |\theta_i| + (1-\alpha) \sum_i \theta_i^2)$
+
+Notice there are two tunable parameters, $\lambda$ and $\alpha$. Lambda controls the degree of regularization (0 means no-regularization, infinity means ignoring all input variables because all coefficients of them will be zero).  Alpha controls the degree of mix between L1 and L2. (0 means pure L2 and 1 means pure L1).
+
+```{r}
+library(glmnet)
+
+# the cross validation selects the best lambda
+cv.fit <- cv.glmnet(as.matrix(iris[,-5]), 
+                    iris[,5],
+                    nlambda=100, alpha=0.8, 
+                    family="multinomial")
+plot(cv.fit)
+cv.fit$lambda.min # best lambda, ie, that gives minimum mean cross-validated error
+prediction <- predict(cv.fit, newx=as.matrix(iris[,-5]), type="class")
+table(prediction, iris$Species)
+```
+
+Instead of picking lambda (the degree of regularization) based on cross validation, we can also based on the number of input variables that we want to retain.  So we can plot the "regularization path" which shows how the coefficient of each input variables changes when the lambda changes and pick the right lambda that filter out the number of input variables for us.
+
+```{r}
+# try alpha = 0, Ridge regression
+fit <- glmnet(as.matrix(iris[,-5]), 
+              iris[,5], alpha=0, 
+              family="multinomial")
+plot(fit)
+legend("topleft", names(iris)[-5], col = 1:4, lwd=1)
+```
+
+There is another penalty function called [Huber Loss Function](http://en.wikipedia.org/wiki/Huber_loss_function) which is robust to outliers providing a way to make robust regression.
+
+The penalty function is ($a$ being the residual equal to $y-\hat{y}$)
+
+$$L_{\delta}(a) = 0.5 a^2, for |a| < \delta$$
+$$L_{\delta}(a) = \delta ( |a| - \delta/2), otherwise$$
+
+making it quadratic for small values of $a$, and linear for larger values.
+
+> [...] the Huber loss function is convex in a uniform neighborhood of its minimum a=0, at the boundary of this uniform neighborhood, the Huber loss function has a differentiable extension to an affine function at points  $a=-\delta$ and  $a = \delta$ . These properties allow it to combine much of the sensitivity of the mean-unbiased, minimum-variance estimator of the mean (using the L2 quadratic loss function) and the robustness of the median-unbiased estimor (using the L1 absolute value function). [wikipedia]
+
+The function $L(a) = \log(cosh(a))$ has a similar behavior.
+
+The *pseudo-huber loss function* $L_{\delta}(a) = \delta^2 (\sqrt{1+(a/\delta)^2} - 1)$ is a smooth approximation of the huber, which has continuous derivates of all degrees.
+
+```{r}
+delta = 1
+xs <- seq(-2,2,len=100)
+
+huber <- function(a,delta) {
+  ifelse(abs(a)<delta,a^2/2,delta*(abs(a)-delta/2))
+}
+
+plot(xs,huber(xs,delta),type="l",col="blue",lwd=2)
+lines(xs,log(cosh(xs)),col="red")                      # log.cosh  curve
+lines(xs,delta^2*(sqrt(1+(xs/delta)^2)-1),col="green") # pseudo huber curve
+```
+

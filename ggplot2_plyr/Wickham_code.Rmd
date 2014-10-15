@@ -1,0 +1,207 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = FALSE, echo = T,
+               fig.width = 8, fig.height = 8)
+```
+Hadley Wickham's R Slides
+========================================================
+
+This code is from one of Hadley Wickham's [presentation](https://www.dropbox.com/sh/m97xuwrobjar6p5/yGM1kEF5Nu)
+
++ Part I: using  `ggplot2`
+
+```{r}
+library(ggplot2)
+head(mpg)
+str(mpg)
+summary(mpg)
+qplot(displ,hwy,data=mpg)
+# Add more variable thru aesthetics (eg, color used to describe another variable)
+qplot(displ,hwy,data=mpg, color=class)
+# or using the size of the points to define yet another variable
+qplot(displ,hwy,data=mpg, color=class, lwd=cty)
+# Another way is to use facetting, smaller plots displaying data subsets
+# facet__grid(): 2d grids, rows ~ cols, . for no split
+qplot(displ,hwy,data=mpg) + facet_grid(. ~ cyl)
+qplot(displ,hwy,data=mpg) + facet_grid(drv ~ .)
+qplot(displ,hwy,data=mpg) + facet_grid(drv ~ cyl)
+# facet_wrap(): 1d ribbon wrapped into 2d
+qplot(displ,hwy,data=mpg) + facet_wrap(~ cyl)
+qplot(cty,hwy,data=mpg)
+qplot(cty,hwy,data=mpg, geom="jitter")
+qplot(class,hwy,data=mpg)
+qplot(reorder(class,hwy),hwy,data=mpg)
+qplot(reorder(class,hwy),hwy,data=mpg,geom="jitter")
+qplot(reorder(class,hwy),hwy,data=mpg,geom="boxplot")
+qplot(reorder(class,hwy),hwy,data=mpg,geom=c("jitter","boxplot"))
+# changing data set
+qplot(x,z,data=diamonds) # two variables makes a scatter plot
+qplot(x,data=diamonds)   # one continuous variable makes a histogram
+qplot(cut,data=diamonds) # one categorical variable makes a bar chart
+qplot(carat,data=diamonds)
+qplot(carat,data=diamonds,binwidth=1)
+qplot(carat,data=diamonds,binwidth=.1)
+qplot(carat,data=diamonds,binwidth=.01)
+resolution(diamonds$carat)
+last_plot()+xlim(0,3)  # this is a ggplot2 feature, using '+' to add plot components
+qplot(table, data=diamonds,binwidth=1)
+qplot(table, data=diamonds,binwidth=1) + xlim(50,70)
+qplot(table, data=diamonds,binwidth=1) + coord_cartesian(x=c(50,70))
+qplot(depth, data=diamonds,binwidth=.2, fill=cut) + xlim(50,70)
+# large distances make comparisions hard
+qplot(price, data=diamonds,binwidth=500) + facet_wrap(~cut)
+# usually aesthetics not effective: stacked heights hard to compare
+qplot(price, data=diamonds,binwidth=500,fill=cut)
+# better...
+qplot(price, data=diamonds,binwidth=500,geom="freqpoly",col=cut)
+# instead of count, place density at y-axis
+qplot(price, ..density.., data=diamonds,binwidth=500,geom="freqpoly",col=cut)
+# to use this an an histogram, we must explicit it
+qplot(price, ..density.., data=diamonds,binwidth=500,geom="histogram") + facet_wrap(~cut)
+```
++ part II: using `plyr`
+
+```{r}
+library(plyr)
+library(ggplot2)
+
+options(stringsAsFactors = FALSE)
+
+bnames <- read.csv("bnames.csv.bz2")
+births <- read.csv("births.csv")
+head(bnames)
+tail(bnames)
+johns <- bnames[bnames$name == "John",]
+qplot(year,prop,data=johns,geom="line",col=sex) + ylim(0,.1) + facet_wrap( ~name)
+glike <- bnames[bnames$soundex == "G630",]
+qplot(year,prop,data=glike,geom="line",col=sex) + facet_wrap( ~name)
+qplot(year,prop,data=glike,geom="line",col=sex,group=interaction(sex,name))
+```
+
+Using subset/summarise/mutate/arrange (these last three from plyr)
+
+```{r}
+df <- data.frame(color=c("blue","black","blue","blue","black"),
+                 value=1:5)
+df
+subset(df,color=="blue")
+summarise(df,double=2*value)
+summarise(df,total=sum(value))
+mutate(df,double=2*value)
+mutate(df,double=2*value,quad=2*double)
+arrange(df,color)
+arrange(df,desc(color))
+
+# using the names dataset
+head(arrange(johns,desc(prop)))
+summarise(johns,min=min(prop),max=max(prop),mean=mean(prop))
+head(mutate(johns,perc=prop*100))
+
+# try to combine bnames and births
+head(bnames)
+head(births)
+new_births <- join(bnames,births,by=c("year","sex"),type="inner") 
+# type can also be "left"/"right"/"full" which joins rows from the respective tables (or both in "full" mode) with no shared values (it places NAs in the cells with no correspondence)
+head(new_births)
+# Convert from proportions to absolute numbers by combining bnames with births, and then perform the appropriate calculation.
+new_births.2 <- mutate(new_births,number.of = ceiling(prop * births))
+head(new_births.2)
+qplot(year,births,data=births,geom="line",color=sex)
+```
+
+Next job: compute the number of occurences for each name:
+
+```{r}
+nrow(bnames[bnames$name == "John",]) # the traditional way for one name
+
+johns <- subset(bnames, name=="John")
+nrow(johns)
+count(johns$name)
+summarise(johns, total=count(name))
+
+# how can we count for all names? ddply()!
+# ddply: for each subset of a data frame, apply function then combine results into a data frame
+
+count.by.name <- ddply(bnames, "name", nrow) # we can also put args here for the function that will be executed
+head(count.by.name, n=12)
+```
+
+Next job: How can we make a new variable that shows the rank of each name for each
+year? We should treat boys names as distinct from girls names (even if they're
+spelled the same).
+
+```{r}
+# first eg: get just one year
+
+boys2008 <- subset(bnames, year==2008 & sex=="boy")
+head(boys2008)
+# Add a rank variable to our subset: rank()
+boys2008 <- mutate(boys2008, rank = rank(desc(prop)))
+head(boys2008)
+
+# we'll now use it wit ddply:
+
+ranks <- ddply(bnames, c("year","sex"), mutate, rank = rank(desc(prop))) # the 4th arg is given to mutate
+
+# explanation:
+# 1st: it separates bnames into sub data frames with persons sharing a year and the sex
+# 2nd: it applies for each sub data frame D: mutate(D, rank = rank(desc(prop)))
+# 3rd: it joins every D into the final result
+head(ranks, n=20)
+```
+
+More egs:
+
+```{r}
+# Which names were most popular in 1999?
+df1 <- subset(bnames,year==1999)
+head(df1)
+df2 <- arrange(df1, desc(prop))
+head(df2)
+df2[1,]$name
+
+# Work out the average yearly usage of each name.
+overall <- ddply(bnames, "name", summarise, prop1 = mean(prop))
+head(overall)
+
+# List the 10 names with the highest average proportions.
+head(arrange(overall, desc(prop1)), 10)
+```
+
+From [http://www.r-bloggers.com/summarizing-data-in-r-using-plyr-and-reshape/](http://www.r-bloggers.com/summarizing-data-in-r-using-plyr-and-reshape/)
+
+```{r}
+## DATA
+
+dat = data.frame(
+  name=c("Tony","James","Sara","Alice","David","Angie","Don","Faith","Becky","Jenny"),
+   state=c("KS","IA","CA","FL","MI","CO","KA","CO","KS","CA"),
+   gender=c("M","M","F","F","F","M","F","M","F","F"),
+   marital_status=c("M","S","S","S","M","M","S","M","S","M"),
+   credit=c("good","good","poor","fair","poor","fair","fair","fair","good","fair"),
+   owns_home=c(0,1,0,0,1,0,1,1,1,1),
+   cost=c(500,200,300,150,200,300,400,450,250,150))
+
+dat  
+
+## DDPLY FUNCTION IN THE PLYR PACKAGE 
+## Use 'nrow' to find the count of a particular variable  
+library(plyr)
+ddply(dat, .(credit), "nrow")
+ddply(dat, .(gender), "nrow")
+ddply(dat, .(marital_status, credit), "nrow")
+## use 'summarise' to summarize numeric variables
+ddply(dat, .(gender), summarise, mean_cost = mean(cost))
+ddply(dat, .(state), summarise, mean_cost = mean(cost))
+ddply(dat, .(gender), summarise, min_cost = min(cost), 
+      max_cost = max(cost), mean_cost = mean(cost))
+ddply(dat, .(gender, credit), summarise, credit=length(credit),
+      min_cost = min(cost), max_cost = max(cost), mean_cost = mean(cost))
+
+## AGGREGATE FUNCTION FROM THE RESHAPE PACKAGE
+library(reshape2)
+aggregate(cost ~ marital_status + gender, data=dat, FUN=mean)
+aggregate(cost ~ credit + gender, data=dat, FUN=mean)
+```
+

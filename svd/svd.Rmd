@@ -1,0 +1,588 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = FALSE, echo = T,
+               fig.width = 8, fig.height = 8)
+```
+
+Singular Value Decomposition
+========================================================
+
+[wikipedia] An eigenvector of a square matrix $A$ is a non-zero vector $v$ that, when multiplied by $A$, yields the original vector multiplied by a single number $\lambda$; that is, $A.v = \lambda.v$. The number $\lambda$ is called the eigenvalue of $A$ corresponding to $v$.
+
+Eigen-stuff
+-----------
+```{r, tidy=FALSE}
+# boolean function for equality of real values
+compare.reals <- function(a,b,tolerance=1e-5) {
+  abs(a-b) < tolerance
+}
+
+# testing eigen values & vectors
+A   <- matrix(c(3,1,1,3),2,2)
+eA  <- eigen(A)  # compute eigen values and eigen vectors of A
+eA
+ev1 <- as.matrix(eA$vectors[,1])  # extract 1st eigen vector
+ev1
+# if we multiply A by its first eigen vector, we get the same vector
+# if we multiply its first eigen vector by its first eigen value
+compare.reals(A %*% ev1 , eA$values[1] * ev1)
+# same for the 2nd eigen's
+ev2 <- as.matrix(eA$vectors[,2])  # extract 2nd eigen vector
+ev2
+compare.reals( A %*% ev2 , eA$values[2] * ev2)
+```
+
+Geometric Transformations
+------------------------
+In geometric terms, a matrix is a linear transformation of an object. In 2D a matrix can perform rotations, scalings, [shearing](http://en.wikipedia.org/wiki/Shear_mapping), etc.
+
+```{r, tidy=FALSE}
+library(MASS)
+
+draw.segment <- function(p1,p2,color,width=3) {
+  segments(p1[1],p1[2],p2[1],p2[2], col=color, lwd=width)
+}
+
+plot(NULL,xlim=c(-3,3),ylim=c(-3,3),ylab="y",xlab="x")
+
+# draw a segment (initially at 45 degrees)
+p.init <- matrix(c(0,0),2,1)
+p.end  <- matrix(c(2,2),2,1)
+draw.segment(p.init, p.end, "red")
+
+# rotation example
+theta <- pi/4  # rotate more 45º degrees 
+rotate.matrix <- matrix(c( cos(theta),sin(theta),
+                          -sin(theta),cos(theta)),2,2)
+
+p1.init <- rotate.matrix %*% p.init
+p1.end  <- rotate.matrix %*% p.end
+draw.segment(p1.init, p1.end, "blue")
+
+# scaling example
+scalingx <- 0.5  # scale both axis by 50%
+scalingy <- 0.5
+scale.matrix <- matrix(c(scalingx,    0,
+                            0,     scalingy),2,2)
+
+p2.init <- scale.matrix %*% p.init
+p2.end  <- scale.matrix %*% p.end
+draw.segment(p2.init, p2.end, "green")
+
+legend("topleft", c("initial", "rotated 45º", "scaled 50%"), 
+                  col = c("red","blue","green"), lwd=1)
+# we can combine these transformations
+plot(NULL,xlim=c(-3,3),ylim=c(-3,3),ylab="y",xlab="x")
+
+xs  <- seq(0,2*pi,0.05)
+pts <- matrix(c(cos(xs),sin(xs)),length(xs),2) # points from a unit circle
+points(pts, col="red", type="l")               # draw them
+
+scaling <- matrix(c(.5, 0,
+                     0, 2),2,2)
+theta <- -pi/4
+rotating <- matrix(c( cos(theta),sin(theta),
+                     -sin(theta),cos(theta)),2,2)
+
+pts2 <- t(apply(pts,1,function(p)rotating %*% scaling %*% p))
+# The vectorized operation is equivalent to this cyclic version:
+# pts2 <- matrix(c(NA,NA),length(xs),2)
+# for(i in 1:length(xs)) {
+#   pts2[i,] <- rotating %*% scaling %*% pts[i,]  # scale then rotate
+# }
+points(pts2, col="green", type="l")             # draw transformation
+```
+
+Still the eigen vectors:
+
+
+A given square matrix $M$ represents a geometrical transformations of vectors of the compatible dimension, as we seen above.
+
+An eigenvector $v$ of $M$ is always transformed into a scaling of itself: 
+  $$M \times v = \lambda \times v$$
+  
+A matrix $M:n\times n$ might have or not eigenvectors. If it has, then it has $n$ eigenvectors, each prependicular to each other.  
+
+The scaling is irrelevant, so by convention, the standard eigenvectors have length 1.
+
+The eigenvalue is the amount of scaling the matrix $M$ performs over the eigenvector $v$ or any scaling of itself: $$M(av) = \lambda(av)$$
+
+```{r}
+m <- matrix(c(3,-4,-6,0,1,0,1,2,-2),3,3)
+m
+evs <- eigen(m)
+evs
+norm(as.matrix(evs$vectors[,1]), "F") # return eigenvectors have norm = one
+# the dot product is zero between the eigenvectors (they are orthogonal)
+evs$vectors[,1] %*% evs$vectors[,2] #TODO: hmmm... but it is not zero (?)
+# testing the eigenvalue property:
+m %*% (5*evs$vectors[,1])
+evs$values[1] * (5*evs$vectors[,1])
+```
+
+SVD
+---
+So, given matrix $M:n\times m$ that performs some linear transformation, the SVD decomposes that transformation into three steps: $U:m\times m$, $D:m\times n$, $V:n\times n$, such that $M = U \times D \times V^T$
+
++ $V^T$ is the rotation to a more suitable axis system
++ $D$ is the scaling done by $M$, $D$ is a rectangular diagonal, with $d_{ii} \gt d_{jj}, i \lt j$
++ $U$ is the rotation back to the initial axis system
+
+The $m$ columns of $U$ are called the left singular vectors
+The $n$ columns of $V$ are called the right singular vectors
+
++ The right singular vectors are eigenvectors of $M^T \times M$
++ The left singular vectors are eigenvectors of $M \times M^T$
++ The non-zero values of $D$ are the square root of the eigenvalues of $M \times M^T$ and $M^T \times M$ are called the singular values
+
+These singular values can be seen as the semiaxes of an ellipsoid where the scaling is done.
+
+$U$ and $V$ are unitary matrixes, i.e. $U \times U^T=I \wedge V \times V^T=I$.
+
+A very good introduction.: [Singular Value Decomposition](Singular Value Decomposition)
+
+```{r, tidy=FALSE}
+M <- matrix(c(1,0,0,0,
+              0,0,0,4,
+              0,3,0,0,
+              0,0,0,0,
+              2,0,0,0),4,5)
+M
+M.svd <- svd(M) # svd computes the singular-value decomposition of a rectangular matrix.
+M.svd$u
+M.svd$d
+t(M.svd$v)
+# Rebuilding the original matrix M from its svd
+M.svd$u %*% (diag(M.svd$d) %*% t(M.svd$v)) 
+# we could cut the last column of u since the last singular value in d is zero
+```
+Making Approximations
+---------------------
+SVD can produce approximations of the initial matrix that use less space. The values of matrix $D$ state the importance of each scaling. If the last values are low, they can be discarded without much loss. The effect is that we don't need to keep all columns/rows of the original svd.
+
+```{r, tidy=FALSE}
+set.seed(123)
+m <- matrix(sample(1:16,16),4,4)
+m
+m.svd <- svd(m)
+m.svd
+ds <- diag(m.svd$d[1:2])  # let's just use the first two values
+us <- as.matrix(m.svd$u[, 1:2])
+vs <- as.matrix(m.svd$v[, 1:2])
+m.approx1 <- us %*% ds %*% t(vs)
+m.approx1
+ds <- diag(m.svd$d[1:3])  # let's now use the first three values
+us <- as.matrix(m.svd$u[, 1:3])
+vs <- as.matrix(m.svd$v[, 1:3])
+m.approx2 <- us %*% ds %*% t(vs)
+m.approx2   # m.approx2 will never be a worst approximation than m.approx1
+# we could compute the sum of squared errors
+approx.error <- function(m1,m2) {
+  sum((m1-m2)^2)
+}
+approx.error(m,m.approx1)
+approx.error(m,m.approx2)
+```
+The three transformations
+---------------------
+Next stuff based on this [tutorial](http://www.uwlax.edu/faculty/will/svd/index.html)
+
+```{r, tidy=FALSE}
+# Let's make a dot-by-dot picture
+xs = seq(-10,10,.1)
+pts = matrix(c(xs,((xs+5)/10)*sin(xs)),length(xs),2) # eg: twisted sine wave
+# given two new vectors defining a new perpframe, ie, orthogonal axis...
+# p1 and p2 define the vector for the new x-acis and y-axis respectively
+theta = pi/4                   # rotate 45 degrees
+p1 = c( cos(theta),sin(theta))
+p2 = c(-sin(theta),cos(theta))
+
+# So p1 and p2 define a new axis. We will make two transformations, one to
+# go from the old to the new axis (hanger) and vice-versa (aligner)
+# aligner: its job is to align the perpframe into the xy axis
+aligner <- matrix(rbind(p1,p2),2,2)
+aligner
+# hanger: its job is to align the xy axis into the perpframe
+hanger <- matrix(cbind(p1,p2),2,2)
+hanger
+
+# Show both transformations
+# Hanger
+plot(c(-10,10), c(-10,10), type="n",xlab = "x", ylab = "y", 
+     main = "Hanger")
+mtext("hanging object to the new frame axis",3)
+scale.arrow <- 3              # just for the plot presentation
+arrows(0,0,p1[1]*scale.arrow,p1[2]*scale.arrow,col="blue")
+arrows(0,0,p2[1]*scale.arrow,p2[2]*scale.arrow,col="red")
+abline(h=0,col="grey"); abline(v=0,col="grey")
+points(pts,type="l")  # draw the sequence
+
+hanger.pts <- t(apply(pts,1,function(p) hanger %*% p))
+points(hanger.pts,type="l",col="green")
+legend("topleft", c("new x axis", "new y axis"), 
+                  col = c("blue","red"), lwd=1)
+text(0, -9, "green: after rotation into the new axis")
+# Aligner
+plot(c(-10,10), c(-10,10), type="n",xlab = "x", ylab = "y", 
+     main = "Aligner")
+mtext("aligning transformed object again into the orignal frame axis",3)
+scale.arrow <- 3              # just for the plot presentation
+arrows(0,0,p1[1]*scale.arrow,p1[2]*scale.arrow,col="blue")
+arrows(0,0,p2[1]*scale.arrow,p2[2]*scale.arrow,col="red")
+abline(h=0,col="grey"); abline(v=0,col="grey")
+points(hanger.pts,type="l")  # draw the sequence
+
+aligned.pts <- t(apply(hanger.pts,1,function(p) aligner %*% p))
+points(aligned.pts,type="l",col="green")
+legend("topleft", c("new x axis", "new y axis"), 
+                  col = c("blue","red"), lwd=1)
+text(0, -9, "green: (re)aligning to original axis")
+```
+
+Now we have both transformations that map one axis to the other. We just need to include an extra transformation: scaling.
+
+```{r, tidy=FALSE}
+#stretcher: its job is to x-scale and y-scale the object
+stretcher <- matrix(c(1, 0,
+                      0, 4),2,2)
+# Stretcher
+plot(c(-10,10), c(-10,10), type="n",xlab = "x", ylab = "y", 
+     main = "Stretcher")
+mtext("scaling object in both axis (herein just 4x in y-axis)",3)
+abline(h=0,col="grey"); abline(v=0,col="grey")
+points(pts,type="l")  # draw the sequence
+
+stretcher.pts <- t(apply(pts,1,function(p) stretcher %*% p))
+points(stretcher.pts,type="l",col="red")
+text(0, -9, "red: scaled object")
+```
+
+With these three operations, we can transform the original object in three distict steps:
++ hang to the new axis
++ scale it
++ align to the original axis again
+
+This can be done by matrix multiplication (as seen in the next eg).
+```{r, tidy=FALSE}
+###
+# here's an example
+hanger
+stretcher
+aligner
+product <- aligner %*% stretcher %*% hanger
+product
+
+# All together now!
+plot(c(-10,10), c(-10,10), type="n",xlab = "x", ylab = "y", 
+     main = "Complete transformation")
+mtext("making all three transformations in one step",3)
+abline(h=0,col="grey"); abline(v=0,col="grey")
+points(pts,type="l")  # draw the sequence
+
+new.pts <- t(apply(pts,1,function(p) product %*% p))
+points(new.pts,type="l",col="red")
+text(0, -9, "red: transformed object")
+```
+SVD & (Hang,Stretch,Align)
+-------------------------
+```{r, tidy=FALSE}
+product
+m1.svd <- svd(product)
+m1.svd
+m1.svd$u %*% diag(m1.svd$d) %*% t(m1.svd$v) # should be equal to product
+# what this means is that svd$v does the hanging, svd$d does the scaling (after we use 
+# those numbers to make a diagonal matrix), and svd$u does the aligning back!
+
+###########
+# Besides, we can also use just the first components of svd$d to
+# compute approximate transformations. When the first values of svd$d
+# are relatively very big (ie, they explain most of the variance) the last
+# components are not very important (if they indeed contribute at all)
+# and we are able to have condensed transformations (which saves space) that
+# are good approximations of the original transformation
+###########
+ds <- as.matrix(m1.svd$d[1])  # eg, just use the first value
+us <- as.matrix(m1.svd$u[, 1])
+vs <- as.matrix(m1.svd$v[, 1])
+m1.approx <- us %*% ds %*% t(vs)
+m1.approx
+```
+Some examples
+-------------
+We can use the hanger, strecher, aligner 2x2 matrixes to manipulate points in 2D. Some egs follow:
+```{r, tidy=FALSE}
+# Question: What are the coordinates of point P=(x,y) at p1,p2 perpframe?
+# Answer: aligner %*% P
+
+# Question: A point P has cord (x',y') at the perpframe, what are its
+# coordinates at the xy axis?
+# Answer: hanger %*% P
+
+### Eg: reflect a curve over a line
+xs <- seq(0,2*pi,.025)
+pts <- matrix(c(1+cos(xs)*(.2-sin(xs))*sin(xs),
+              1.2+cos(xs)*(.6-sin(xs))),length(xs),2)
+
+theta <- pi/4  # axis rotation 
+p1 = c(cos(theta),sin(theta))
+p2 = c(-sin(theta),cos(theta))
+
+plot(c(-3,3), c(-3,3), type="n", main="Mirroring figure")
+abline(h=-3:3, v=-3:3, col="lightgray", lty=3)
+abline(h=0);abline(v=0)
+arrows(0,0,p1[1],p1[2],col="black")
+arrows(0,0,p2[1],p2[2],col="red")
+abline(0,-1,col="red")            # p2 axis (the new y axis)
+points(pts,type="l",col="black")  # draw original figure
+
+# apply the transformation (mirror over y axis)
+stretcher <- matrix(c(-1, 0,
+                       0 ,1),2,2)
+
+stretcher.pts <- t(apply(pts,1,function(p) stretcher %*% p))
+points(stretcher.pts,type="l",col="green")
+
+# apply the transformation (mirror over p2 axis)
+aligner <- matrix(rbind(p1,p2),2,2)
+stretcher <- matrix(c(-1, 0,
+                       0 ,1),2,2)
+hanger <- matrix(cbind(p1,p2),2,2)
+
+product.pts <- t(apply(pts,1,function(p) hanger %*% stretcher %*% aligner %*% p))
+points(product.pts,type="l",col="blue")  
+legend("bottomleft", c("original", "mirror y-axis", "mirror over p2"), 
+                     col = c("black","green","blue"), lwd=1)
+```
+This next eg fits an elipse to sample $n$ points $(x_i,y_i)$, ie, the ellipse will have the slope of the linear regression, with axis the size of both standard deviations
+
+Notice that we do not use linear regression (miniziming distances to yi) but Deming Linear Regression, ie, minimizing distances to data points, since both x and y both the y and x values are observed, and neither is controlled by the person running the experiment. Check [http://www.had2know.com/academics/deming-regression-perpendicular-distances.html](http://www.had2know.com/academics/deming-regression-perpendicular-distances.html).
+
+```{r,tidy=FALSE,fig.height=8,fig.width=8}
+library(MethComp) # use: deming regression
+
+# function to compute the distance between two points
+distance.points <- function(p1,p2) sqrt((p1[1]-p2[1])^2+(p1[2]-p2[2])^2)
+
+# function that draws ellipses (definition is the sides of the polygon used to draw the ellipse)
+draw.ellipse <- function(x0=0, y0=0, a=1, b=1, angle=0, definition=50, color="black") {
+  theta <- seq(0, 2 * pi, length=definition)
+  x <- x0 + a * cos(theta) * cos(angle) - b * sin(theta) * sin(angle)
+  y <- y0 + a * cos(theta) * sin(angle) + b * sin(theta) * cos(angle)
+  points(x, y, type = "l", col=color)
+} 
+
+# returns both foci of a given ellipse
+compute.foci <- function(x0,y0,a,b,angle) {
+  distance.foci.center <- sqrt(abs(a^2 - b^2))
+  if (a > b) {  # foci lie over slope
+  foci.1 <- c(x0+cos(angle)*distance.foci.center, y0+sin(angle)*distance.foci.center)
+  foci.2 <- c(x0-cos(angle)*distance.foci.center, y0-sin(angle)*distance.foci.center)
+} else {        # foci lie over slope's prependicular
+  foci.1 <- c(x0-sin(angle)*distance.foci.center, y0+cos(angle)*distance.foci.center)
+  foci.2 <- c(x0+sin(angle)*distance.foci.center, y0-cos(angle)*distance.foci.center)
+}
+  return(c(foci.1,foci.2))
+}
+
+set.seed(101)                                     ### create sample data set
+size <- 100                                       # number of data points
+pts <- matrix(c(1.1 + rnorm(size,0,1.0), 
+                -.5 + rnorm(size,0,2.25)), size, 2)
+theta <- pi/6                                     # rotate data points 30 degrees
+p1 <- c( cos(theta),sin(theta))                   # find vectors of the new perspective frame
+p2 <- c(-sin(theta),cos(theta))
+hanger <- matrix(cbind(p1,p2),2,2)                # rotation matrix to perpframe (see above)
+for(i in 1:size) {                                # rotate all sample points
+  pts[i,] <- hanger %*% pts[i,]
+}                                                 
+rm("theta","p1","p2","hanger")                    # erase memory of sample construction
+
+# So, *pts* is our initial dataset! How can we find the fitting elipsoid?
+# First find the appropriate perspective frame (prepframe) using deming regression
+dlm <- Deming(x=pts[,1], y=pts[,2])               # make deming regression
+dlm
+plot(pts, xlim=c(-5,5), ylim=c(-5,5), xlab="xs", ylab="ys", pch=19) # plot data...
+abline(h=0,col="grey"); abline(v=0,col="grey")
+title("Initial Data Set")
+abline(dlm[1:2],col="green")                      # ... and deming line (just for show!)
+angle.slope <- atan(dlm["Slope"])                 # get slope angle in radians
+# we need to find the standard deviations over that slope. So we will
+# rotate it to the xy-axis using aligner and compute those sd's
+p1 <- c( cos(angle.slope),sin(angle.slope))
+p2 <- c(-sin(angle.slope),cos(angle.slope))
+aligner <- matrix(rbind(p1,p2),2,2)               # transformation matrix
+aligned.pts <- matrix(c(NA,NA),size,2)
+for(i in 1:size) {
+  aligned.pts[i,] <- aligner %*% pts[i,]          # align each data point to xy-axis
+}  
+plot(aligned.pts, xlim=c(-5,5), ylim=c(-5,5), xlab="xs", ylab="ys", pch=19)  # show aligned dataset
+title("Aligned Data Set")
+abline(h=0,col="grey"); abline(v=0,col="grey")    
+sd.xs <- sd(aligned.pts[,1])                      # compute sd's
+sd.ys <- sd(aligned.pts[,2])
+# Now we have all the data to draw the ellipse(s)
+plot(pts, xlim=c(-5,5), ylim=c(-5,5), xlab="xs", ylab="ys", pch=19)    # plot data...
+title("Initial Data Set with Fitting Ellipses")
+abline(h=0,col="grey"); abline(v=0,col="grey")
+legend("topleft", c("one sigma", "two sigma", "three sigma"), col = c("red","blue","green"), lwd=2)
+draw.ellipse(mean(pts[,1]), mean(pts[,2]), sd.xs, sd.ys, angle.slope) # and the ellipse
+draw.ellipse(mean(pts[,1]), mean(pts[,2]), 2*sd.xs, 2*sd.ys, angle.slope, color="red") # contains points under two standard deviations
+draw.ellipse(mean(pts[,1]), mean(pts[,2]), 3*sd.xs, 3*sd.ys, angle.slope, color="green") 
+# we could also have the option to color the points inside each sigma-ellipse
+
+# Def: An ellipse is the locus of points such that the sum of the distances 
+# from each point to the two foci equals twice the length of the major axis.
+
+foci <- compute.foci(mean(pts[,1]),mean(pts[,2]),sd.xs,sd.ys,angle.slope)
+foci.1 <- foci[1:2]
+foci.2 <- foci[3:4]
+
+# local function that returns in which 'sigma-elipse' it belongs (up to 6-sigma)
+sigma.elipse <- function(p,x0,y0,a,b,angle) {
+  for(i in 1:6) {
+    foci <- compute.foci(x0,y0,i*a,i*b,angle)
+    foci.1 <- foci[1:2]
+    foci.2 <- foci[3:4]
+    if(2*i*max(a,b) >= distance.points(p,foci.1) + distance.points(p,foci.2))
+      return (i)
+  }
+  return (7)
+}
+which.sigma <- rep(NA,size)
+for(i in 1:size) {
+  which.sigma[i] <- sigma.elipse(c(pts[i,1],pts[i,2]),
+                                 mean(pts[,1]),mean(pts[,2]),sd.xs,sd.ys,angle.slope) # check for each point
+}  
+
+plot(pts, xlim=c(-5,5), ylim=c(-5,5), xlab="xs", ylab="ys",type="n")    # plot data...
+title("Show what data points are inside each ellipse")
+abline(h=0,col="grey"); abline(v=0,col="grey")
+legend("bottomleft", c("one sigma", "two sigma", "three sigma", "four sigma"), col = 1:4, lwd=2)
+points(pts,pch=19,col=which.sigma)
+```
+
+Comparing previous eg with the respective SVD
+
+```{r}
+plot(pts, xlim=c(-5,5), ylim=c(-5,5), xlab="xs", ylab="ys", pch=19)
+
+angle.slope*180/pi  # the rotation for the deming regression
+abline(dlm[1:2],col="black") 
+sd.xs # their sd's
+sd.ys
+
+svd.pts <- svd(pts)
+svd.pts$d
+t(svd.pts$v)  # this is the aligner rotation for the SVD transform
+svd.slope <- as.numeric(acos(t(svd.pts$v[1,1]))) # its rotation (in radians)
+abline(a=0,b=svd.slope,col="green")
+
+rotated.pts <- matrix(c(NA,NA),size,2) # rotate the original points
+for(i in 1:size) {
+  rotated.pts[i,] <- t(svd.pts$v) %*% pts[i,]  # align each data point to new axis
+}  
+points(rotated.pts,col="red")
+sd(rotated.pts[,1]) # check their sd's after the alignment
+sd(rotated.pts[,2])
+final.pts <- svd.pts$u %*% diag(svd.pts$d) %*% t(svd.pts$v) # == original pts
+points(final.pts,col="green")
+```
+
+Generalized Inverse
+-----
+SVD to find a generalized inverse of a non-full-rank matrix.
+
+For a square matrix $A$ with a non-zero determinant, there exists an inverse
+matrix $B$ such that $A \times B = I$ and $B \times A = I$. 
+
+For a matrix that is not square, generalized inverse matrices have some (but not all) of the properties of an inverse matrix. SVD can be used to find a generalized inverse matrix. 
+
+In the example below, we use SVD to find a generalized inverse $B$ to the matrix $A$ such that $A \times B \times A = A$. We compare our generalized inverse with the one generated by the `ginv` command (`MASS` library).
+
+[source](http://www.ats.ucla.edu/stat/r/pages/svd_demos.htm)
+```{r, tidy=FALSE}
+a <- matrix(c(1, 1, 1, 1, 1, 1, 1, 1, 1, 
+              1, 1, 1, 0, 0, 0, 0, 0, 0, 
+              0, 0, 0, 1, 1, 1, 0, 0, 0, 
+              0, 0, 0, 0, 0, 0, 1, 1, 1), 9, 4)
+a
+a.svd <- svd(a)
+a.svd$d
+ds <- diag(1/a.svd$d[1:3]) # take the first 3 values, since the 4th is almost zero
+u <- a.svd$u
+v <- a.svd$v
+us <- as.matrix(u[, 1:3])
+vs <- as.matrix(v[, 1:3])
+a.ginv <- vs %*% ds %*% t(us)
+round(a %*% a.ginv %*% a,0) # round just for pretty print
+# Using the library R function to compare:
+round(a %*% ginv(a) %*% a,0) # round just for pretty print
+```
+Principal Components Analysis
+-----------------------------
+```{r, tidy=FALSE}
+# The principal components are equal to the right singular values if 
+# you first scale (subtract the mean, divide by the standard deviation) 
+# the variables
+m1 <- matrix(sample(1:16,16),4,4)
+m1.scale.svd <- svd(scale(m1))
+m1.scale.svd
+m1.pca <- prcomp(m1,scale=T)
+m1.pca
+# m1.pca$rotation == m1.scale.svd$v
+# plot the 1st component/right singular vector just to check they are the same
+plot(m1.pca$rotation[,1],m1.scale.svd$v[,1],pch=19,
+     xlab="Principal Component 1",
+     ylab="Right Singular Vector 1")
+abline(c(0,1))  # 45 degree line
+```
+
+Image Processing
+----------------
+[source](http://www.ats.ucla.edu/stat/r/pages/svd_demos.htm) 
+It reads in a jpeg (pansy.jpg) and plots it in R, first in color (when the image is stored as three matrices--one red, one green, one blue) and then in grayscale (when the image is stored as one matrix). Then, using SVD, we can essentially compress the image. Note that we can recover the image to varying degrees of detail as we recreate the image from different numbers of dimensions from our SVD matrices. You can see how many dimensions are needed before you have an image that cannot be differentiated from the original.
+
+This code uses package `EBImage`. [intro](http://www.bioconductor.org/packages/2.10/bioc/vignettes/EBImage/inst/doc/EBImage-introduction.pdf) [ref.manual](http://www.bioconductor.org/packages/2.10/bioc/manuals/EBImage/man/EBImage.pdf)
+To install: `source("http://bioconductor.org/biocLite.R"); biocLite("EBImage")`
+
+```{r, tidy=FALSE}
+library("EBImage")
+pic <- readImage("pansy.jpg")
+dims <- dim(pic)
+plot(c(0, dims[1]), c(0, dims[2]), type='n', xlab="", ylab="")
+rasterImage(pic,0,0,dims[1],dims[2])        # present image
+```
+Some info of RGB to grayscale [here](http://stackoverflow.com/questions/687261/converting-rgb-to-grayscale-intensity)
+```{r, tidy=FALSE}
+pic.flip <- Image(flip(pic),colormode="Grayscale") # not sure why this one...
+# convert RGB to grayscale
+red.weigth   <- .2989
+green.weigth <- .587
+blue.weigth  <- 0.114
+r <- red.weigth   * imageData(pic.flip)[,,1] + 
+     green.weigth * imageData(pic.flip)[,,2] + 
+     blue.weigth  * imageData(pic.flip)[,,3]
+image(r, col = grey(seq(0, 1, length = 256)))
+# Apply SVD to get u, d, and v
+r.svd <- svd(r)
+d <- diag(r.svd$d)
+dim(d)
+u <- r.svd$u
+v <- r.svd$v
+plot(1:length(r.svd$d), r.svd$d, log="y", yaxt="n", pch=19, xlab="i-th r.svd$d", ylab="r.svd$d") # check svd$d values 
+axis(2,c(.001,.01,.1,1,10,100))
+# first approximation
+u1 <- as.matrix(u[-1, 1])
+v1 <- as.matrix(v[-1, 1])
+d1 <- as.matrix(d[1, 1])
+l1 <- u1 %*% d1 %*% t(v1)
+image(1:dims[1],1:dims[2],l1, col = grey(seq(0, 1, length = 256)))
+# more approximation
+depth <- 50
+us <- as.matrix(u[, 1:depth])
+vs <- as.matrix(v[, 1:depth])
+ds <- as.matrix(d[1:depth, 1:depth])
+ls <- us %*% ds %*% t(vs)
+image(1:dims[1],1:dims[2],ls, col = grey(seq(0, 1, length = 256)))
+```

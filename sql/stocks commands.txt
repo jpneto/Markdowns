@@ -1,0 +1,13 @@
+CREATE TABLE stocks (
+  DATE_STOCK varchar(8), 
+  YEAR integer,
+  MONTH integer,
+  OPEN double precision,
+  HIGH double precision,
+  LOW  double precision,
+  CLOSE  double precision,
+  VOLUME integer,
+  id integer PRIMARY KEY
+);
+
+\COPY stocks FROM 'C:\Users\jpn\Downloads\stocks.csv' DELIMITER ',' CSV HEADER;

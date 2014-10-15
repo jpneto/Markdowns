@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>Naive Bayes</title>
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 12px;
+   margin: 8px;
+}
+
+tt, code, pre {
+   font-family: 'Courier New', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 { 
+   font-size:2.2em; 
+}
+
+h2 { 
+   font-size:1.8em; 
+}
+
+h3 { 
+   font-size:1.4em; 
+}
+
+h4 { 
+   font-size:1.0em; 
+}
+
+h5 { 
+   font-size:0.9em; 
+}
+
+h6 { 
+   font-size:0.8em; 
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre {	
+   margin-top: 0;
+   max-width: 95%;
+   border: 1px solid #ccc;
+   white-space: pre-wrap;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code.r {
+   background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * { 
+      background: transparent !important; 
+      color: black !important; 
+      filter:none !important; 
+      -ms-filter: none !important; 
+   }
+
+   body { 
+      font-size:12pt; 
+      max-width:100%; 
+   }
+       
+   a, a:visited { 
+      text-decoration: underline; 
+   }
+
+   hr { 
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote { 
+      padding-right: 1em; 
+      page-break-inside: avoid; 
+   }
+
+   tr, img { 
+      page-break-inside: avoid; 
+   }
+
+   img { 
+      max-width: 100% !important; 
+   }
+
+   @page :left { 
+      margin: 15mm 20mm 15mm 10mm; 
+   }
+     
+   @page :right { 
+      margin: 15mm 10mm 15mm 20mm; 
+   }
+
+   p, h2, h3 { 
+      orphans: 3; widows: 3; 
+   }
+
+   h2, h3 { 
+      page-break-after: avoid; 
+   }
+}
+
+</style>
+
+<!-- Styles for R syntax highlighter -->
+<style type="text/css">
+   pre .operator,
+   pre .paren {
+     color: rgb(104, 118, 135)
+   }
+
+   pre .literal {
+     color: rgb(88, 72, 246)
+   }
+
+   pre .number {
+     color: rgb(0, 0, 205);
+   }
+
+   pre .comment {
+     color: rgb(76, 136, 107);
+   }
+
+   pre .keyword {
+     color: rgb(0, 0, 255);
+   }
+
+   pre .identifier {
+     color: rgb(0, 0, 0);
+   }
+
+   pre .string {
+     color: rgb(3, 106, 7);
+   }
+</style>
+
+<!-- R syntax highlighter -->
+<script type="text/javascript">
+var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/</gm,"&lt;")}function f(r,q,p){return RegExp(q,"m"+(r.cI?"i":"")+(p?"g":""))}function b(r){for(var p=0;p<r.childNodes.length;p++){var q=r.childNodes[p];if(q.nodeName=="CODE"){return q}if(!(q.nodeType==3&&q.nodeValue.match(/\s+/))){break}}}function h(t,s){var p="";for(var r=0;r<t.childNodes.length;r++){if(t.childNodes[r].nodeType==3){var q=t.childNodes[r].nodeValue;if(s){q=q.replace(/\n/g,"")}p+=q}else{if(t.childNodes[r].nodeName=="BR"){p+="\n"}else{p+=h(t.childNodes[r])}}}if(/MSIE [678]/.test(navigator.userAgent)){p=p.replace(/\r/g,"\n")}return p}function a(s){var r=s.className.split(/\s+/);r=r.concat(s.parentNode.className.split(/\s+/));for(var q=0;q<r.length;q++){var p=r[q].replace(/^language-/,"");if(e[p]){return p}}}function c(q){var p=[];(function(s,t){for(var r=0;r<s.childNodes.length;r++){if(s.childNodes[r].nodeType==3){t+=s.childNodes[r].nodeValue.length}else{if(s.childNodes[r].nodeName=="BR"){t+=1}else{if(s.childNodes[r].nodeType==1){p.push({event:"start",offset:t,node:s.childNodes[r]});t=arguments.callee(s.childNodes[r],t);p.push({event:"stop",offset:t,node:s.childNodes[r]})}}}}return t})(q,0);return p}function k(y,w,x){var q=0;var z="";var s=[];function u(){if(y.length&&w.length){if(y[0].offset!=w[0].offset){return(y[0].offset<w[0].offset)?y:w}else{return w[0].event=="start"?y:w}}else{return y.length?y:w}}function t(D){var A="<"+D.nodeName.toLowerCase();for(var B=0;B<D.attributes.length;B++){var C=D.attributes[B];A+=" "+C.nodeName.toLowerCase();if(C.value!==undefined&&C.value!==false&&C.value!==null){A+='="'+m(C.value)+'"'}}return A+">"}while(y.length||w.length){var v=u().splice(0,1)[0];z+=m(x.substr(q,v.offset-q));q=v.offset;if(v.event=="start"){z+=t(v.node);s.push(v.node)}else{if(v.event=="stop"){var p,r=s.length;do{r--;p=s[r];z+=("</"+p.nodeName.toLowerCase()+">")}while(p!=v.node);s.splice(r,1);while(r<s.length){z+=t(s[r]);r++}}}}return z+m(x.substr(q))}function j(){function q(x,y,v){if(x.compiled){return}var u;var s=[];if(x.k){x.lR=f(y,x.l||hljs.IR,true);for(var w in x.k){if(!x.k.hasOwnProperty(w)){continue}if(x.k[w] instanceof Object){u=x.k[w]}else{u=x.k;w="keyword"}for(var r in u){if(!u.hasOwnProperty(r)){continue}x.k[r]=[w,u[r]];s.push(r)}}}if(!v){if(x.bWK){x.b="\\b("+s.join("|")+")\\s"}x.bR=f(y,x.b?x.b:"\\B|\\b");if(!x.e&&!x.eW){x.e="\\B|\\b"}if(x.e){x.eR=f(y,x.e)}}if(x.i){x.iR=f(y,x.i)}if(x.r===undefined){x.r=1}if(!x.c){x.c=[]}x.compiled=true;for(var t=0;t<x.c.length;t++){if(x.c[t]=="self"){x.c[t]=x}q(x.c[t],y,false)}if(x.starts){q(x.starts,y,false)}}for(var p in e){if(!e.hasOwnProperty(p)){continue}q(e[p].dM,e[p],true)}}function d(B,C){if(!j.called){j();j.called=true}function q(r,M){for(var L=0;L<M.c.length;L++){if((M.c[L].bR.exec(r)||[null])[0]==r){return M.c[L]}}}function v(L,r){if(D[L].e&&D[L].eR.test(r)){return 1}if(D[L].eW){var M=v(L-1,r);return M?M+1:0}return 0}function w(r,L){return L.i&&L.iR.test(r)}function K(N,O){var M=[];for(var L=0;L<N.c.length;L++){M.push(N.c[L].b)}var r=D.length-1;do{if(D[r].e){M.push(D[r].e)}r--}while(D[r+1].eW);if(N.i){M.push(N.i)}return f(O,M.join("|"),true)}function p(M,L){var N=D[D.length-1];if(!N.t){N.t=K(N,E)}N.t.lastIndex=L;var r=N.t.exec(M);return r?[M.substr(L,r.index-L),r[0],false]:[M.substr(L),"",true]}function z(N,r){var L=E.cI?r[0].toLowerCase():r[0];var M=N.k[L];if(M&&M instanceof Array){return M}return false}function F(L,P){L=m(L);if(!P.k){return L}var r="";var O=0;P.lR.lastIndex=0;var M=P.lR.exec(L);while(M){r+=L.substr(O,M.index-O);var N=z(P,M);if(N){x+=N[1];r+='<span class="'+N[0]+'">'+M[0]+"</span>"}else{r+=M[0]}O=P.lR.lastIndex;M=P.lR.exec(L)}return r+L.substr(O,L.length-O)}function J(L,M){if(M.sL&&e[M.sL]){var r=d(M.sL,L);x+=r.keyword_count;return r.value}else{return F(L,M)}}function I(M,r){var L=M.cN?'<span class="'+M.cN+'">':"";if(M.rB){y+=L;M.buffer=""}else{if(M.eB){y+=m(r)+L;M.buffer=""}else{y+=L;M.buffer=r}}D.push(M);A+=M.r}function G(N,M,Q){var R=D[D.length-1];if(Q){y+=J(R.buffer+N,R);return false}var P=q(M,R);if(P){y+=J(R.buffer+N,R);I(P,M);return P.rB}var L=v(D.length-1,M);if(L){var O=R.cN?"</span>":"";if(R.rE){y+=J(R.buffer+N,R)+O}else{if(R.eE){y+=J(R.buffer+N,R)+O+m(M)}else{y+=J(R.buffer+N+M,R)+O}}while(L>1){O=D[D.length-2].cN?"</span>":"";y+=O;L--;D.length--}var r=D[D.length-1];D.length--;D[D.length-1].buffer="";if(r.starts){I(r.starts,"")}return R.rE}if(w(M,R)){throw"Illegal"}}var E=e[B];var D=[E.dM];var A=0;var x=0;var y="";try{var s,u=0;E.dM.buffer="";do{s=p(C,u);var t=G(s[0],s[1],s[2]);u+=s[0].length;if(!t){u+=s[1].length}}while(!s[2]);if(D.length>1){throw"Illegal"}return{r:A,keyword_count:x,value:y}}catch(H){if(H=="Illegal"){return{r:0,keyword_count:0,value:m(C)}}else{throw H}}}function g(t){var p={keyword_count:0,r:0,value:m(t)};var r=p;for(var q in e){if(!e.hasOwnProperty(q)){continue}var s=d(q,t);s.language=q;if(s.keyword_count+s.r>r.keyword_count+r.r){r=s}if(s.keyword_count+s.r>p.keyword_count+p.r){r=p;p=s}}if(r.language){p.second_best=r}return p}function i(r,q,p){if(q){r=r.replace(/^((<[^>]+>|\t)+)/gm,function(t,w,v,u){return w.replace(/\t/g,q)})}if(p){r=r.replace(/\n/g,"<br>")}return r}function n(t,w,r){var x=h(t,r);var v=a(t);var y,s;if(v){y=d(v,x)}else{return}var q=c(t);if(q.length){s=document.createElement("pre");s.innerHTML=y.value;y.value=k(q,c(s),x)}y.value=i(y.value,w,r);var u=t.className;if(!u.match("(\\s|^)(language-)?"+v+"(\\s|$)")){u=u?(u+" "+v):v}if(/MSIE [678]/.test(navigator.userAgent)&&t.tagName=="CODE"&&t.parentNode.tagName=="PRE"){s=t.parentNode;var p=document.createElement("div");p.innerHTML="<pre><code>"+y.value+"</code></pre>";t=p.firstChild.firstChild;p.firstChild.cN=s.cN;s.parentNode.replaceChild(p.firstChild,s)}else{t.innerHTML=y.value}t.className=u;t.result={language:v,kw:y.keyword_count,re:y.r};if(y.second_best){t.second_best={language:y.second_best.language,kw:y.second_best.keyword_count,re:y.second_best.r}}}function o(){if(o.called){return}o.called=true;var r=document.getElementsByTagName("pre");for(var p=0;p<r.length;p++){var q=b(r[p]);if(q){n(q,hljs.tabReplace)}}}function l(){if(window.addEventListener){window.addEventListener("DOMContentLoaded",o,false);window.addEventListener("load",o,false)}else{if(window.attachEvent){window.attachEvent("onload",o)}else{window.onload=o}}}var e={};this.LANGUAGES=e;this.highlight=d;this.highlightAuto=g;this.fixMarkup=i;this.highlightBlock=n;this.initHighlighting=o;this.initHighlightingOnLoad=l;this.IR="[a-zA-Z][a-zA-Z0-9_]*";this.UIR="[a-zA-Z_][a-zA-Z0-9_]*";this.NR="\\b\\d+(\\.\\d+)?";this.CNR="\\b(0[xX][a-fA-F0-9]+|(\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";this.BNR="\\b(0b[01]+)";this.RSR="!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|\\.|-|-=|/|/=|:|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";this.ER="(?![\\s\\S])";this.BE={b:"\\\\.",r:0};this.ASM={cN:"string",b:"'",e:"'",i:"\\n",c:[this.BE],r:0};this.QSM={cN:"string",b:'"',e:'"',i:"\\n",c:[this.BE],r:0};this.CLCM={cN:"comment",b:"//",e:"$"};this.CBLCLM={cN:"comment",b:"/\\*",e:"\\*/"};this.HCM={cN:"comment",b:"#",e:"$"};this.NM={cN:"number",b:this.NR,r:0};this.CNM={cN:"number",b:this.CNR,r:0};this.BNM={cN:"number",b:this.BNR,r:0};this.inherit=function(r,s){var p={};for(var q in r){p[q]=r[q]}if(s){for(var q in s){p[q]=s[q]}}return p}}();hljs.LANGUAGES.cpp=function(){var a={keyword:{"false":1,"int":1,"float":1,"while":1,"private":1,"char":1,"catch":1,"export":1,virtual:1,operator:2,sizeof:2,dynamic_cast:2,typedef:2,const_cast:2,"const":1,struct:1,"for":1,static_cast:2,union:1,namespace:1,unsigned:1,"long":1,"throw":1,"volatile":2,"static":1,"protected":1,bool:1,template:1,mutable:1,"if":1,"public":1,friend:2,"do":1,"return":1,"goto":1,auto:1,"void":2,"enum":1,"else":1,"break":1,"new":1,extern:1,using:1,"true":1,"class":1,asm:1,"case":1,typeid:1,"short":1,reinterpret_cast:2,"default":1,"double":1,register:1,explicit:1,signed:1,typename:1,"try":1,"this":1,"switch":1,"continue":1,wchar_t:1,inline:1,"delete":1,alignof:1,char16_t:1,char32_t:1,constexpr:1,decltype:1,noexcept:1,nullptr:1,static_assert:1,thread_local:1,restrict:1,_Bool:1,complex:1},built_in:{std:1,string:1,cin:1,cout:1,cerr:1,clog:1,stringstream:1,istringstream:1,ostringstream:1,auto_ptr:1,deque:1,list:1,queue:1,stack:1,vector:1,map:1,set:1,bitset:1,multiset:1,multimap:1,unordered_set:1,unordered_map:1,unordered_multiset:1,unordered_multimap:1,array:1,shared_ptr:1}};return{dM:{k:a,i:"</",c:[hljs.CLCM,hljs.CBLCLM,hljs.QSM,{cN:"string",b:"'\\\\?.",e:"'",i:"."},{cN:"number",b:"\\b(\\d+(\\.\\d*)?|\\.\\d+)(u|U|l|L|ul|UL|f|F)"},hljs.CNM,{cN:"preprocessor",b:"#",e:"$"},{cN:"stl_container",b:"\\b(deque|list|queue|stack|vector|map|set|bitset|multiset|multimap|unordered_map|unordered_set|unordered_multiset|unordered_multimap|array)\\s*<",e:">",k:a,r:10,c:["self"]}]}}}();hljs.LANGUAGES.r={dM:{c:[hljs.HCM,{cN:"number",b:"\\b0[xX][0-9a-fA-F]+[Li]?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+(?:[eE][+\\-]?\\d*)?L\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+\\.(?!\\d)(?:i\\b)?",e:hljs.IMMEDIATE_RE,r:1},{cN:"number",b:"\\b\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\.\\d+(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"keyword",b:"(?:tryCatch|library|setGeneric|setGroupGeneric)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\.",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\d+(?![\\w.])",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\b(?:function)",e:hljs.IMMEDIATE_RE,r:2},{cN:"keyword",b:"(?:if|in|break|next|repeat|else|for|return|switch|while|try|stop|warning|require|attach|detach|source|setMethod|setClass)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"literal",b:"(?:NA|NA_integer_|NA_real_|NA_character_|NA_complex_)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"literal",b:"(?:NULL|TRUE|FALSE|T|F|Inf|NaN)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"identifier",b:"[a-zA-Z.][a-zA-Z0-9._]*\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"<\\-(?!\\s*\\d)",e:hljs.IMMEDIATE_RE,r:2},{cN:"operator",b:"\\->|<\\-",e:hljs.IMMEDIATE_RE,r:1},{cN:"operator",b:"%%|~",e:hljs.IMMEDIATE_RE},{cN:"operator",b:">=|<=|==|!=|\\|\\||&&|=|\\+|\\-|\\*|/|\\^|>|<|!|&|\\||\\$|:",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"%",e:"%",i:"\\n",r:1},{cN:"identifier",b:"`",e:"`",r:0},{cN:"string",b:'"',e:'"',c:[hljs.BE],r:0},{cN:"string",b:"'",e:"'",c:[hljs.BE],r:0},{cN:"paren",b:"[[({\\])}]",e:hljs.IMMEDIATE_RE,r:0}]}};
+hljs.initHighlightingOnLoad();
+</script>
+
+
+<!-- MathJax scripts -->
+<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+
+</head>
+
+<body>
+<h1>Naive Bayes</h1>
+
+<p>Refs: </p>
+
+<ul>
+<li><a href="http://www-users.cs.york.ac.uk/%7Ejc/teaching/arin/R_practical/">http://www-users.cs.york.ac.uk/~jc/teaching/arin</a></li>
+<li><a href="http://en.wikipedia.org/wiki/Naive_Bayes_classifier">wikipedia</a></li>
+</ul>
+
+<h2>Explaining Naive Bayes</h2>
+
+<p>Given features \( F_1, F_2, \ldots F_n \) and a class \( C \), we wish to know</p>
+
+<p>\[ p(C|F_1, F_2, \ldots F_n) \]</p>
+
+<p>By Bayes&#39; Theorem:</p>
+
+<p>\[ p(C|F_1, F_2, \ldots F_n) = \frac{p(C)p(F_1, F_2, \ldots F_n|C)}{p(F_1, F_2, \ldots F_n)} \propto p(C)p(F_1, F_2, \ldots F_n|C) \]</p>
+
+<p>The numerator \( p(C)p(F_1, F_2, \ldots F_n|C) \) is equal to the joint probability \( p(C,F_1, F_2, \ldots F_n) \) which by the chain rule:</p>
+
+<p>\[ 
+\begin{array}{lcl}
+p(C,F_1, F_2, \ldots F_n) & \propto & p(C) p(F_1, F_2, \ldots F_n|C) \\
+                          & \propto & p(C) p(F_1|C) p(F_2, \ldots F_n|C,F_1) \\
+                          & \propto & p(C) p(F_1|C) p(F_2|C,F_1) p(F_3, \ldots F_n|C,F_1,F_2)\\
+                          & \propto & \ldots \\
+                          & \propto & p(C) p(F_1|C) p(F_2|C,F_1) \ldots p(F_n|C,F_1\ldots F_{n-1})
+\end{array}
+ \]</p>
+
+<p>Naive Bayes &#39;naively&#39; assumes that every feature \( F_i \) is conditionally independent of every other \( F_j \) (\( i \neq j \)) given \( C \), ie:</p>
+
+<p>\[ p(F_i|C,F_j) = p(F_i|C), i \neq j \]</p>
+
+<p>This greatly simplifies the previous chain rule:</p>
+
+<p>\[ p(C) p(F_1|C) p(F_2|C,F_1) \ldots p(F_n|C,F_1\ldots F_{n-1}) = P(C)p(F_1|C)p(F_2|C)\ldots = p(C) \prod_i P(F_i|C) \]</p>
+
+<p>And so:</p>
+
+<p>\[ p(C|F_1, F_2, \ldots F_n) \propto p(C) \prod_i P(F_i|C) \]</p>
+
+<p>An eg: here&#39;s an aggregate data on applicants to graduate school at Berkeley for the six largest departments in 1973 classified by admission and sex.</p>
+
+<pre><code class="r">data(UCBAdmissions)
+margin.table(UCBAdmissions,1)
+</code></pre>
+
+<pre><code>Admit
+Admitted Rejected 
+    1755     2771 
+</code></pre>
+
+<pre><code class="r">df &lt;- as.data.frame(UCBAdmissions)
+df[df$Dept==&quot;A&quot;,] # just look at Dept. A
+</code></pre>
+
+<pre><code>     Admit Gender Dept Freq
+1 Admitted   Male    A  512
+2 Rejected   Male    A  313
+3 Admitted Female    A   89
+4 Rejected Female    A   19
+</code></pre>
+
+<p>The estimated probabilities of being admitted to dept. A being a male or female are:
+\[ \hat{p}(admitted | male, dept.A) = 512 / (512+313) \approx 0.62  \]
+\[ \hat{p}(admitted | female, dept.A) = 89 / (89+19) \approx 0.82  \]</p>
+
+<p>Let A = admitted; G = gender and D = departement.</p>
+
+<p>Naive Bayes assumes that \[ p(A|G,D) \propto p(A)p(G|A)p(D|A) \]</p>
+
+<p>Knowing the gender, G=g, and the department, D=d, we wish to predict the value A (ie, was he/she admitted?) that maximizes p(A|g,d):</p>
+
+<p>\[ \operatorname*{arg\,max}_A ~ p(A|g,d) = \operatorname*{arg\,max}_A ~ p(a) p(g|A) p(d|A)) \]</p>
+
+<p>To achieve this, we get the data \( p(A) \), \( p(G|A) \) and \( p(D|A) \) for each possible value \( A \) and perform the calculations.</p>
+
+<p>Let&#39;s say that G=&#39;female&#39;, and D=&#39;department A&#39; and we which to know either A is &#39; admitted&#39; or &#39;rejected&#39;. </p>
+
+<p>We need to query the table for some numbers:</p>
+
+<pre><code class="r">sum (df$Freq) # total number of submitions (admitted+rejected)
+</code></pre>
+
+<pre><code>[1] 4526
+</code></pre>
+
+<pre><code class="r">sum (df[df$Gender==&quot;Female&quot;,]$Freq) # number of females
+</code></pre>
+
+<pre><code>[1] 1835
+</code></pre>
+
+<pre><code class="r">sum (df[df$Admit==&quot;Admitted&quot;,]$Freq) # number of admitted on all depts
+</code></pre>
+
+<pre><code>[1] 1755
+</code></pre>
+
+<pre><code class="r">sum (df[df$Admit==&quot;Rejected&quot;,]$Freq) # number of rejected on all depts
+</code></pre>
+
+<pre><code>[1] 2771
+</code></pre>
+
+<pre><code class="r">sum (df[df$Admit==&quot;Admitted&quot; &amp; df$Gender==&quot;Female&quot;,]$Freq) # number of admitted females
+</code></pre>
+
+<pre><code>[1] 557
+</code></pre>
+
+<pre><code class="r">sum (df[df$Admit==&quot;Rejected&quot; &amp; df$Gender==&quot;Female&quot;,]$Freq) # number of rejected females
+</code></pre>
+
+<pre><code>[1] 1278
+</code></pre>
+
+<pre><code class="r">sum (df[df$Admit==&quot;Admitted&quot; &amp; df$Dept==&quot;A&quot;,]$Freq) # number of admitted in dept &#39;A&#39;
+</code></pre>
+
+<pre><code>[1] 601
+</code></pre>
+
+<pre><code class="r">sum (df[df$Admit==&quot;Rejected&quot; &amp; df$Dept==&quot;A&quot;,]$Freq) # number of rejected in dept &#39;A&#39;
+</code></pre>
+
+<pre><code>[1] 332
+</code></pre>
+
+<p>Then:</p>
+
+<ul>
+<li>\( p(admitted) = 1755/4526 \approx 0.39 \)</li>
+<li>\( p(female|admitted) = p(female,admitted) / p(admitted) = (557/4526)/0.39 \approx 0.32 \)</li>
+<li>\( p(dept A|admitted) = p(dept A,admitted) / p(admitted) = (601/4526)/0.39 \approx 0.34 \)</li>
+</ul>
+
+<p>And:</p>
+
+<ul>
+<li>\( p(rejected) = 2772/4526 \approx 0.61 \)</li>
+<li>\( p(female|rejected) = 1278/2772 \approx 0.46 \)</li>
+<li>\( p(dept A|rejected) = 332/2772 \approx 0.12 \)</li>
+</ul>
+
+<p>This means that \( p(admitted|female,'A') \propto 0.39 \times 0.32 \times 0.34 = 0.042432 \)</p>
+
+<p>Which is larger than \( p(rejected|female,'A') \propto 0.61 \times 0.2 \times 0.12 = 0.033672 \)</p>
+
+<p>Our prediction is that a female will be admitted in Dept. A. The odds ratio is \( 1.26:1 \) in favor of admittance (ie, 56% chances of admittance).</p>
+
+<h2>Using the R funtions</h2>
+
+<ul>
+<li><code>naiveBayes()</code> creates a classifier given observation data and the class for each observation</li>
+<li><code>predict()</code> receives the classifier, some observations, and returns a vector with their predicted classes</li>
+</ul>
+
+<pre><code class="r">library(e1071) 
+# creates a classifier using Gender and Dept as data, and Admittance as the observation class
+classifier &lt;- naiveBayes(Admit ~ Gender + Dept, data = UCBAdmissions)
+test &lt;- unique(df[,c(-1,-4)])                # get the pairs gender+department
+test$Prediction &lt;- predict(classifier, test) # apply the prediction for those pairs (and add to a new column to data frame &#39;test&#39;)
+test                                         # check results
+</code></pre>
+
+<pre><code>   Gender Dept Prediction
+1    Male    A   Admitted
+3  Female    A   Admitted
+5    Male    B   Admitted
+7  Female    B   Admitted
+9    Male    C   Rejected
+11 Female    C   Rejected
+13   Male    D   Rejected
+15 Female    D   Rejected
+17   Male    E   Rejected
+19 Female    E   Rejected
+21   Male    F   Rejected
+23 Female    F   Rejected
+</code></pre>
+
+<p>It is possible to access the conditional probabilities from the $tables attribute:</p>
+
+<pre><code class="r">classifier$tables$Gender[&quot;Admitted&quot;,&quot;Female&quot;]  # p(female|admitted)
+</code></pre>
+
+<pre><code>[1] 0.3174
+</code></pre>
+
+<pre><code class="r">classifier$tables$Dept[&quot;Admitted&quot;,&quot;A&quot;]         # p(dept.A|admitted)
+</code></pre>
+
+<pre><code>[1] 0.3425
+</code></pre>
+
+<pre><code class="r">classifier$tables$Gender[&quot;Rejected&quot;,&quot;Female&quot;]  # p(female|rejected)
+</code></pre>
+
+<pre><code>[1] 0.4612
+</code></pre>
+
+<pre><code class="r">classifier$tables$Dept[&quot;Rejected&quot;,&quot;A&quot;]         # p(dept.A|rejected)
+</code></pre>
+
+<pre><code>[1] 0.1198
+</code></pre>
+
+<p>And also the apriori distribution:</p>
+
+<pre><code class="r">classifier$apriori / sum(classifier$apriori)
+</code></pre>
+
+<pre><code>Admit
+Admitted Rejected 
+  0.3878   0.6122 
+</code></pre>
+
+<h2>Continuous attributes</h2>
+
+<p>If attribute \( F_i \) is continuous, a typical approach is to assume that \( p(F_i|C=c) \sim N(mean(F_i|C=c), sd(F_i|C=c)) \)</p>
+
+<p>TODO: egs at <a href="http://en.wikipedia.org/wiki/Naive_Bayes_classifier">http://en.wikipedia.org/wiki/Naive_Bayes_classifier</a></p>
+
+<p>Standard dataset iris includes continuous attributes:</p>
+
+<pre><code class="r">data(iris) # load iris dataset
+pairs(iris[1:4], main=&quot;Iris Data (red=setosa,green=versicolor,blue=virginica)&quot;, 
+      pch=21, bg=c(&quot;red&quot;,&quot;green3&quot;,&quot;blue&quot;)[unclass(iris$Species)])
+</code></pre>
+
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAALQCAMAAACOibeuAAAAulBMVEX9/v0AAAAAADkAAGUAAP8AOTkAOWUAOY8AZo8AZrUAzQA5AAA5ADk5AGU5OQA5OTk5OWU5OY85ZmU5ZrU5j485j9plAABlADllAGVlOQBlOY9lZjllZmVlZrVlj49ltbVltf2POQCPOTmPOWWPZmWPZo+Pj2WPtY+P27WP29qP2/21ZgC1Zjm1ZmW1j4+1tWW124+1/rW1/v3ajzna29ra/rXa/tra/v39tWX924/9/rX9/tr9/v3/AADcIkkRAAAAPnRSTlP///////////////////////////////////////////////////////////////////////////////8A/wTdY8kAAAAJcEhZcwAACxIAAAsSAdLdfvwAACAASURBVHic7X2LeuQ2emUoedNRy9lkM1ty0pseq2die6OyM7Nd6VGpRL//ay1B8II7cSV/kOd83SoUCf44JE+BBxeSf9cCwI7wd1sTAICcgKCBXQGCBnYFCBrYFSBoYFeAoIFdAYIGdgUIGtgVIGhgV4CggV0BggZ2BQga2BUgaGBXgKCBXQGCBnYFCBrYFeoR9O3p/quaGr83DM/isrP0rcPl7sUc9cOro1AtTHGoO2df2LbvX4bFlvUeYaRFpjBvjyePyHRQo6D1Nb2gG+HIn5tnNc+DZVuXoLUwGyGToKNwLhe6BOoS9PuXu//T3P1fdvreHptGOp1X9vXa6fru5f1L9/EwfOFbXzpp8q1fujSvzlm2HztBX5qhhp9i8hxDmP4b+7GMq8W4XZ77/9fFUGOPiU5zf+m3Ggs5s4jteYzbZ+k3HaL3O8NKnoicxj0cvoxFjcG7XyQ/Nv3W7Pc5BNaKnA/hy8h72PIvetnjXl6bqqro2gTdHeUP37oUr5V57TrUT111Oiz9W69EMUt3Gl+4QD+8nofqvP/KFownftpgyDEImn97aMfVctwu+T8emaCl2K1SyMOkrisXYEdHytLt1Bh92E2mqrlo4ctQ1Fj6vNEo6DGwVuR8CP828p6LG4oZy572csGUUUN1gn7gqbfH+TAPgr7wqnE4+c/iKn5W+Nb9luzsvz32FeccZ4w55ejDvD124mNyMBTZTjG02EOiW35qr0Ih/U+LLRCzPMyF853jZU9F84XD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" alt="plot of chunk unnamed-chunk-7"/> </p>
+
+<pre><code class="r">head(iris,n=12)
+</code></pre>
+
+<pre><code>   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+1           5.1         3.5          1.4         0.2  setosa
+2           4.9         3.0          1.4         0.2  setosa
+3           4.7         3.2          1.3         0.2  setosa
+4           4.6         3.1          1.5         0.2  setosa
+5           5.0         3.6          1.4         0.2  setosa
+6           5.4         3.9          1.7         0.4  setosa
+7           4.6         3.4          1.4         0.3  setosa
+8           5.0         3.4          1.5         0.2  setosa
+9           4.4         2.9          1.4         0.2  setosa
+10          4.9         3.1          1.5         0.1  setosa
+11          5.4         3.7          1.5         0.2  setosa
+12          4.8         3.4          1.6         0.2  setosa
+</code></pre>
+
+<pre><code class="r">summary(iris)
+</code></pre>
+
+<pre><code>  Sepal.Length   Sepal.Width    Petal.Length   Petal.Width 
+ Min.   :4.30   Min.   :2.00   Min.   :1.00   Min.   :0.1  
+ 1st Qu.:5.10   1st Qu.:2.80   1st Qu.:1.60   1st Qu.:0.3  
+ Median :5.80   Median :3.00   Median :4.35   Median :1.3  
+ Mean   :5.84   Mean   :3.06   Mean   :3.76   Mean   :1.2  
+ 3rd Qu.:6.40   3rd Qu.:3.30   3rd Qu.:5.10   3rd Qu.:1.8  
+ Max.   :7.90   Max.   :4.40   Max.   :6.90   Max.   :2.5  
+       Species  
+ setosa    :50  
+ versicolor:50  
+ virginica :50  
+
+
+
+</code></pre>
+
+<pre><code class="r">library(e1071) 
+# create a classifier using naive bayes using the first 4 columns as the data, an the last column as the class for each observation (naiveBayes is a supervised learning algorithm)
+classifier&lt;-naiveBayes(iris[,1:4], iris[,5]) 
+</code></pre>
+
+<p>Use <code>predict()</code> that receives the classifier object plus some observations (iris[,-5] is the original data without its class) and returns a sugested class for each observation. </p>
+
+<pre><code class="r">predicted.classes &lt;- predict(classifier, iris[,-5])
+head(predicted.classes,n=12)
+</code></pre>
+
+<pre><code> [1] setosa setosa setosa setosa setosa setosa setosa setosa setosa setosa
+[11] setosa setosa
+Levels: setosa versicolor virginica
+</code></pre>
+
+<p>Then the method <code>table()</code> presents a confusion matrix between the sugested classe vector with the real class vector. In this case the classification was very good, but this is a biased result since we are using the same data in the training and in the test sets</p>
+
+<pre><code class="r">table(predicted.classes, iris[,5], dnn=list(&#39;predicted&#39;,&#39;actual&#39;))
+</code></pre>
+
+<pre><code>            actual
+predicted    setosa versicolor virginica
+  setosa         50          0         0
+  versicolor      0         47         3
+  virginica       0          3        47
+</code></pre>
+
+<pre><code class="r">classifier$apriori / sum(classifier$apriori) # the prior distribution for the classes
+</code></pre>
+
+<pre><code>iris[, 5]
+    setosa versicolor  virginica 
+    0.3333     0.3333     0.3333 
+</code></pre>
+
+<p>Since the predictor variables here are all continuous, the naive Bayes classifier generates three Gaussian (Normal) distributions for each predictor variable: one for each value of the class variable Species. The first column is the mean, the 2nd column is the standard deviation.</p>
+
+<pre><code class="r">classifier$tables$Petal.Length
+</code></pre>
+
+<pre><code>            Petal.Length
+iris[, 5]     [,1]   [,2]
+  setosa     1.462 0.1737
+  versicolor 4.260 0.4699
+  virginica  5.552 0.5519
+</code></pre>
+
+<p>Let&#39;s plot these ones:</p>
+
+<pre><code class="r">plot(0:3, xlim=c(0.5,7), col=&quot;red&quot;, ylab=&quot;density&quot;,type=&quot;n&quot;, xlab=&quot;Petal Length&quot;,main=&quot;Petal length distribution for each species&quot;)
+curve(dnorm(x, classifier$tables$Petal.Length[1,1], classifier$tables$Petal.Length[1,2]), add=TRUE, col=&quot;red&quot;)
+curve(dnorm(x, classifier$tables$Petal.Length[2,1], classifier$tables$Petal.Length[2,2]), add=TRUE, col=&quot;blue&quot;)
+curve(dnorm(x, classifier$tables$Petal.Length[3,1], classifier$tables$Petal.Length[3,2]), add=TRUE, col =&quot;green&quot;)
+legend(&quot;topright&quot;, c(&quot;setosa&quot;, &quot;versicolor&quot;, &quot;virginica&quot;), col = c(&quot;red&quot;,&quot;blue&quot;,&quot;green&quot;), lwd=1)
+</code></pre>
+
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAAFoCAMAAABJ+DwrAAAAn1BMVEX9/v0AAAAAADkAAGUAAP8AOTkAOWUAOY8AZo8AZrUA/wA5AAA5ADk5AGU5OWU5OY85ZrU5j485j9plAABlADllAGVlOQBlOTllOY9lZgBlZjlltbVltf2POQCPOTmPOWWPZgCPtY+P27WP29qP2/21ZgC1tWW124+1/rW1/v3ajzna24/a/rXa/tra/v39tWX924/9/rX9/tr9/v3/AADigOz5AAAANXRSTlP///////////////////////////////////////////////////////////////////8A/8KTwvUAAAAJcEhZcwAACxIAAAsSAdLdfvwAABIQSURBVHic7Z2Bf5s2FoBH2jVLs152Ttvd3ZJ2W+Pr6utix/j//9sOSYDBxjYCSaCn7/ttdWzgISdfXoSQn37IAQTxw9QNAHAJQoMoEBpEgdAgCoQGUSA0iAKhQRQIDaJAaBAFQoMoEBpEgdAgCoQGUSA0iAKhQRQIDaJAaBAFQoMoEBpEgdAgCoQGUSA0iAKhQRQIDaJAaBBFGkK/3GeKh+Zry4fG5lffmo8nKY7ZPh7u83J//dw+sg6tXj4+QO9w5lyb2+zq6Ww72nSd4QwX32XUJCV0U5NlZi+0OqZb6KPd9nTo1t6h8zQ2WAotm1SEVs4ts0Wer3Sm3j4WDzf52ljeFtrsoTT5b5apF4qdX/11f/23PqZ4+ettVhmk4vxWZegis2YqI5vdrv6TXf1pMnQRpzi/9u6lirM/16J5LhNS7V5vUoHMb2LZsqrZetfioHaTTCuaIavDyt1b77LaXQypCb3UqXqxLaXKtDwtocs9jFjKev3Fj7e10OXLivKJiVBGa+x2/f2+FFzt0yH0snmKMmgpdGuT+RNQtaxqtjmqPsNN+VabG9WR7Tek2tl4l9Xu0/xcPJCK0GWXY3Nbpcrq77pRcS90vUfx818UufD6eXNbbF0ZNXRuX+R6p1ylt3JTfaSi3O2m6kNrb66eKqFNHHOE/vOgNpXnqo9vbjKm5vu210017+OgSeaxPG32UB9W7d56l3WjpZCS0IUi66zqTBuh1Ya20PUexd/6J+3f2qhZC12+rA6oN9UZWgWqd2tcFGrvDoXWhxe/EA+toHpze1NuTlZfCJhmr1WX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" alt="plot of chunk unnamed-chunk-11"/> </p>
+
+<p>These values could also be accessed directly in the dataset. Say for <code>Petal.Length</code>:</p>
+
+<pre><code class="r">mean(iris[iris$Species==&quot;setosa&quot;,]$Petal.Length)
+</code></pre>
+
+<pre><code>[1] 1.462
+</code></pre>
+
+<pre><code class="r">sd(iris[iris$Species==&quot;setosa&quot;,]$Petal.Length)
+</code></pre>
+
+<pre><code>[1] 0.1737
+</code></pre>
+
+<p>So, let&#39;s say we want to find, without using the R function, all three possible values of \( p(C|observation) \):</p>
+
+<pre><code class="r">observation &lt;- data.frame(Sepal.Length = 5.0, 
+                          Sepal.Width  = 3.2, 
+                          Petal.Length = 1.5, 
+                          Petal.Width  = 0.3)  # this observation lies within Setosa cluster
+</code></pre>
+
+<p>For setosa class:\[ p(C=setosa|observation) \propto p(C=setosa) p(Sepal.Length=5.0 | C=setosa) p(Sepal.Width=3.2 | C=setosa) p(Petal.Length=1.5 | C=setosa) p(Petal.Width=0.3 | C=setosa) \]</p>
+
+<p>A similar computation is needed for the other two classes. Let&#39;s implement them:</p>
+
+<pre><code class="r">iris.classes &lt;- c(&quot;setosa&quot;,&quot;versicolor&quot;,&quot;virginica&quot;)
+iris.attributes &lt;- names(iris)[-5]
+
+means     &lt;- rep(0,length(iris.attributes))
+sds       &lt;- rep(0,length(iris.attributes))
+densities &lt;- rep(0,length(iris.attributes))
+
+p.Cs &lt;- c(0,0,0)              # p(C=class)
+p.Cs_observation &lt;- c(0,0,0)  # p(C=class | observation)
+
+for (c in 1:length(iris.classes)) {
+  p.Cs[c] &lt;- nrow(iris[iris$Species==iris.classes[c],]) / nrow(iris) 
+
+  for(i in 1:length(iris.attributes)) {
+    means[i] &lt;- sapply(iris[iris$Species==iris.classes[c],][i], mean)
+    sds[i]   &lt;- sapply(iris[iris$Species==iris.classes[c],][i], sd)
+    densities[i] &lt;- dnorm(as.numeric(observation[i]), means[i], sds[i])
+  }
+
+  p.Cs_observation[c] &lt;- p.Cs[c] * prod(densities) # the final value for each class
+}
+
+names(p.Cs_observation) &lt;- c(&quot;setosa&quot;,&quot;versicolor&quot;,&quot;virginica&quot;)
+p.Cs_observation
+</code></pre>
+
+<pre><code>    setosa versicolor  virginica 
+ 2.467e+00  1.954e-15  4.920e-23 
+</code></pre>
+
+<pre><code class="r">p.Cs_observation / sum(p.Cs_observation) # normalize
+</code></pre>
+
+<pre><code>    setosa versicolor  virginica 
+ 1.000e+00  7.920e-16  1.995e-23 
+</code></pre>
+
+<p>This means that our naive bayes would predict &#39;setosa&#39; with <strong>VERY</strong> high likelihood.</p>
+
+<p>With the use of naiveBayes() we get the same prediction:</p>
+
+<pre><code class="r"># type=&quot;raw&quot; shows the probabilities
+predict(classifier, observation, type=&quot;raw&quot;)
+</code></pre>
+
+<pre><code>     setosa versicolor virginica
+[1,]      1   7.92e-16 1.995e-23
+</code></pre>
+
+</body>
+
+</html>
+

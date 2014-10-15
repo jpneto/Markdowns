@@ -1,0 +1,773 @@
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = TRUE, echo = TRUE, dev='svg',
+               fig.width = 5, fig.height = 5, fig.align='center')
+```
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 300)
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+Distributions
+========================================================
+
++ [Discrete Distributions](#discrete)
+  + [Discrete Uniform](#dunif)
+  + [Bernoulli](#bernoulli)
+  + [Binomial](#binomial)
+  + [Multinomial](#multinomial)
+  + [Hypergeometric](#hypergeometric)
+  + [Poisson](#poisson)
+  + [Geometric](#geometric)
+  + [Negative Binomial](#negbinomial)
++ [Continuous Distributions](#continuous)
+  + [Uniform](#unif)
+  + [Exponential](#exp)
+  + [Erlang](#erlang)
+  + [Gamma](#gamma)
+  + [Beta](#beta)
+  + [Normal](#normal)
+  + [Dirichlet](#dirichlet)
+
+We can divide these distributions into main families:
+
++ Uniforms: Discrete and Continuous Distributions
++ Sampling/[Bernoulli Process](http://en.wikipedia.org/wiki/Bernoulli_process) (discrete-time stochastic process): Bernoulli, Binomial, Multinomial, Geometric, NegBinomial, Hypergeometric
++ [Poisson Process](http://en.wikipedia.org/wiki/Poisson_process) (continuous-time stochastic process): Poisson, Exponential, Erlang, Gamma, Beta, Dirichlet
++ [Central Limit Theorem](http://en.wikipedia.org/wiki/Central_Limit_Theorem) related: Normal, $\chi^2$, T, F
+
+Heavy tail distributions Zipf, Pareto, LogNormal, T and $\chi^2$ can be found in the [Power Law](http://www.di.fc.ul.pt/~jpn/r/powerlaw/powerlaw.html) page. The Laplace, Cauchy and Levy distributions are mentioned in the [Noise](http://www.di.fc.ul.pt/~jpn/r/noise/noise.html) page.
+
+Introduction
+------------
+
+A **Random Variable** has a value subject to variations due to some random process. A **Distribution** assigns a probability to each measurable subset of possible outcomes of a random variable. The notation $X \sim d$ means that random variable $X$ follows distribution $d$.
+
+We can classify distributions as discrete or continuous which depends on the discrete or continuous nature of all possible outcomes.
+
+A discrete distribution is determined by a __probabilistic mass function__ (pmf) 
+
+$$X \sim f \Rightarrow f(x) = P(X=x)$$
+
+A continuous distribution is determined by a __probabilistic density function__ (pdf) 
+
+$$X \sim f \Rightarrow \int_a^b f(x)~dx = P(a \leq X \leq b)$$
+
+An eg:
+
+```{r}
+a  <- -.5
+b  <- 1.25
+x  <- seq(-3,3,len=100)
+hx <- dnorm(x)
+plot(x, hx, xlab="y", type="l", ylab="Density", main="Normal Distribution")
+# polygon draws the polygons whose vertices are given in x and y
+i <- x >= a & x <= b
+polygon(c(a,x[i],b), c(0,hx[i],0), col="red")
+area   <- pnorm(b) - pnorm(a)
+result <- paste("P(",a,"< Y <",b,") =", signif(area, digits=3))
+mtext(result,3) # place label on top of graph
+```
+
+Distributions are useful as _probability models_ for data when performing statistical inference. Typical distributions are parameterized by real values, which in fact makes them family of distributions (each concrete set of values define a specific distribution function).
+
+R has four type of functions for getting information about a family of distributions:
+
++ r* returns a random sample from the distribution
++ d* returns the p.m.f / p.d.f.
++ p* returns the c.d.f.
++ q* returns the quantiles (eg, percentiles)
+
+<a name="discrete">Discrete Distributions
+========================================================
+
+<a name="dunif">Discrete Uniform Distribution
+-----------------------------------
+
+Given a positive number $N$ of events, a discrete uniform assigns an equal probability for each, namely $1/N$. For $Y \sim Unif(N)$
+
+$$f(y_i|N) = \frac{1}{N}$$
+
+$$E[Y] = \frac{N+1}{2}$$
+
+$$var(Y) = \frac{N^2-1}{12}$$
+
+For eg a random variable modelling a dice throw follows a discrete uniform with $N=6$.
+
+In R just use the sample function without provinding a prob argument (the function assumes a discrete uniform)
+
+```{r}
+throws <- 1000
+N <- 6
+dice <- sample(1:N, throws, replace=TRUE)
+mean(dice)   # should be near E[Y] = 3.5
+var(dice)    # should be near var(Y) = 35/12 = 2.91667
+mean(dice^2) # should be near E[Y^2] = 91/6 = 15.1667
+```
+
+A famous problem is to estimate a maximum number of a discrete uniform given a random sample from it without replacement.
+
+Given a sample with $k$ size and $m$ as the maximum value of the sample, the uniformly minimum-variance unbiased estimator (UMVU) -- which is an unbiased estimator that has lower variance than any other unbiased estimator for all possible values of the parameter -- is:
+
+$$\hat{N} = \frac{k+1}{k}m - 1$$
+
+R eg:
+
+```{r}
+set.seed(100)
+N <- 1000 # value unknown
+
+rand.sample <- sample(1:N, 40)
+k <- length(rand.sample)
+m <- max(rand.sample)
+m
+N.hat <- m*(k+1)/k - 1
+N.hat
+```
+
+If the samples are not numbered, there is a method called _mark and recapture_ that is used to estimate a population size. This method is used in ecology to estimate an animal population's size:
+
+> A portion of the population is captured, marked, and released. Later, another portion is captured and the number of marked individuals within the sample is counted. Since the number of marked individuals within the second sample should be proportional to the number of marked individuals in the whole population, an estimate of the total population size can be obtained by dividing the number of marked individuals by the proportion of marked individuals in the second sample. [wikipedia](http://en.wikipedia.org/wiki/Capture-recapture)
+
+<a name="bernoulli">Bernoulli Distribution
+-----------------------------------
+
+A Bernoulli random variable, say $Y$, follows the discrete _Bernoulli distribution_ that can have just two values, 1 meaning _success_ and 0 meaning _failure_, namely $P(Y=1)=p$ and $P(Y=0)=q=1-p$. For each and every observation -- a **Bernoulli trial** -- the value $p$ stays constant. 
+
+Its probability function is
+$$f(y|p) = \left\{
+ \begin{array}{cl}
+   p & if~~ y = 1 \\
+   (1-p) & if~~ y = 0
+ \end{array} \right. $$
+or
+$$f(y|p) =p^k(1-p)^{1-k}~~,~~for~k=\{0,1\}$$
+
+Expected Value:$$E(Y)=p$$
+
+Variance:$$Var(Y)=p(1-p)$$
+
+The sample function can be used to generate random samples for this distribution:
+
+```{r}
+n=10; p=1/4
+sample(0:1, size=n, replace=T, prob=c(1-p,p))
+```
+
+<a name="binomial">Binomial Distribution
+------------------------
+
+This distribution counts the number successes in a fixed number of Bernoulli trials. The distribution appears in problems where:
+
++ There are n trials, where each can result either in a "success" or a "failure"
++ The probability of "success", $\pi$, is constant over all the trials.
++ Y is the number of "successes" that occurred in the n trials. Y can take on integer values $0,1\cdots n$.
+
+In this case, random variable Y has binomial distribution with parameters $n,\pi$. We typically write $Y \sim binomial(n,\pi)$.
+
+The binomial probability function can be found from these characteristics using the laws of probability. Any sequence having exactly $y$ successes out of the $n$ independent trials has probability equal to $\pi^y (1-\pi)^{n-y}$, no matter in which order they occur. The event $\{Y=y\}$ is the union of all such sequences $$f(y|n,\pi) = {n \choose y} \pi^y (1-\pi)^{n-y}$$
+
+for $y =0 \cdots n$ and $${n \choose y} =\frac{n!}{y!(n-y)!}$$
+
+Expected value: $$E(Y|\pi) = nY$$
+
+Variance: $$Var(Y|\pi) = n \pi (1-\pi)$$
+
+If $X \sim binomial(n,p)$ and $Y \sim binomial(m,p)$ are independent then
+$$X+Y \sim binomial(n+m,p)$$
+since $X+Y$ counts the total number of successes in $n+m$ trials.
+
+Some egs:
+
+```{r}
+n <- 5              # number of experiments
+success <- .55      # probability of success (\pi)
+
+# create 10 events from a binomial(n,success)
+rbinom(10,n,success) # The i-th value represent the number of sucess of the i-th experiment
+# The density distribution
+# Eg, Y ~ binomial(10,.5)
+# P(Y=5) = f(5|pi=.5) = 
+choose(10,5) * .5^5 * .5^(10-5)
+dbinom(5,10,.5)  # alternative: dbinom(5,size=10,prob=.5)
+#Eg2,
+n <- 50; success <- 0.5
+x <- seq(0,50,by=1)
+y <- dbinom(x,n,success)
+# y[i] is the probability of x[i] successes given binomial(n,success)
+plot(x, y, type="h",lwd=2,col="red")
+# pbinom is the cumulative probability distribution function
+#Eg, P(Y<=6) = sum(P(Y=i)),i=0..6
+sum(dbinom(0:6,10,.5))  # or simply use the cdf:
+pbinom(6,10,.5)
+sum(dbinom(7:10,10,.5)) # P(Y>6)
+1- pbinom(6,10,.5)      # P(Y>6)
+# qbinom is the inverse cumulative
+qbinom(0.9,n,success)  # how many experiments for a cumulative probability of 90%?
+# As we can see:
+pbinom(29,n,success)
+pbinom(30,n,success)
+```
+
++ If $X_1,\ldots, X_n$ are iid random variables with the same Bernoulli distribution with success probability $p$, then $Y = \sum_{k=1}^n X_k \sim binomial(n,p)$
++ Bernoulli(p) = binomial(1,p), which means that the Bernoulli distribution is just a special case of a binomial.
++ With large enough $n$, the distribution $Normal(\mu=np,\sigma^2=np(1-p)$ approximates the binomial. This is expected, since the binomial is just the sum of $n$ iid bernoulli random variables from where the Central Limit Theorem can be applied.
+
+<a name="multinomial">Multinomial Distribution
+-------------------------
+
+For $n$ independent trials each of which leads to a success for exactly one of $k$ categories, with each category having a given fixed success probability $p_k$, the multinomial distribution gives the probability of any particular combination of numbers of successes $(x_1, x_2, \ldots, x_k)$ for the various categories.
+
+Its probability mass function is (for $\sum_i X_i = n$)
+
+$$f(x_1, x_2, \ldots, x_k | n, p_1, \ldots, p_k) = \frac{n!}{x_1! x_2! \ldots x_k!} p_1^{x_1} \ldots p_k^{x_k}$$
+
+Expected value for : $$E[X_i] = n p_i$$
+
+Variance and covariance: 
+
+$$Var(X_i) = n p_i (1-p_i)$$
+
+$$Cov(X_i,X_j) = -np_ip_j (i \neq j)$$
+
++ The multinomial distribution is a generalization of the binomial distribution.
++ For the particular case of just $n=1$ observation, this distribution is called **categorical distribution**.
++ For the particular case of just $k=2$ categories, we have the binomial distribution.
+
+Egs:
+
+```{r}
+# create 10 random vectors
+# we place 12 objects in 6 boxes (each box has equal probability to be selected)
+rmultinom(n=10,size=12,prob=rep(1,6)) # prob is automatically normalized 
+```
+
+Q: In a recent three-way election for a large country, candidate A received 20% of the votes, candidate B received 30% of the votes, and candidate C received 50% of the votes. If six voters are selected randomly, what is the probability that there will be exactly one supporter for candidate A, two supporters for candidate B and three supporters for candidate C in the sample?
+
+A: $p(X_1=1,X_2=2,X_3=3|n=6,p_1=.2,p_2=.3,p_3=.5) = \frac{6!}{1!2!3!}0.2^1 0.3^2 0.5^3 = 0.135$
+
+```{r}
+dmultinom(x=c(1,2,3), prob=c(.2,.3,.5))
+```
+
+<a name="hypergeometric">Hypergeometric Distribution
+-------------------------
+
+The hypergeometric distribution models sampling from an urn without replacement.
+
+There is an urn containing $N$ balls, $R$ of which are red. A sequence of $n$ balls is drawn randomly from the urn without replacement. Drawing a red ball is called a "success". The probability of success $\pi$ does not stay constant over all the draws. At each draw the probability of "success" is the proportion of red balls remaining in the urn, which does depend on the outcomes of previous draws. $Y$ is the number of "successes" in the $n$ trials. $Y$ can take on integer values $0,1\cdots n$.
+
+Its probability mass function
+$$f(y|N,R,n) = \frac{{R \choose y}{{N-R} \choose {n-y}}}{{N \choose n}}$$
+
+Expected value: $$E(Y|N,R,n) = n \times \frac{R}{N}$$
+
+Variance: $$Var(Y|N,R,n) = n \times \frac{R}{N} \times (1 - \frac{R}{N}) \times \frac{N-n}{N-1}$$
+
+where $\frac{R}{N}$ is the proportion of red balls. 
+
+The mean and variance of the hypergeometric are similar to that of the binomial, except that the variance is smaller due to the finite population correction factor $\frac{N-n}{N-1}$.
+
+```{r}
+# create a sample of 15 events from a urn with 10 red balls and 
+# a total of 20 balls and 4 extractions, i.e.,  hypergeometrical(20,10,4)
+red   <- 10
+white <- 10
+balls <- 4        # number of extracted balls
+x <- rhyper(15, red, white, balls)
+x # Each event value means the number of red balls extracted
+# Give an urn of 5 red and 10 white balls without replacement 
+# The probability of having one red ball after one extraction
+dhyper(1,5,10,1)
+# The probability of having three red balls after six extractions
+dhyper(3,5,10,6)
+# Making a function f(y|N,R,n) based on R's dhyper
+fhyperg <- function (redsWanted, totalBalls, redBalls, extractions) {
+  return(dhyper(redsWanted, redBalls, totalBalls-redBalls, extractions))
+}
+# Same e.g.s
+fhyperg(1,15,5,1)
+fhyperg(3,15,5,6)
+# The density distribution
+red   <- 150
+white <- 100
+balls <- 50        # number of extracted balls
+x <- 0:balls
+y <- dhyper(x,red,white,balls)
+# y[i] is the probability of extracting exactly x[i] red balls
+plot(x, y, type="h",lwd=2,col="red")
+```
+
+Some symmetries:
+
++ Swap colours: $$f(y|N,R,n) = f(n-y|N,N-R,n)$$
++ Swap success with failure:$$f(y|N,R,n) = f(R-y|N,R,N-n)$$
++ If $n=1$, Y is a Bernoulli Distribution with parameter $R$.
+
+**Sampling for Binomial and Hypergeometric**
+
+```{r}
+# Extract 10 balls without replacement from 1..10 
+sample(1:10,10)
+# Extract 10 balls with replacement from 1..10
+sample(1:10,10,replace=T)
+# Extract 10 balls from urn {1,4,7} with replacement, but giving a distribution for their extraction
+sample(c(1,4,7),10,replace=T,prob=c(.5,.4,.1))
+```
+
+<a name="poisson">Poisson Distribution
+-------------------------
+
+The Poisson is a distribution which counts the number of occurrences of rare events over a period of time or space. It expresses the probability of a given number of events occurring in a fixed interval of time and/or space if these events occur with a known average rate and independently of the time since the last event.
+
+Unlike the binomial which counts the number of events (successes) in a known number of independent trials, the number of trials in the Poisson is so large that it is not known. 
+
+The probability mass function is $$f(y|\lambda) = \frac{\lambda^y e^{-\lambda}}{y!}$$ for $y=0,1,\ldots$
+
+Expected value: $$E(y|\lambda) = \lambda$$
+
+Variance: $$Var(y|\lambda) =\lambda$$
+
+It gives the probability of $y$ occurrences if the expected number of occurrences in a given interval is $\lambda$. For instance, if the events occur on average 4 times per minute, and one is interested in the probability of an event occurring $y$ times in a 10 minute interval, one would use a Poisson distribution with $\lambda = 10 \times 4 = 40$.
+
+```{r}
+lambda <- 5
+xs <- 1:25
+plot(xs,dpois(xs,lambda),type="h",col="red")
+```
+
+An e.g.:
+
+```{r}
+# generates a random sequence of 20 events, using a Poisson with lambda=10, i.e., we expect 10 occurrences per period
+rpois(20,10)
+# The likelihood of having 5 events in a given period
+y <- 5
+lambda.vals <- seq(0,15,by=0.25)
+fy.vals <- dpois(y,lambda.vals)  
+plot(lambda.vals, fy.vals,  
+     type="l",lwd=2,col="red",ylim=c(0,0.2),
+     xlab=expression(lambda), ylab=paste("probability of", y, "occurrences"), main="The likelihood of 5 events in a given period")
+```
+
++ The Poisson can be used to approximate the binomial when $n$ is large, and $\pi$ is small ($\mu=n\pi$). 
++ The Poisson is the limit case of the binomial when $n \rightarrow \infty, \pi \rightarrow 0$ and $\mu=n\pi$ is constant.
++ If $X_1 \sim Poisson(\lambda_1)$ and $X_2 \sim Poisson(\lambda_2)$ then $X_1 + X_2 \sim Poisson(\lambda_1 + \lambda_2)$
++ If $X_1 \sim Poisson(\lambda_1)$ and $X_2 \sim Poisson(\lambda_2)$ then $X_1 - X_2 \sim Skellam(\lambda_1; \lambda_2)$. Check [wikipedia](http://en.wikipedia.org/wiki/Skellam_distribution).
++ For large $\lambda > 10^3$ the normal distribution $Normal(\mu=\lambda,\sigma^2=\lambda)$ approximates the $Poisson(\lambda)$.
++ If for every $t>0$ the number of arrivals in the time interval [0,t] follows the Poisson distribution with mean $\lambda t$, then the sequence of inter-arrival times are iid exponential random variables having mean $1/\lambda$.
++ The cdf $F(x|\lambda) = 1-F_{\chi^2}(2\lambda|2(x+1))$ for an integer $x$
+
+<a name="geometric">Geometric Distribution
+-----------------
+
+The geometric distribution counts the number of Bernoulli trials needed to get one success. For example, suppose a die is thrown repeatedly until a $1$ appears. The probability distribution of the number of times it is thrown is a geometric distribution with $p = \frac{1}{6}$.
+
+Its probability mass function,
+$$f(y|p) = (1-p)^{y-1}p~~,~~y = 1,2,\ldots$$ 
+
+The cdf: $$F(y|p) = 1 - (1-p)^y$$
+
+Expected value:$$E(Y)=\frac{1}{p}$$
+
+Variance:$$Var(Y)=\frac{1-p}{p^2}$$
+
+```{r}
+p  <- .1
+xs <- seq(0:60)
+plot(xs,dgeom(xs,p),type="h",col="red", main=paste('Geometric distribution, p=',p))
+```
+
+The geometrical distribution is _memoryless_, i.e., 
+$$P(Y>s+t|Y>s)=P(Y>t)~~,~~s,t \geq 0$$
+this means that the number of failures does not enter in account to find the probability of the next success. This is the only memoryless discrete probability distribution.
+
++ The exponential distribution is the continuous analogue of the geometric distribution. If $X$ is an exponentially distributed random variable with parameter $\lambda$, then $\left \lfloor{X}\right \rfloor$ is a geometrically distributed random variable with parameter $p=1-e^{-\lambda}$
+
+<a name="negbinomial">Negative Binomial Distribution
+-----------------
+
+The negative binomial distribution is a discrete probability distribution of the number of successes in a sequence of iid Bernoulli trials with probability of success $p$ before a _specified_ (non-random) number of failures (denoted $r$) occurs. It is also called Pascal Distribution (when $r$ is an integer).
+
+For $x+r$ Bernoulli trials with success probability $p$, the negative binomial gives the probability of $x$ successes and $r$ failures, with a failure on the last trial.
+
+Its pmf: $$f(x|p,r) = {x+r-1 \choose x} (1-p)^r p^x$$
+
+Expected value: $$\frac{pr}{1-p}$$
+
+Variance: $$\frac{pr}{(1-p)^2}$$
+
+For example, if we define a "1" as failure, and all non "1"s as successes. and we throw a die repeatedly until the third time "1" appears (r = three failures), then the probability distribution of the number of non-"1"s that had appeared will be negative binomial.
+
+R functions work in term of successess. The previous eg of throwing "1"s:
+
+```{r}
+p <- 1/6  # probability of success (eg, getting a 1 after a dice throw)
+r <- 3    # number of expected sucesses (herein, getting the third 1)
+rnbinom(10,r,p) # get 10 random events
+xs <- seq(1,50)
+ys <- dnbinom(xs,r,p)
+plot(xs, ys, type="h", lwd=1, col="red", main="number of failures until success")
+```
+
++ The geometric distribution is a special case of the Negative Binomial, $Geom(p) = NB(1,1-p)$
++ The Negative Binomial is seen as a robust alternative to the Poisson, which approaches the Poisson for large $r$, but which has larger variance than the Poisson for small $r$. $Poisson(\lambda) = \lim_{r \rightarrow \infty} NB(r,\frac{\lambda}{\lambda+r})$
+
+<a name="continuous">Continuous Distributions.
+========================================================
+
+Math Preliminaries
+------------------
+
+There are two important functions in describing continuous distributions, the **gamma** and the **beta** functions.
+
+The gamma function, $\Gamma(x)$ is defined for any real $x \not\in \mathbb{Z}_0^-$ as
+
+$$\Gamma(x) = \int_o^{\infty} t^{x-1} e^{-t}~dt$$
+
+Properties:
++ $\Gamma(x+1) = x \Gamma(x)$
++ $\Gamma(1) = 1$
++ $\Gamma(1/2) = \sqrt{\pi}$
+
+The gamma function generalizes the factorial in the sense that if $x \in \mathbb{N}^+$ then $\Gamma(x) = (x-1)!$
+
+The beta function, $B(\alpha,\beta)~$ is a function of two positive reals:
+
+$$B(\alpha,\beta) = \int_0^1 t^{\alpha-1} (1-t)^{\beta-1}~dt = \frac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha+\beta)}$$
+
+The beta function generalizes the binomial coefficients in the sense that if $\alpha$ and $\beta$ are positive integers then
+
+$$B(\alpha,\beta) = {\alpha + \beta -2 \choose \alpha-1}^{-1}$$
+
+Properties:
++ $B(x,y) = B(y,x)$
++ $B(x,y) = B(x,y+1) + B(x+1,y)$
++ $B(x+1,y) = B(x,y) \frac{x}{x+y}$
+
+In R these functions are directly available:
+
+```{r}
+gamma(4) # (4-1)!
+gamma(4.1)
+beta(1,2)
+beta(1.1,2)
+```
+
+There is also a multivariate extension of the beta function.
+
+$$B(\alpha) = \frac{\prod_{i=1}^K \Gamma(\alpha_i)}{\Gamma(\sum_{i=1}^K \alpha_i)}$$
+
+for $\alpha = (\alpha_1, \alpha_2, \ldots, \alpha_K)$. This function is used in the definition of the [Dirichlet distribution](#dirichlet).
+
+<a name="unif">Uniform Distribution
+-----------------
+
+The uniform distribution $U(a,b)$ assigns the same density to all real values between $a$ and $b$ (and zero elsewhere). For $Y \sim U(a,b)$:
+
+$$f_U(y|a,b) = \left\{
+ \begin{array}{cl}
+   \frac{1}{b-a} & if~~ a \leq x \leq b \\
+   0 & if~~ otherwise
+ \end{array} \right. $$
+
+$$E[Y] = \frac{a+b}{2}$$
+
+$$var(Y)=  \frac{(b-a)^2}{12}$$
+
+Its cumulative density function (cdf):
+$$F_U(y|a,b) = \frac{y-a}{b-a}, a \leq y < b$$
+
+and zero outside the interval.
+
+The function `runif` delivers random sequences of uniform distribution.
+
+```{r}
+runif(5)                 # Five numbers between [0,1]
+runif(10,min=-4, max=7)  # Ten numbers between [-4,7]
+```
+
+<a name="exp">Exponential Distribution
+-----------------
+
+This distribution describes the time between events in a Poisson process, i.e. a process in which events occur continuously and independently at a constant average rate. It is defined by the parameter $\lambda > 0$. Value $1/\lambda$ is a survival parameter in the sense that if a random variable $Y$ is the duration of time that a given biological or mechanical system manages to survive and $Y \sim Exp(1/\lambda)$ then the expected value of Y is $1/\lambda$.
+
+Its probability density function,
+$$f(y|\lambda) = \left\{
+ \begin{array}{cl}
+   \lambda e^{-\lambda y} & if~~ y \geq 0 \\
+   0 & if~~ y < 0
+ \end{array} \right. $$
+
+Expected Value:
+$$E(Y) = \frac{1}{\lambda}$$
+
+Variance:
+$$Var(Y) = \frac{1}{\lambda^2}$$
+
+Its median is $\frac{ln(2)}{\lambda}$ and is less than its expected value. The absolute difference between median and expected value is $1/\lambda$, i.e., its standard deviation.
+
+The cumulative distribution function,
+$$F(y|\lambda) = \left\{
+ \begin{array}{cl}
+   1 - e^{-\lambda y} & if~~ y \geq 0 \\
+   0 & if~~ y < 0
+ \end{array} \right. $$
+
+The exponential distribution is _memoryless_, i.e., 
+$$P(Y>s+t|Y>s)=P(Y>t)~~,~~s,t \geq 0$$
+this means that the amount of time already "waited" does not enter in account to find the probability of the time still needed to wait. It is the only memoryless continuous probability distribution. The exponential distribution is the continuous analog of the discrete geometric distribution.
+
+```{r}
+lambda <- 1
+qexp(.5,lambda)         # median = ln(2)/lambda
+pexp(0.6931472,lambda)  # P(Y<0.6931472)
+x <- rexp(5000,lambda)     # make sample from exp(lambda=.5)
+hist(x,breaks=50,prob=T,main='Exponential Distribution')
+curve(dexp(x,lambda), xlim=c(0,10), col='red', lwd=2, add=T)
+```
+
+The maximum likelihood estimate (MLE) for $\lambda$ given a iid sample $x = (x_1,x_2,\ldots,x_n)$ is
+
+$$\hat{\lambda} = \frac{1}{\overline{x}}$$
+
+where $\overline{x}$ is the sample mean.
+
+Properties:
+
++ If $X \sim Exp(\lambda)$ and $k>0$ then $kX \sim Exp(\lambda/k)$
++ If $X_i \sim Exp(\lambda_i)$ then $\min\{ X_i \} \sim Exp(\sum_i \lambda_i)$
++ If $X_i \sim Exp(\lambda)$ then $\sum_{i=1}^k X_i \sim Erlang(k,\lambda)$
++ $Exp(\lambda) = Gamma(1,\lambda)$
++ $Exp(1) = \lim_{n \to \infty} n \times Beta(1,n)$
+
+<a name="gamma">Erlang Distribution
+-----------------
+
+In a Poisson process of rate $\lambda$, the waiting times between $k$ events have an Erlang distribution $Erlang(k,\lambda)$. So, if $k=1$, $Erlang(1,\lambda) = Exp(\lambda)$.
+
+Given $Y \sim Erlang(k,\lambda)$:
+
+$$f(y|k,\lambda) = \frac{\lambda^k y^{k-1} e^{-\lambda x}}{(k-1)!}$$
+
+$$E[Y] = \frac{k}{\lambda}$$
+
+$$var(Y) = \frac{k}{\lambda^2}$$
+
+There is no need for R to have functions to compute Erlangs since this distribution is a special case of the [gamma](#gamma) distribution.
+
+Properties:
+
++ If $X_i \sim Exp(\lambda)$ then $\sum_{i=1}^k X_i \sim Erlang(k,\lambda)$
++ If $X \sim Erlang(k,\lambda)$ then $aX \sim Erlang(k,\lambda/a), a \in \mathbb{R}$
++ If $X_i \sim Erlang(k_i,\lambda)$ then $\sum_i X_i \sim Erlang(\sum_i k_i, \lambda)$
+
+<a name="gamma">Gamma Distribution
+-----------------
+
+In a Poisson process with rate $\lambda$ the gamma distribution gives the time to the k^{th} event, so $Exp(\lambda) = Gamma(1,\lambda)$. But in this distribution $k$ can be any non-negative value, not necessarily an integer (the factorial function is replaced by the gamma _function_). Parameter $k$ is called _shape_ and $\lambda$ is called _rate_. For $Y \sim Gamma(k,\lambda)$:
+
+Its probability density function,
+$$f(y|k,\lambda)=\frac{\lambda^k}{\Gamma(k)} y^{k-1}e^{-\lambda y}, ~~0\leq y < \infty $$
+
+Expected Value:$$E(Y)=\frac{k}{\lambda}$$
+
+Variance:$$Var(Y)=\frac{k}{\lambda^2}$$
+
+To find $$P(Y\leq y_0) =\int_0^{y_0} \! f(y|k,\lambda) \, \mathrm{d}y$$ use R's command `pgamma`.
+
+In Bayesian Statistics it's usual to use $\alpha$ and $\beta$ to refer the shape and the rate respectively.
+
+Some gammas:
+
+```{r}
+curve( dgamma(x,shape=1,rate=1), xlim=c(0,6), ylab="g(x;r,v)" )
+curve( dgamma(x,shape=2,rate=1), add=T, lty=2, col='red' )
+curve( dgamma(x,shape=3,rate=1), add=T, lty=3, col='blue' )
+curve( dgamma(x,shape=5,rate=1), add=T, lty=4, col='green' )
+
+title(main="Gamma distributions")
+
+legend(par('usr')[2], par('usr')[4], xjust=1,
+       c('(1,1)', '(2,1)', '(3,1)', '(5,1)'),
+       lwd=c(1,1,1,1), # line width
+       lty=c(1,2,3,4), # line trace
+       col=c(par('fg'), 'red', 'blue', 'green'))
+```
+
+The properties of the Erlang also apply herein.
+
+<a name="beta">Beta Distribution
+-----------------
+
+In a Poisson process, if $\alpha+\beta$ events occur in a time interval $T$, then the fraction of $T$ until $\alpha$ events occurs follows a $Beta(\alpha,\beta)$ distribution. Given $Y \sim Beta(\alpha,\beta), \alpha,\beta>0$:
+
+$$f(y|\alpha,\beta) = \left\{
+ \begin{array}{cl}
+   \frac{1}{B(\alpha,\beta)} x^{\alpha-1} (1-x)^{\beta-1} & if~~ 0 \leq x \leq 1 \\
+   0 & if~~ otherwise
+ \end{array} \right. $$
+
+Expected Value:$$E(Y)=\frac{\alpha}{\alpha+\beta}$$
+
+Variance:$$Var(Y)=\frac{\alpha\beta}{(\alpha +\beta)^2(\alpha+\beta+1)}$$
+
+Some betas:
+
+```{r}
+curve(dbeta(x,4,2), xlim=c(0,1), ylim=c(0,4))
+curve(dbeta(x,5,3), add=T, lty=2, col='red')  # adds to prev.plot
+curve(dbeta(x,4,1), add=T, lty=3, col='blue')
+curve(dbeta(x,3,5), add=T, lty=4, col='green')
+
+title(main="Beta distributions")
+
+legend(par('usr')[1], par('usr')[4], xjust=0,
+       c('(4,2)', '(5,3)', '(4,1)', '(3,5)'),
+       lwd=c(1,1,1,1), # line width
+       lty=c(1,2,3,4), # line trace
+       col=c(par('fg'), 'red', 'blue', 'green'))
+```
+
+For parameters $\alpha>0,\beta>0$ the distribution can be seen has representing the belief of seeing $\alpha$ heads vs. $\beta$ tails on $\alpha+\beta$ coin tosses.
+
+Properties:
+
++ $Beta(1,1) = Uniform(0,1)$
++ $f(x|\alpha,\beta) = f(1-x|\beta,\alpha)$
+
+<a name="normal">Normal Distribution
+-----------------
+
+The normal($\mu$,$\sigma^2$) distribution is used for continuous random variables that can take any value $-\infty \leq x < \infty$. 
+
+> The normal distribution is immensely useful because of the central limit theorem, which states that, under mild conditions, the mean of many random variables independently drawn from the same distribution is distributed approximately normally, irrespective of the form of the original distribution [wikipedia]
+
+Given $Y \sim N(\mu,\sigma^2)$:
+
+Its probability density function,
+$$f(y|\mu,\sigma^2)=\frac{1}{\sqrt{2\pi}\sigma} e^{-\frac{1}{2\sigma^2}(y-\mu)^2}$$
+
+Expected Value:$$E(Y)=\mu$$
+
+Variance:$$Var(Y)=\sigma^2$$
+
+> The value of the normal distribution is practically zero when the value x lies more than a few standard deviations away from the mean. Therefore, it may not be an appropriate model when one expects a significant fraction of outliers-values that lie many standard deviations away from the mean - and least squares and other statistical inference methods that are optimal for normally distributed variables often become highly unreliable when applied to such data. In those cases, a more heavy-tailed distribution should be assumed and the appropriate robust statistical inference methods applied.
+
+> The Gaussian distribution belongs to the family of stable distributions which are the attractors of sums of independent, identically distributed distributions whether or not the mean or variance is finite. Except for the Gaussian which is a limiting case, all stable distributions have heavy tails and infinite variance. [wikipedia]
+
+Let's visualize some normals:
+     
+```{r}
+curve( dnorm(x,0,1), xlim=c(-4,4), ylim=c(0,1) )
+curve( dnorm(x,1,1), add=T, lty=2, col='red' )
+curve( dnorm(x,0,2), add=T, lty=3, col='blue' )
+curve( dnorm(x,0,.5), add=T, lty=4, col='green' )
+
+title(main="Normal distributions")
+
+legend(par('usr')[1], par('usr')[4], xjust=0,
+       c('(0,1)', '(1,1)', '(0,2)', '(0,.5)'),
+       lwd=c(1,1,1,1), # line width
+       lty=c(1,2,3,4), # line trace
+       col=c(par('fg'), 'red', 'blue', 'green'))
+```
+
+Properties
+
++ $f(\mu-x) = f(\mu+x)$
++ It has two inflection points at $\mu+\sigma$ and $\mu-\sigma$
++ If $X_1, X_2 \sim N(0,1)$ then $X_1 \pm X_2 \sim N(0,2)$
++ If $X_1, X_2 \sim N(0,1)$ then $X_1 / X_2 \sim Cauchy(0,1)$
++ If $X_i \sim N(0,1)$ ($X_i \perp X_j$) then $\sum_i^k X_i^2 \sim \chi^2(k)$
+
+Due to the CLT the normal distribution can be use to approximate certain distributions (note: such approximations are less accurate in the tails of the distribution):
+
++ $Binomial(n,p) \approx Normal(\mu=np,\sigma^2=np(1-p))$ for $n >> 1$ and $p$ not too close to $0$ or $1$
++ $Poisson(\lambda) \approx Normal(\lambda,\lambda)$ for $\lambda >> 0$
++ $\chi^2(k) \approx Normal(k,2k)$ for $k>>1$
++ $T(v) \approx Normal(0,1)$ for $v>>1$
+
+
+<a name="dirichlet">Dirichlet Distribution
+-----------------
+
+Given $K$ different events $1, 2, \ldots, K$, and that each event was observed $\alpha_i-1$ times, the Dirichlet pdf outputs a belief $x_i$ for each event $i$, where $\sum_i x_i = 1$. The Dirichlet distribution is the multidimensional generalization of the beta distribution.
+
+Given $Y \sim Dirichlet(K, \alpha)$ where $\alpha = (\alpha_1, \ldots, \alpha_K)$:
+
+$$f(x|K,\alpha) = \frac{1}{B(\alpha)} \prod_{i=1}^K x_i^{\alpha_i-1}$$
+
+where $$B(\alpha) = \frac{\prod_{i=1}^K \Gamma(\alpha_i)}{\Gamma(\sum_{i=1}^K \alpha_i)}$$
+
+$$E[X_i] = \frac{a_i}{\sum_k \alpha_k}$$
+
+$$Var(X_i) = \frac{\alpha_i(\alpha_0-\alpha_i)}{\alpha_0^2(\alpha_0+1)}$$
+
+$$Cov(X_i,X_j) = \frac{-\alpha_i\alpha_j}{\alpha_0^2(\alpha_0+1)}$$
+
+where $\alpha_0 = \sum_k \alpha_k$.
+
+The support of the Dirichlet distribution is the set of K-dimensional vectors $x$ whose entries are real numbers in the interval (0,1) and the sum of its coordinates is equal to one. These can be viewed as the probabilities of a K-way categorical event.
+
+```{r}
+library(gtools)
+
+rdirichlet(10, alpha=c(0.2,0.5,0.3))
+
+ddirichlet(rep(.25,4),alpha=rep(.25,4))
+ddirichlet(c(.1,.3,.4,.2),alpha=rep(.25,4))
+ddirichlet(c(.85,.05,.05,.05),alpha=rep(.25,4))
+```
+
+Since $\sum_i \alpha_i = 1$, the support forms a simplex. This means that for $K=3$ the vector values can be projected into a triangle:
+
+```{r}
+# pre: sum_i p_i = 1
+project.to <- function(p1,p2,p3) { 
+
+  x = 1.0 / 2
+  y = 1.0 / (2 * sqrt(3))
+  # Vector 1 - bisect out of lower left vertex 
+  x = x - (1.0 / sqrt(3)) * p1 * cos(pi / 6)
+  y = y - (1.0 / sqrt(3)) * p1 * sin(pi / 6)
+  # Vector 2 - bisect out of lower right vertex  
+  x = x + (1.0 / sqrt(3)) * p2 * cos(pi / 6)
+  y = y - (1.0 / sqrt(3)) * p2 * sin(pi / 6)        
+  # Vector 3 - bisect out of top vertex
+  y = y + (1.0 / sqrt(3) * p3)
+  
+  c(x,y)
+}
+
+n <- 200
+pts <- rdirichlet(n, alpha=c(5/8,2/8,1/8))
+
+plot(pts,type="n",xlim=c(0,1),ylim=c(0,1))
+lines(c(0,1,.5,0),c(0,0,0.866,0))
+text(0,.07,bquote(paste(alpha[1])))
+text(1,.07,bquote(paste(alpha[2])))
+text(.5,.9,bquote(paste(alpha[3])))
+
+for(i in 1:n) {
+  projection <- project.to(pts[i,1],pts[i,2],pts[i,3])
+  points(projection[1], projection[2], pch=19)
+}
+```
+
+For $K=4$ the values could be projected into the next simplex, ie, a 3D tetrahedron (and so on...).
+
+This distribution is, in the Bayesian setting, the conjugate prior distribution of the multinomial distribution.

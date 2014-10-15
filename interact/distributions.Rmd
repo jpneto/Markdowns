@@ -1,0 +1,12 @@
+---
+title: "Distributions"
+author: "João Neto"
+date: "Sunday, June 22, 2014"
+output: html_document
+---
+
+
+```{r}
+library(shiny)
+runApp("distributions")
+```

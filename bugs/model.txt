@@ -1,0 +1,32 @@
+
+  model {
+
+      # Likelihood function 
+
+      phi <- -log(choose1 * binom1 * choose2 * choose3 * binom2) + CZERO
+      dummy <- 0
+      dummy ~ dpois( phi )
+      CZERO <- 1000000    # for the zero's trick
+
+      # compute binomial coefficients
+      # cf. http://stats.stackexchange.com/questions/62418/binomial-coefficient-in-jags
+      choose1 <- exp( loggam(n+1) - (loggam(k1+1) + loggam(n-k1+1)) )           # choose(n,k1)
+      binom1  <- pow(p1, k1) * pow(1-p1, n-k1)
+
+      choose2 <- exp( loggam(k1+1) - (loggam(c+1) + loggam(k1-c+1)) )           # choose(k1,c)
+      choose3 <- exp( loggam(n-k1+1) - (loggam(k2-c+1) + loggam(n-k1-k2+c+1)) ) # choose(n-k1,k2-c)
+      binom2  <- pow(p2, k2) * pow(1-p2, n-k2)
+
+      # Priors 
+
+      p1 ~ dunif(0,1)
+      p2 ~ dunif(0,1)
+      n  ~ dunif(m1,m2)         # uniform prior
+      #n ~ dexp(0.001)I(m1,m2)  # truncated exponential prior (another option for the prior of n)
+
+      # Some needed constants
+
+      m1 <- k1+k2-c    # the minimum possible number of errors
+      m2 <- 350        # we don't know the max, but let's allow some breathing space
+  }
+

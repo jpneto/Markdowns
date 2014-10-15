@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>String stuff</title>
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 12px;
+   margin: 8px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 { 
+   font-size:2.2em; 
+}
+
+h2 { 
+   font-size:1.8em; 
+}
+
+h3 { 
+   font-size:1.4em; 
+}
+
+h4 { 
+   font-size:1.0em; 
+}
+
+h5 { 
+   font-size:0.9em; 
+}
+
+h6 { 
+   font-size:0.8em; 
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre {	
+   margin-top: 0;
+   max-width: 95%;
+   border: 1px solid #ccc;
+   white-space: pre-wrap;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code.r, code.cpp {
+   background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * { 
+      background: transparent !important; 
+      color: black !important; 
+      filter:none !important; 
+      -ms-filter: none !important; 
+   }
+
+   body { 
+      font-size:12pt; 
+      max-width:100%; 
+   }
+       
+   a, a:visited { 
+      text-decoration: underline; 
+   }
+
+   hr { 
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote { 
+      padding-right: 1em; 
+      page-break-inside: avoid; 
+   }
+
+   tr, img { 
+      page-break-inside: avoid; 
+   }
+
+   img { 
+      max-width: 100% !important; 
+   }
+
+   @page :left { 
+      margin: 15mm 20mm 15mm 10mm; 
+   }
+     
+   @page :right { 
+      margin: 15mm 10mm 15mm 20mm; 
+   }
+
+   p, h2, h3 { 
+      orphans: 3; widows: 3; 
+   }
+
+   h2, h3 { 
+      page-break-after: avoid; 
+   }
+}
+
+</style>
+
+<!-- Styles for R syntax highlighter -->
+<style type="text/css">
+   pre .operator,
+   pre .paren {
+     color: rgb(104, 118, 135)
+   }
+
+   pre .literal {
+     color: rgb(88, 72, 246)
+   }
+
+   pre .number {
+     color: rgb(0, 0, 205);
+   }
+
+   pre .comment {
+     color: rgb(76, 136, 107);
+   }
+
+   pre .keyword {
+     color: rgb(0, 0, 255);
+   }
+
+   pre .identifier {
+     color: rgb(0, 0, 0);
+   }
+
+   pre .string {
+     color: rgb(3, 106, 7);
+   }
+</style>
+
+<!-- R syntax highlighter -->
+<script type="text/javascript">
+var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/</gm,"&lt;")}function f(r,q,p){return RegExp(q,"m"+(r.cI?"i":"")+(p?"g":""))}function b(r){for(var p=0;p<r.childNodes.length;p++){var q=r.childNodes[p];if(q.nodeName=="CODE"){return q}if(!(q.nodeType==3&&q.nodeValue.match(/\s+/))){break}}}function h(t,s){var p="";for(var r=0;r<t.childNodes.length;r++){if(t.childNodes[r].nodeType==3){var q=t.childNodes[r].nodeValue;if(s){q=q.replace(/\n/g,"")}p+=q}else{if(t.childNodes[r].nodeName=="BR"){p+="\n"}else{p+=h(t.childNodes[r])}}}if(/MSIE [678]/.test(navigator.userAgent)){p=p.replace(/\r/g,"\n")}return p}function a(s){var r=s.className.split(/\s+/);r=r.concat(s.parentNode.className.split(/\s+/));for(var q=0;q<r.length;q++){var p=r[q].replace(/^language-/,"");if(e[p]){return p}}}function c(q){var p=[];(function(s,t){for(var r=0;r<s.childNodes.length;r++){if(s.childNodes[r].nodeType==3){t+=s.childNodes[r].nodeValue.length}else{if(s.childNodes[r].nodeName=="BR"){t+=1}else{if(s.childNodes[r].nodeType==1){p.push({event:"start",offset:t,node:s.childNodes[r]});t=arguments.callee(s.childNodes[r],t);p.push({event:"stop",offset:t,node:s.childNodes[r]})}}}}return t})(q,0);return p}function k(y,w,x){var q=0;var z="";var s=[];function u(){if(y.length&&w.length){if(y[0].offset!=w[0].offset){return(y[0].offset<w[0].offset)?y:w}else{return w[0].event=="start"?y:w}}else{return y.length?y:w}}function t(D){var A="<"+D.nodeName.toLowerCase();for(var B=0;B<D.attributes.length;B++){var C=D.attributes[B];A+=" "+C.nodeName.toLowerCase();if(C.value!==undefined&&C.value!==false&&C.value!==null){A+='="'+m(C.value)+'"'}}return A+">"}while(y.length||w.length){var v=u().splice(0,1)[0];z+=m(x.substr(q,v.offset-q));q=v.offset;if(v.event=="start"){z+=t(v.node);s.push(v.node)}else{if(v.event=="stop"){var p,r=s.length;do{r--;p=s[r];z+=("</"+p.nodeName.toLowerCase()+">")}while(p!=v.node);s.splice(r,1);while(r<s.length){z+=t(s[r]);r++}}}}return z+m(x.substr(q))}function j(){function q(x,y,v){if(x.compiled){return}var u;var s=[];if(x.k){x.lR=f(y,x.l||hljs.IR,true);for(var w in x.k){if(!x.k.hasOwnProperty(w)){continue}if(x.k[w] instanceof Object){u=x.k[w]}else{u=x.k;w="keyword"}for(var r in u){if(!u.hasOwnProperty(r)){continue}x.k[r]=[w,u[r]];s.push(r)}}}if(!v){if(x.bWK){x.b="\\b("+s.join("|")+")\\s"}x.bR=f(y,x.b?x.b:"\\B|\\b");if(!x.e&&!x.eW){x.e="\\B|\\b"}if(x.e){x.eR=f(y,x.e)}}if(x.i){x.iR=f(y,x.i)}if(x.r===undefined){x.r=1}if(!x.c){x.c=[]}x.compiled=true;for(var t=0;t<x.c.length;t++){if(x.c[t]=="self"){x.c[t]=x}q(x.c[t],y,false)}if(x.starts){q(x.starts,y,false)}}for(var p in e){if(!e.hasOwnProperty(p)){continue}q(e[p].dM,e[p],true)}}function d(B,C){if(!j.called){j();j.called=true}function q(r,M){for(var L=0;L<M.c.length;L++){if((M.c[L].bR.exec(r)||[null])[0]==r){return M.c[L]}}}function v(L,r){if(D[L].e&&D[L].eR.test(r)){return 1}if(D[L].eW){var M=v(L-1,r);return M?M+1:0}return 0}function w(r,L){return L.i&&L.iR.test(r)}function K(N,O){var M=[];for(var L=0;L<N.c.length;L++){M.push(N.c[L].b)}var r=D.length-1;do{if(D[r].e){M.push(D[r].e)}r--}while(D[r+1].eW);if(N.i){M.push(N.i)}return f(O,M.join("|"),true)}function p(M,L){var N=D[D.length-1];if(!N.t){N.t=K(N,E)}N.t.lastIndex=L;var r=N.t.exec(M);return r?[M.substr(L,r.index-L),r[0],false]:[M.substr(L),"",true]}function z(N,r){var L=E.cI?r[0].toLowerCase():r[0];var M=N.k[L];if(M&&M instanceof Array){return M}return false}function F(L,P){L=m(L);if(!P.k){return L}var r="";var O=0;P.lR.lastIndex=0;var M=P.lR.exec(L);while(M){r+=L.substr(O,M.index-O);var N=z(P,M);if(N){x+=N[1];r+='<span class="'+N[0]+'">'+M[0]+"</span>"}else{r+=M[0]}O=P.lR.lastIndex;M=P.lR.exec(L)}return r+L.substr(O,L.length-O)}function J(L,M){if(M.sL&&e[M.sL]){var r=d(M.sL,L);x+=r.keyword_count;return r.value}else{return F(L,M)}}function I(M,r){var L=M.cN?'<span class="'+M.cN+'">':"";if(M.rB){y+=L;M.buffer=""}else{if(M.eB){y+=m(r)+L;M.buffer=""}else{y+=L;M.buffer=r}}D.push(M);A+=M.r}function G(N,M,Q){var R=D[D.length-1];if(Q){y+=J(R.buffer+N,R);return false}var P=q(M,R);if(P){y+=J(R.buffer+N,R);I(P,M);return P.rB}var L=v(D.length-1,M);if(L){var O=R.cN?"</span>":"";if(R.rE){y+=J(R.buffer+N,R)+O}else{if(R.eE){y+=J(R.buffer+N,R)+O+m(M)}else{y+=J(R.buffer+N+M,R)+O}}while(L>1){O=D[D.length-2].cN?"</span>":"";y+=O;L--;D.length--}var r=D[D.length-1];D.length--;D[D.length-1].buffer="";if(r.starts){I(r.starts,"")}return R.rE}if(w(M,R)){throw"Illegal"}}var E=e[B];var D=[E.dM];var A=0;var x=0;var y="";try{var s,u=0;E.dM.buffer="";do{s=p(C,u);var t=G(s[0],s[1],s[2]);u+=s[0].length;if(!t){u+=s[1].length}}while(!s[2]);if(D.length>1){throw"Illegal"}return{r:A,keyword_count:x,value:y}}catch(H){if(H=="Illegal"){return{r:0,keyword_count:0,value:m(C)}}else{throw H}}}function g(t){var p={keyword_count:0,r:0,value:m(t)};var r=p;for(var q in e){if(!e.hasOwnProperty(q)){continue}var s=d(q,t);s.language=q;if(s.keyword_count+s.r>r.keyword_count+r.r){r=s}if(s.keyword_count+s.r>p.keyword_count+p.r){r=p;p=s}}if(r.language){p.second_best=r}return p}function i(r,q,p){if(q){r=r.replace(/^((<[^>]+>|\t)+)/gm,function(t,w,v,u){return w.replace(/\t/g,q)})}if(p){r=r.replace(/\n/g,"<br>")}return r}function n(t,w,r){var x=h(t,r);var v=a(t);var y,s;if(v){y=d(v,x)}else{return}var q=c(t);if(q.length){s=document.createElement("pre");s.innerHTML=y.value;y.value=k(q,c(s),x)}y.value=i(y.value,w,r);var u=t.className;if(!u.match("(\\s|^)(language-)?"+v+"(\\s|$)")){u=u?(u+" "+v):v}if(/MSIE [678]/.test(navigator.userAgent)&&t.tagName=="CODE"&&t.parentNode.tagName=="PRE"){s=t.parentNode;var p=document.createElement("div");p.innerHTML="<pre><code>"+y.value+"</code></pre>";t=p.firstChild.firstChild;p.firstChild.cN=s.cN;s.parentNode.replaceChild(p.firstChild,s)}else{t.innerHTML=y.value}t.className=u;t.result={language:v,kw:y.keyword_count,re:y.r};if(y.second_best){t.second_best={language:y.second_best.language,kw:y.second_best.keyword_count,re:y.second_best.r}}}function o(){if(o.called){return}o.called=true;var r=document.getElementsByTagName("pre");for(var p=0;p<r.length;p++){var q=b(r[p]);if(q){n(q,hljs.tabReplace)}}}function l(){if(window.addEventListener){window.addEventListener("DOMContentLoaded",o,false);window.addEventListener("load",o,false)}else{if(window.attachEvent){window.attachEvent("onload",o)}else{window.onload=o}}}var e={};this.LANGUAGES=e;this.highlight=d;this.highlightAuto=g;this.fixMarkup=i;this.highlightBlock=n;this.initHighlighting=o;this.initHighlightingOnLoad=l;this.IR="[a-zA-Z][a-zA-Z0-9_]*";this.UIR="[a-zA-Z_][a-zA-Z0-9_]*";this.NR="\\b\\d+(\\.\\d+)?";this.CNR="\\b(0[xX][a-fA-F0-9]+|(\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";this.BNR="\\b(0b[01]+)";this.RSR="!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|\\.|-|-=|/|/=|:|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";this.ER="(?![\\s\\S])";this.BE={b:"\\\\.",r:0};this.ASM={cN:"string",b:"'",e:"'",i:"\\n",c:[this.BE],r:0};this.QSM={cN:"string",b:'"',e:'"',i:"\\n",c:[this.BE],r:0};this.CLCM={cN:"comment",b:"//",e:"$"};this.CBLCLM={cN:"comment",b:"/\\*",e:"\\*/"};this.HCM={cN:"comment",b:"#",e:"$"};this.NM={cN:"number",b:this.NR,r:0};this.CNM={cN:"number",b:this.CNR,r:0};this.BNM={cN:"number",b:this.BNR,r:0};this.inherit=function(r,s){var p={};for(var q in r){p[q]=r[q]}if(s){for(var q in s){p[q]=s[q]}}return p}}();hljs.LANGUAGES.cpp=function(){var a={keyword:{"false":1,"int":1,"float":1,"while":1,"private":1,"char":1,"catch":1,"export":1,virtual:1,operator:2,sizeof:2,dynamic_cast:2,typedef:2,const_cast:2,"const":1,struct:1,"for":1,static_cast:2,union:1,namespace:1,unsigned:1,"long":1,"throw":1,"volatile":2,"static":1,"protected":1,bool:1,template:1,mutable:1,"if":1,"public":1,friend:2,"do":1,"return":1,"goto":1,auto:1,"void":2,"enum":1,"else":1,"break":1,"new":1,extern:1,using:1,"true":1,"class":1,asm:1,"case":1,typeid:1,"short":1,reinterpret_cast:2,"default":1,"double":1,register:1,explicit:1,signed:1,typename:1,"try":1,"this":1,"switch":1,"continue":1,wchar_t:1,inline:1,"delete":1,alignof:1,char16_t:1,char32_t:1,constexpr:1,decltype:1,noexcept:1,nullptr:1,static_assert:1,thread_local:1,restrict:1,_Bool:1,complex:1},built_in:{std:1,string:1,cin:1,cout:1,cerr:1,clog:1,stringstream:1,istringstream:1,ostringstream:1,auto_ptr:1,deque:1,list:1,queue:1,stack:1,vector:1,map:1,set:1,bitset:1,multiset:1,multimap:1,unordered_set:1,unordered_map:1,unordered_multiset:1,unordered_multimap:1,array:1,shared_ptr:1}};return{dM:{k:a,i:"</",c:[hljs.CLCM,hljs.CBLCLM,hljs.QSM,{cN:"string",b:"'\\\\?.",e:"'",i:"."},{cN:"number",b:"\\b(\\d+(\\.\\d*)?|\\.\\d+)(u|U|l|L|ul|UL|f|F)"},hljs.CNM,{cN:"preprocessor",b:"#",e:"$"},{cN:"stl_container",b:"\\b(deque|list|queue|stack|vector|map|set|bitset|multiset|multimap|unordered_map|unordered_set|unordered_multiset|unordered_multimap|array)\\s*<",e:">",k:a,r:10,c:["self"]}]}}}();hljs.LANGUAGES.r={dM:{c:[hljs.HCM,{cN:"number",b:"\\b0[xX][0-9a-fA-F]+[Li]?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+(?:[eE][+\\-]?\\d*)?L\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+\\.(?!\\d)(?:i\\b)?",e:hljs.IMMEDIATE_RE,r:1},{cN:"number",b:"\\b\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\.\\d+(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"keyword",b:"(?:tryCatch|library|setGeneric|setGroupGeneric)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\.",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\d+(?![\\w.])",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\b(?:function)",e:hljs.IMMEDIATE_RE,r:2},{cN:"keyword",b:"(?:if|in|break|next|repeat|else|for|return|switch|while|try|stop|warning|require|attach|detach|source|setMethod|setClass)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"literal",b:"(?:NA|NA_integer_|NA_real_|NA_character_|NA_complex_)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"literal",b:"(?:NULL|TRUE|FALSE|T|F|Inf|NaN)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"identifier",b:"[a-zA-Z.][a-zA-Z0-9._]*\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"<\\-(?!\\s*\\d)",e:hljs.IMMEDIATE_RE,r:2},{cN:"operator",b:"\\->|<\\-",e:hljs.IMMEDIATE_RE,r:1},{cN:"operator",b:"%%|~",e:hljs.IMMEDIATE_RE},{cN:"operator",b:">=|<=|==|!=|\\|\\||&&|=|\\+|\\-|\\*|/|\\^|>|<|!|&|\\||\\$|:",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"%",e:"%",i:"\\n",r:1},{cN:"identifier",b:"`",e:"`",r:0},{cN:"string",b:'"',e:'"',c:[hljs.BE],r:0},{cN:"string",b:"'",e:"'",c:[hljs.BE],r:0},{cN:"paren",b:"[[({\\])}]",e:hljs.IMMEDIATE_RE,r:0}]}};
+hljs.initHighlightingOnLoad();
+</script>
+
+
+
+
+</head>
+
+<body>
+<h1>String stuff</h1>
+
+<p><em>This markdown present several ways to manipulate strings.</em></p>
+
+<h2>Standard functions</h2>
+
+<ul>
+<li>paste: pastes vectors together</li>
+<li>substr: extract/replace substrings in a character vector</li>
+<li>substring: expand cyclically several results</li>
+<li>strsplit: split the elements into substrings according to the matches (uses regular expressions)</li>
+</ul>
+
+<pre><code class="r">paste(&quot;Today is &quot;, date())
+</code></pre>
+
+<pre><code>## [1] &quot;Today is  Wed May 29 21:40:48 2013&quot;
+</code></pre>
+
+<pre><code class="r">xs &lt;- 1:7
+paste0(&quot;A&quot;, xs)
+</code></pre>
+
+<pre><code>## [1] &quot;A1&quot; &quot;A2&quot; &quot;A3&quot; &quot;A4&quot; &quot;A5&quot; &quot;A6&quot; &quot;A7&quot;
+</code></pre>
+
+<pre><code class="r">paste(&quot;A&quot;, xs, sep = &quot;,&quot;)
+</code></pre>
+
+<pre><code>## [1] &quot;A,1&quot; &quot;A,2&quot; &quot;A,3&quot; &quot;A,4&quot; &quot;A,5&quot; &quot;A,6&quot; &quot;A,7&quot;
+</code></pre>
+
+<pre><code class="r">paste(letters[1:10], xs, sep = &quot;|&quot;)
+</code></pre>
+
+<pre><code>##  [1] &quot;a|1&quot; &quot;b|2&quot; &quot;c|3&quot; &quot;d|4&quot; &quot;e|5&quot; &quot;f|6&quot; &quot;g|7&quot; &quot;h|1&quot; &quot;i|2&quot; &quot;j|3&quot;
+</code></pre>
+
+<pre><code class="r">paste(letters[1:10], xs, sep = &quot;|&quot;, collapse = &quot;,&quot;)
+</code></pre>
+
+<pre><code>## [1] &quot;a|1,b|2,c|3,d|4,e|5,f|6,g|7,h|1,i|2,j|3&quot;
+</code></pre>
+
+<pre><code class="r">cs &lt;- &quot;o mapa nao e o territorio&quot;
+paste0(&quot;&#39;&quot;, cs, &quot;&#39; tem &quot;, nchar(cs), &quot; caracteres&quot;)
+</code></pre>
+
+<pre><code>## [1] &quot;&#39;o mapa nao e o territorio&#39; tem 25 caracteres&quot;
+</code></pre>
+
+<pre><code class="r">substr(cs, 3, 6)
+</code></pre>
+
+<pre><code>## [1] &quot;mapa&quot;
+</code></pre>
+
+<pre><code class="r">substr(cs, 3, 6) &lt;- &quot;MAPA&quot;
+cs
+</code></pre>
+
+<pre><code>## [1] &quot;o MAPA nao e o territorio&quot;
+</code></pre>
+
+<pre><code class="r">substring(cs, 2, 4:6)
+</code></pre>
+
+<pre><code>## [1] &quot; MA&quot;   &quot; MAP&quot;  &quot; MAPA&quot;
+</code></pre>
+
+<pre><code class="r">xs &lt;- c(&quot;ontem&quot;, &quot;hoje&quot;, &quot;amanha&quot;, &quot;depois de amanha&quot;)
+substring(xs, 2) &lt;- c(&quot;XX&quot;, &quot;YY&quot;, &quot;Z&quot;)
+xs
+</code></pre>
+
+<pre><code>## [1] &quot;oXXem&quot;            &quot;hYYe&quot;             &quot;aZanha&quot;          
+## [4] &quot;dXXois de amanha&quot;
+</code></pre>
+
+<pre><code class="r">cs &lt;- &quot;o mapa nao e o territorio&quot;
+strsplit(cs, &quot;[oa]&quot;)
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;&quot;        &quot; m&quot;      &quot;p&quot;       &quot; n&quot;      &quot;&quot;        &quot; e &quot;     &quot; territ&quot;
+## [8] &quot;ri&quot;
+</code></pre>
+
+<pre><code class="r">cs &lt;- paste(letters[1:10], 1:7, sep = &quot;|&quot;, collapse = &quot;,&quot;)
+cs
+</code></pre>
+
+<pre><code>## [1] &quot;a|1,b|2,c|3,d|4,e|5,f|6,g|7,h|1,i|2,j|3&quot;
+</code></pre>
+
+<pre><code class="r">cs1 &lt;- strsplit(cs, &quot;[,|]&quot;)[[1]]
+cs1
+</code></pre>
+
+<pre><code>##  [1] &quot;a&quot; &quot;1&quot; &quot;b&quot; &quot;2&quot; &quot;c&quot; &quot;3&quot; &quot;d&quot; &quot;4&quot; &quot;e&quot; &quot;5&quot; &quot;f&quot; &quot;6&quot; &quot;g&quot; &quot;7&quot; &quot;h&quot; &quot;1&quot; &quot;i&quot;
+## [18] &quot;2&quot; &quot;j&quot; &quot;3&quot;
+</code></pre>
+
+<pre><code class="r">cs1 &lt;- paste0(cs1, collapse = &quot;&quot;)
+cs1
+</code></pre>
+
+<pre><code>## [1] &quot;a1b2c3d4e5f6g7h1i2j3&quot;
+</code></pre>
+
+<h2>Regular Expressions</h2>
+
+<pre><code class="r">strsplit(cs1, &quot;[1-9]&quot;)  # use every digit as a separator
+</code></pre>
+
+<pre><code>## [[1]]
+##  [1] &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot; &quot;f&quot; &quot;g&quot; &quot;h&quot; &quot;i&quot; &quot;j&quot;
+</code></pre>
+
+<pre><code class="r">strsplit(&quot;a.b.c&quot;, &quot;.&quot;)  # . is the operator that accepts all as separator
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot;
+</code></pre>
+
+<pre><code class="r">strsplit(&quot;a.b.c&quot;, &quot;\\.&quot;)  # separates by the point
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;a&quot; &quot;b&quot; &quot;c&quot;
+</code></pre>
+
+<pre><code class="r">cs &lt;- c(&quot;aaa&quot;, &quot;abb&quot;, &quot;ccc&quot;, &quot;dda&quot;, &quot;eaa&quot;)
+sub(&quot;a&quot;, &quot;X&quot;, cs)  # sub replaces the first match for the entries of a vector
+</code></pre>
+
+<pre><code>## [1] &quot;Xaa&quot; &quot;Xbb&quot; &quot;ccc&quot; &quot;ddX&quot; &quot;eXa&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;a&quot;, &quot;X&quot;, cs)  # the same but replaces all matches
+</code></pre>
+
+<pre><code>## [1] &quot;XXX&quot; &quot;Xbb&quot; &quot;ccc&quot; &quot;ddX&quot; &quot;eXX&quot;
+</code></pre>
+
+<pre><code class="r">text.test &lt;- &quot;Evidence for a model (or belief) must be considered against alternative models. Let me describe a neutral (and very simple) example: Assume I say I have Extra Sensorial Perception (ESP) and tell you that the next dice throw will be 1. You throw the dice and I was right. That is evidence for my claim of ESP. However there&#39;s an alternative model (&#39;just a lucky guess&#39;) that also explains it and it&#39;s much more likely to be the right model (because ESP needs much more assumptions, many of those in conflict with accepted facts and theories). This is a subject of statistical inference. It&#39;s crucial to consider the alternatives when we want to put our beliefs to the test.&quot;
+gsub(&quot;belief|model&quot;, &quot;XXX&quot;, text.test)  # erase every word equals to belief *or* model
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence for a XXX (or XXX) must be considered against alternative XXXs. Let me describe a neutral (and very simple) example: Assume I say I have Extra Sensorial Perception (ESP) and tell you that the next dice throw will be 1. You throw the dice and I was right. That is evidence for my claim of ESP. However there&#39;s an alternative XXX (&#39;just a lucky guess&#39;) that also explains it and it&#39;s much more likely to be the right XXX (because ESP needs much more assumptions, many of those in conflict with accepted facts and theories). This is a subject of statistical inference. It&#39;s crucial to consider the alternatives when we want to put our XXXs to the test.&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;t([a-z]*)?t&quot;, &quot;XXX&quot;, text.test)  # erase every 0+ letters between 2 t&#39;s
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence for a model (or belief) must be considered against alXXXive models. Let me describe a neutral (and very simple) example: Assume I say I have Extra Sensorial Perception (ESP) and tell you XXX the next dice throw will be 1. You throw the dice and I was right. That is evidence for my claim of ESP. However there&#39;s an alXXXive model (&#39;just a lucky guess&#39;) XXX also explains it and it&#39;s much more likely to be the right model (because ESP needs much more assumptions, many of those in conflict with accepted facts and theories). This is a subject of sXXXical inference. It&#39;s crucial to consider the alXXXives when we want to put our beliefs to the XXX.&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;([a-z])\\1&quot;, &quot;YY&quot;, text.test)  # erase every letter repeated twice (eg: &#39;ee&#39;, &#39;ll&#39;)
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence for a model (or belief) must be considered against alternative models. Let me describe a neutral (and very simple) example: AYYume I say I have Extra Sensorial Perception (ESP) and teYY you that the next dice throw wiYY be 1. You throw the dice and I was right. That is evidence for my claim of ESP. However there&#39;s an alternative model (&#39;just a lucky gueYY&#39;) that also explains it and it&#39;s much more likely to be the right model (because ESP nYYds much more aYYumptions, many of those in conflict with aYYepted facts and theories). This is a subject of statistical inference. It&#39;s crucial to consider the alternatives when we want to put our beliefs to the test.&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;(model)&quot;, &quot;*\\1*&quot;, text.test)  # bold every &#39;model&#39; word
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence for a *model* (or belief) must be considered against alternative *model*s. Let me describe a neutral (and very simple) example: Assume I say I have Extra Sensorial Perception (ESP) and tell you that the next dice throw will be 1. You throw the dice and I was right. That is evidence for my claim of ESP. However there&#39;s an alternative *model* (&#39;just a lucky guess&#39;) that also explains it and it&#39;s much more likely to be the right *model* (because ESP needs much more assumptions, many of those in conflict with accepted facts and theories). This is a subject of statistical inference. It&#39;s crucial to consider the alternatives when we want to put our beliefs to the test.&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;(t)(h)&quot;, &quot;\\2\\1&quot;, text.test)  # swap every &#39;th&#39; to &#39;ht&#39;
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence for a model (or belief) must be considered against alternative models. Let me describe a neutral (and very simple) example: Assume I say I have Extra Sensorial Perception (ESP) and tell you htat hte next dice htrow will be 1. You htrow hte dice and I was right. That is evidence for my claim of ESP. However htere&#39;s an alternative model (&#39;just a lucky guess&#39;) htat also explains it and it&#39;s much more likely to be hte right model (because ESP needs much more assumptions, many of htose in conflict wiht accepted facts and hteories). This is a subject of statistical inference. It&#39;s crucial to consider hte alternatives when we want to put our beliefs to hte test.&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;([^a-zA-Z])([aA][a-z]+)&quot;, &quot;\\1*\\2*&quot;, text.test)  # bold every word that begins with &#39;a&#39;
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence for a model (or belief) must be considered *against* *alternative* models. Let me describe a neutral (*and* very simple) example: *Assume* I say I have Extra Sensorial Perception (ESP) *and* tell you that the next dice throw will be 1. You throw the dice *and* I was right. That is evidence for my claim of ESP. However there&#39;s *an* *alternative* model (&#39;just a lucky guess&#39;) that *also* explains it *and* it&#39;s much more likely to be the right model (because ESP needs much more *assumptions*, many of those in conflict with *accepted* facts *and* theories). This is a subject of statistical inference. It&#39;s crucial to consider the *alternatives* when we want to put our beliefs to the test.&quot;
+</code></pre>
+
+<pre><code class="r">gsub(&quot;([^a-zA-Z])([a-z]){1,3}([^a-zA-Z])&quot;, &quot;\\1ZZZ\\3&quot;, text.test)  # erase every word with 1 to 3 letters
+</code></pre>
+
+<pre><code>## [1] &quot;Evidence ZZZ a model (ZZZ belief) must ZZZ considered against alternative models. Let ZZZ describe ZZZ neutral (ZZZ very simple) example: Assume I ZZZ I have Extra Sensorial Perception (ESP) ZZZ tell ZZZ that ZZZ next dice throw will ZZZ 1. You throw ZZZ dice ZZZ I ZZZ right. That ZZZ evidence ZZZ my claim ZZZ ESP. However there&#39;ZZZ an alternative model (&#39;just ZZZ lucky guess&#39;) that also explains ZZZ and ZZZ&#39;s much more likely ZZZ be ZZZ right model (because ESP needs much more assumptions, many ZZZ those ZZZ conflict with accepted facts ZZZ theories). This ZZZ a subject ZZZ statistical inference. It&#39;ZZZ crucial ZZZ consider ZZZ alternatives when ZZZ want ZZZ put ZZZ beliefs ZZZ the test.&quot;
+</code></pre>
+
+<pre><code class="r"># {3} means exactly 3 and {3,} means 3 or more
+separators &lt;- &quot;[,.: ()&#39;]&quot;
+tokens &lt;- strsplit(text.test, separators)[[1]]  # tokenize text into words
+tokens &lt;- tokens[tokens != &quot;&quot;]  # remove empty tokens
+tokens
+</code></pre>
+
+<pre><code>##   [1] &quot;Evidence&quot;     &quot;for&quot;          &quot;a&quot;            &quot;model&quot;       
+##   [5] &quot;or&quot;           &quot;belief&quot;       &quot;must&quot;         &quot;be&quot;          
+##   [9] &quot;considered&quot;   &quot;against&quot;      &quot;alternative&quot;  &quot;models&quot;      
+##  [13] &quot;Let&quot;          &quot;me&quot;           &quot;describe&quot;     &quot;a&quot;           
+##  [17] &quot;neutral&quot;      &quot;and&quot;          &quot;very&quot;         &quot;simple&quot;      
+##  [21] &quot;example&quot;      &quot;Assume&quot;       &quot;I&quot;            &quot;say&quot;         
+##  [25] &quot;I&quot;            &quot;have&quot;         &quot;Extra&quot;        &quot;Sensorial&quot;   
+##  [29] &quot;Perception&quot;   &quot;ESP&quot;          &quot;and&quot;          &quot;tell&quot;        
+##  [33] &quot;you&quot;          &quot;that&quot;         &quot;the&quot;          &quot;next&quot;        
+##  [37] &quot;dice&quot;         &quot;throw&quot;        &quot;will&quot;         &quot;be&quot;          
+##  [41] &quot;1&quot;            &quot;You&quot;          &quot;throw&quot;        &quot;the&quot;         
+##  [45] &quot;dice&quot;         &quot;and&quot;          &quot;I&quot;            &quot;was&quot;         
+##  [49] &quot;right&quot;        &quot;That&quot;         &quot;is&quot;           &quot;evidence&quot;    
+##  [53] &quot;for&quot;          &quot;my&quot;           &quot;claim&quot;        &quot;of&quot;          
+##  [57] &quot;ESP&quot;          &quot;However&quot;      &quot;there&quot;        &quot;s&quot;           
+##  [61] &quot;an&quot;           &quot;alternative&quot;  &quot;model&quot;        &quot;just&quot;        
+##  [65] &quot;a&quot;            &quot;lucky&quot;        &quot;guess&quot;        &quot;that&quot;        
+##  [69] &quot;also&quot;         &quot;explains&quot;     &quot;it&quot;           &quot;and&quot;         
+##  [73] &quot;it&quot;           &quot;s&quot;            &quot;much&quot;         &quot;more&quot;        
+##  [77] &quot;likely&quot;       &quot;to&quot;           &quot;be&quot;           &quot;the&quot;         
+##  [81] &quot;right&quot;        &quot;model&quot;        &quot;because&quot;      &quot;ESP&quot;         
+##  [85] &quot;needs&quot;        &quot;much&quot;         &quot;more&quot;         &quot;assumptions&quot; 
+##  [89] &quot;many&quot;         &quot;of&quot;           &quot;those&quot;        &quot;in&quot;          
+##  [93] &quot;conflict&quot;     &quot;with&quot;         &quot;accepted&quot;     &quot;facts&quot;       
+##  [97] &quot;and&quot;          &quot;theories&quot;     &quot;This&quot;         &quot;is&quot;          
+## [101] &quot;a&quot;            &quot;subject&quot;      &quot;of&quot;           &quot;statistical&quot; 
+## [105] &quot;inference&quot;    &quot;It&quot;           &quot;s&quot;            &quot;crucial&quot;     
+## [109] &quot;to&quot;           &quot;consider&quot;     &quot;the&quot;          &quot;alternatives&quot;
+## [113] &quot;when&quot;         &quot;we&quot;           &quot;want&quot;         &quot;to&quot;          
+## [117] &quot;put&quot;          &quot;our&quot;          &quot;beliefs&quot;      &quot;to&quot;          
+## [121] &quot;the&quot;          &quot;test&quot;
+</code></pre>
+
+<pre><code class="r">grep(&quot;dice&quot;, tokens, fixed = TRUE)  # where are &#39;dice&#39; tokens (returns indexes)
+</code></pre>
+
+<pre><code>## [1] 37 45
+</code></pre>
+
+<pre><code class="r">string &lt;- &quot;abcedabcfaa&quot;
+cs &lt;- strsplit(gsub(&quot;([a-z])&quot;, &quot;\\1,&quot;, string), &quot;,&quot;)[[1]]  # convert to vector of chars
+grepl(&quot;a&quot;, cs)  # TRUE if there&#39;s a match, FALSE otherwise
+</code></pre>
+
+<pre><code>##  [1]  TRUE FALSE FALSE FALSE FALSE  TRUE FALSE FALSE FALSE  TRUE  TRUE
+</code></pre>
+
+<pre><code class="r"># regexpr() gives you the first match in each element of the vector (-1 if
+# not found) the second vector is the length of the first match
+cs &lt;- c(&quot;aaa&quot;, &quot;axx&quot;, &quot;xaa&quot;, &quot;axx&quot;, &quot;xxx&quot;, &quot;xxx&quot;)
+regexpr(&quot;a&quot;, cs)
+</code></pre>
+
+<pre><code>## [1]  1  1  2  1 -1 -1
+## attr(,&quot;match.length&quot;)
+## [1]  1  1  1  1 -1 -1
+## attr(,&quot;useBytes&quot;)
+## [1] TRUE
+</code></pre>
+
+<pre><code class="r">regexpr(&quot;a*&quot;, cs)
+</code></pre>
+
+<pre><code>## [1] 1 1 1 1 1 1
+## attr(,&quot;match.length&quot;)
+## [1] 3 1 0 1 0 0
+## attr(,&quot;useBytes&quot;)
+## [1] TRUE
+</code></pre>
+
+<pre><code class="r"># regexpr() gives the indexes of each sub-expression
+cs &lt;- c(&quot;123ab67&quot;, &quot;ab321&quot;, &quot;10000&quot;, &quot;0&quot;, &quot;abc&quot;)
+regexec(&quot;[a-z]*([0-9]+)&quot;, cs)
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] 1 1
+## attr(,&quot;match.length&quot;)
+## [1] 3 3
+## 
+## [[2]]
+## [1] 1 3
+## attr(,&quot;match.length&quot;)
+## [1] 5 3
+## 
+## [[3]]
+## [1] 1 1
+## attr(,&quot;match.length&quot;)
+## [1] 5 5
+## 
+## [[4]]
+## [1] 1 1
+## attr(,&quot;match.length&quot;)
+## [1] 1 1
+## 
+## [[5]]
+## [1] -1
+## attr(,&quot;match.length&quot;)
+## [1] -1
+</code></pre>
+
+<pre><code class="r"># A more complex eg:
+set.seed(101)
+pop.data &lt;- paste(&quot;the population is&quot;, floor(runif(20, 1000, 50000)), &quot;birds&quot;)
+head(pop.data)
+</code></pre>
+
+<pre><code>## [1] &quot;the population is 19237 birds&quot; &quot;the population is 3147 birds&quot; 
+## [3] &quot;the population is 35774 birds&quot; &quot;the population is 33226 birds&quot;
+## [5] &quot;the population is 13242 birds&quot; &quot;the population is 15702 birds&quot;
+</code></pre>
+
+<pre><code class="r">reg.info &lt;- regexec(&quot;the population is ([0-9]*) birds&quot;, pop.data)
+reg.info[1:3]
+</code></pre>
+
+<pre><code>## [[1]]
+## [1]  1 19
+## attr(,&quot;match.length&quot;)
+## [1] 29  5
+## 
+## [[2]]
+## [1]  1 19
+## attr(,&quot;match.length&quot;)
+## [1] 28  4
+## 
+## [[3]]
+## [1]  1 19
+## attr(,&quot;match.length&quot;)
+## [1] 29  5
+</code></pre>
+
+<pre><code class="r">reg.data &lt;- regmatches(pop.data, reg.info)
+reg.data[1:3]
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;the population is 19237 birds&quot; &quot;19237&quot;                        
+## 
+## [[2]]
+## [1] &quot;the population is 3147 birds&quot; &quot;3147&quot;                        
+## 
+## [[3]]
+## [1] &quot;the population is 35774 birds&quot; &quot;35774&quot;
+</code></pre>
+
+<pre><code class="r">bird.population &lt;- sapply(reg.data, function(x) x[2])
+bird.population
+</code></pre>
+
+<pre><code>##  [1] &quot;19237&quot; &quot;3147&quot;  &quot;35774&quot; &quot;33226&quot; &quot;13242&quot; &quot;15702&quot; &quot;29658&quot; &quot;17339&quot;
+##  [9] &quot;31478&quot; &quot;27745&quot; &quot;44109&quot; &quot;35636&quot; &quot;36866&quot; &quot;46650&quot; &quot;23300&quot; &quot;29925&quot;
+## [17] &quot;41201&quot; &quot;11981&quot; &quot;21171&quot; &quot;2891&quot;
+</code></pre>
+
+<p>One more example (based on <a href="http://www.r-bloggers.com/finding-patterns-in-time-series-using-regular-expressions/">this one</a>). This one shows how to draw grey rectangle over depressions in a time-series:</p>
+
+<pre><code class="r">set.seed(1303)
+# make time-series
+steps &lt;- sample(-2:2, size = 200, prob = c(0.1, 0.2, 0.2, 0.4, 0.1), replace = TRUE)
+ts &lt;- cumsum(steps)
+plot(ts, type = &quot;l&quot;)
+</code></pre>
+
+<p><img src="data:image/png;base64,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" alt="plot of chunk unnamed-chunk-3"/> </p>
+
+<pre><code class="r">
+# assume we didn&#39;t know how ts was made
+difs &lt;- sign(diff(ts) &gt;= 0)  # 0 if decreased, 1 otherwise
+
+bits &lt;- paste0(difs, collapse = &quot;&quot;)  # colapse into a string of bits
+bits
+</code></pre>
+
+<pre><code>## [1] &quot;1010101100111011011111100111111111111011100000000111110111001101101110111111001010111101100101111001100111011101101111100011011100111110100111111000011010000001010111111101111101111011111110100000011&quot;
+</code></pre>
+
+<pre><code class="r">
+# let&#39;s signal a consecutive decrease of 2+ time stamps (aka, a
+# depression)
+matches &lt;- gregexpr(&quot;00+&quot;, bits, perl = T)[[1]]
+matches
+</code></pre>
+
+<pre><code>##  [1]   9  24  42  59  77  90  98 102 120 129 138 146 154 192
+## attr(,&quot;match.length&quot;)
+##  [1] 2 2 8 2 2 2 2 2 3 2 2 4 6 6
+## attr(,&quot;useBytes&quot;)
+## [1] TRUE
+</code></pre>
+
+<pre><code class="r">attributes(matches)$match.length  # this allows to access the length of each matches[i]
+</code></pre>
+
+<pre><code>##  [1] 2 2 8 2 2 2 2 2 3 2 2 4 6 6
+</code></pre>
+
+<pre><code class="r">
+# let&#39;s plot the time series with the depressions marked as grey
+# rectangles
+plot(ts, type = &quot;n&quot;)
+min.y &lt;- rep(min(ts), length(matches))
+max.y &lt;- rep(max(ts), length(matches))
+rect(matches, min.y, matches + attributes(matches)$match.length, max.y, col = &quot;lightgrey&quot;, 
+    border = FALSE)
+points(ts, type = &quot;l&quot;)
+</code></pre>
+
+<p><img src="data:image/png;base64,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" alt="plot of chunk unnamed-chunk-3"/> </p>
+
+<h2>Package <code>stringr</code></h2>
+
+<p>[R Help] <em>stringr is a set of simple wrappers that make R&#39;s string functions more consistent, simpler and easier to use. It does this by ensuring that: function and argument names (and positions) are consistent, all functions deal with NA&#39;s and zero length character appropriately, and the output data structures from each function matches the input data structures of other functions</em></p>
+
+<pre><code class="r">library(stringr)
+
+str1 &lt;- c(&quot;o mapa&quot;)
+str2 &lt;- c(&quot;nao e o territorio&quot;)
+str3 &lt;- str_c(str1, str2, sep = &quot; &quot;)  # join 2+ strings
+str3
+</code></pre>
+
+<pre><code>## [1] &quot;o mapa nao e o territorio&quot;
+</code></pre>
+
+<pre><code class="r">str_c(letters, collapse = &quot;, &quot;)
+</code></pre>
+
+<pre><code>## [1] &quot;a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z&quot;
+</code></pre>
+
+<pre><code class="r">str_length(str3)
+</code></pre>
+
+<pre><code>## [1] 25
+</code></pre>
+
+<pre><code class="r">str_dup(&quot;ab&quot;, 5)  # duplicates strings
+</code></pre>
+
+<pre><code>## [1] &quot;ababababab&quot;
+</code></pre>
+
+<pre><code class="r">str_dup(c(&quot;ab&quot;, &quot;c&quot;), 3)
+</code></pre>
+
+<pre><code>## [1] &quot;ababab&quot; &quot;ccc&quot;
+</code></pre>
+
+<pre><code class="r">str_dup(&quot;ab&quot;, 1:3)
+</code></pre>
+
+<pre><code>## [1] &quot;ab&quot;     &quot;abab&quot;   &quot;ababab&quot;
+</code></pre>
+
+<pre><code class="r">str_count(str3, &quot;r&quot;)  # the number of matches
+</code></pre>
+
+<pre><code>## [1] 3
+</code></pre>
+
+<pre><code class="r">str_detect(str3, &quot;r&quot;)  # verifies if match exists
+</code></pre>
+
+<pre><code>## [1] TRUE
+</code></pre>
+
+<pre><code class="r">str_extract(str3, &quot;[it][eo]+&quot;)  # extract first match
+</code></pre>
+
+<pre><code>## [1] &quot;te&quot;
+</code></pre>
+
+<pre><code class="r">str_extract_all(str3, &quot;[it][eo]+&quot;)  # extract all matches
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;te&quot; &quot;to&quot; &quot;io&quot;
+</code></pre>
+
+<pre><code class="r">str_locate(str3, &quot;[it][eo]+&quot;)  # locate where&#39;s first match
+</code></pre>
+
+<pre><code>##      start end
+## [1,]    16  17
+</code></pre>
+
+<pre><code class="r">str_locate_all(str3, &quot;[it][eo]+&quot;)  # locate where&#39;re all matches
+</code></pre>
+
+<pre><code>## [[1]]
+##      start end
+## [1,]    16  17
+## [2,]    21  22
+## [3,]    24  25
+</code></pre>
+
+<pre><code class="r">str_replace(str3, &quot;r&quot;, &quot;R&quot;)  # replace first match
+</code></pre>
+
+<pre><code>## [1] &quot;o mapa nao e o teRritorio&quot;
+</code></pre>
+
+<pre><code class="r">str_replace_all(str3, &quot;r&quot;, &quot;R&quot;)  # replace all matches
+</code></pre>
+
+<pre><code>## [1] &quot;o mapa nao e o teRRitoRio&quot;
+</code></pre>
+
+<pre><code class="r">str_split(str3, &quot;e&quot;)
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;o mapa nao &quot; &quot; o t&quot;        &quot;rritorio&quot;
+</code></pre>
+
+<pre><code class="r">str_split(str3, &quot;e&quot;, n = 2)
+</code></pre>
+
+<pre><code>## [[1]]
+## [1] &quot;o mapa nao &quot;   &quot; o territorio&quot;
+</code></pre>
+
+<pre><code class="r">str_sub(str3, 1, 3)  # extract substrings
+</code></pre>
+
+<pre><code>## [1] &quot;o m&quot;
+</code></pre>
+
+<pre><code class="r">str_sub(str3, seq(1, 24, 2), seq(2, 25, 2))
+</code></pre>
+
+<pre><code>##  [1] &quot;o &quot; &quot;ma&quot; &quot;pa&quot; &quot; n&quot; &quot;ao&quot; &quot; e&quot; &quot; o&quot; &quot; t&quot; &quot;er&quot; &quot;ri&quot; &quot;to&quot; &quot;ri&quot;
+</code></pre>
+
+<pre><code class="r">
+str4 &lt;- &quot;BBCDEF&quot;
+str_sub(str4, 1, 1) &lt;- &quot;A&quot;
+str4
+</code></pre>
+
+<pre><code>## [1] &quot;ABCDEF&quot;
+</code></pre>
+
+<pre><code class="r">str_sub(str4, -1, -1) &lt;- &quot;K&quot;
+str4
+</code></pre>
+
+<pre><code>## [1] &quot;ABCDEK&quot;
+</code></pre>
+
+<pre><code class="r">
+strings &lt;- c(&quot; 219 733 8965&quot;, &quot;329-293-8753 &quot;, &quot;banana&quot;, &quot;595 794 7569&quot;, &quot;387 287 6718&quot;, 
+    &quot;apple&quot;, &quot;233.398.9187  &quot;, &quot;482 952 3315&quot;, &quot;239 923 8115&quot;, &quot;842 566 4692&quot;, 
+    &quot;Work: 579-499-7527&quot;, &quot;$1000&quot;, &quot;Home: 543.355.3679&quot;)
+phone &lt;- &quot;([2-9][0-9]{2})[- .]([0-9]{3})[- .]([0-9]{4})&quot;
+str_extract(strings, phone)
+</code></pre>
+
+<pre><code>##  [1] &quot;219 733 8965&quot; &quot;329-293-8753&quot; NA             &quot;595 794 7569&quot;
+##  [5] &quot;387 287 6718&quot; NA             &quot;233.398.9187&quot; &quot;482 952 3315&quot;
+##  [9] &quot;239 923 8115&quot; &quot;842 566 4692&quot; &quot;579-499-7527&quot; NA            
+## [13] &quot;543.355.3679&quot;
+</code></pre>
+
+<pre><code class="r">str_match(strings, phone)
+</code></pre>
+
+<pre><code>##       [,1]           [,2]  [,3]  [,4]  
+##  [1,] &quot;219 733 8965&quot; &quot;219&quot; &quot;733&quot; &quot;8965&quot;
+##  [2,] &quot;329-293-8753&quot; &quot;329&quot; &quot;293&quot; &quot;8753&quot;
+##  [3,] NA             NA    NA    NA    
+##  [4,] &quot;595 794 7569&quot; &quot;595&quot; &quot;794&quot; &quot;7569&quot;
+##  [5,] &quot;387 287 6718&quot; &quot;387&quot; &quot;287&quot; &quot;6718&quot;
+##  [6,] NA             NA    NA    NA    
+##  [7,] &quot;233.398.9187&quot; &quot;233&quot; &quot;398&quot; &quot;9187&quot;
+##  [8,] &quot;482 952 3315&quot; &quot;482&quot; &quot;952&quot; &quot;3315&quot;
+##  [9,] &quot;239 923 8115&quot; &quot;239&quot; &quot;923&quot; &quot;8115&quot;
+## [10,] &quot;842 566 4692&quot; &quot;842&quot; &quot;566&quot; &quot;4692&quot;
+## [11,] &quot;579-499-7527&quot; &quot;579&quot; &quot;499&quot; &quot;7527&quot;
+## [12,] NA             NA    NA    NA    
+## [13,] &quot;543.355.3679&quot; &quot;543&quot; &quot;355&quot; &quot;3679&quot;
+</code></pre>
+
+<pre><code class="r">
+rbind(str_pad(&quot;hadley&quot;, 10, &quot;left&quot;), str_pad(&quot;hadley&quot;, 10, &quot;right&quot;), str_pad(&quot;hadley&quot;, 
+    10, &quot;both&quot;))
+</code></pre>
+
+<pre><code>##      [,1]        
+## [1,] &quot;    hadley&quot;
+## [2,] &quot;hadley    &quot;
+## [3,] &quot;  hadley  &quot;
+</code></pre>
+
+<pre><code class="r">
+thanks_path &lt;- file.path(R.home(&quot;doc&quot;), &quot;THANKS&quot;)
+thanks &lt;- str_c(readLines(thanks_path), collapse = &quot;\n&quot;)
+thanks &lt;- word(thanks, 1, 3, fixed(&quot;\n\n&quot;))
+cat(str_wrap(thanks), &quot;\n&quot;)
+</code></pre>
+
+<pre><code>## R would not be what it is today without the invaluable help of these people,
+## who contributed by donating code, bug fixes and documentation:
+## 
+## Valerio Aimale, Thomas Baier, Henrik Bengtsson, Roger Bivand, Ben Bolker, David
+## Brahm, Goran Brostrom, Patrick Burns, Vince Carey, Saikat DebRoy, Brian D&#39;Urso,
+## Lyndon Drake, Dirk Eddelbuettel, Claus Ekstrom, Sebastian Fischmeister, John
+## Fox, Paul Gilbert, Yu Gong, Gabor Grothendieck, Frank E Harrell Jr, Torsten
+## Hothorn, Robert King, Kjetil Kjernsmo, Roger Koenker, Philippe Lambert, Jan de
+## Leeuw, Jim Lindsey, Patrick Lindsey, Catherine Loader, Gordon Maclean, John
+## Maindonald, David Meyer, Ei-ji Nakama, Jens Oehlschaegel, Steve Oncley, Richard
+## O&#39;Keefe, Hubert Palme, Roger D. Peng, Jose&#39; C. Pinheiro, Tony Plate, Anthony
+## Rossini, Jonathan Rougier, Petr Savicky, Guenther Sawitzki, Marc Schwartz,
+## Detlef Steuer, Bill Simpson, Gordon Smyth, Adrian Trapletti, Terry Therneau,
+## Rolf Turner, Bill Venables, Gregory R. Warnes, Andreas Weingessel, Morten
+## Welinder, James Wettenhall, Simon Wood and Achim Zeileis.
+## 
+## Others have written code that has been adopted by R and is acknowledged in the
+## code files, including
+</code></pre>
+
+<pre><code class="r">cat(str_wrap(thanks, width = 40), &quot;\n&quot;)
+</code></pre>
+
+<pre><code>## R would not be what it is today without
+## the invaluable help of these people,
+## who contributed by donating code, bug
+## fixes and documentation:
+## 
+## Valerio Aimale, Thomas Baier, Henrik
+## Bengtsson, Roger Bivand, Ben Bolker,
+## David Brahm, Goran Brostrom, Patrick
+## Burns, Vince Carey, Saikat DebRoy,
+## Brian D&#39;Urso, Lyndon Drake, Dirk
+## Eddelbuettel, Claus Ekstrom, Sebastian
+## Fischmeister, John Fox, Paul Gilbert,
+## Yu Gong, Gabor Grothendieck, Frank E
+## Harrell Jr, Torsten Hothorn, Robert
+## King, Kjetil Kjernsmo, Roger Koenker,
+## Philippe Lambert, Jan de Leeuw, Jim
+## Lindsey, Patrick Lindsey, Catherine
+## Loader, Gordon Maclean, John
+## Maindonald, David Meyer, Ei-ji Nakama,
+## Jens Oehlschaegel, Steve Oncley,
+## Richard O&#39;Keefe, Hubert Palme, Roger D.
+## Peng, Jose&#39; C. Pinheiro, Tony Plate,
+## Anthony Rossini, Jonathan Rougier, Petr
+## Savicky, Guenther Sawitzki, Marc
+## Schwartz, Detlef Steuer, Bill Simpson,
+## Gordon Smyth, Adrian Trapletti, Terry
+## Therneau, Rolf Turner, Bill Venables,
+## Gregory R. Warnes, Andreas Weingessel,
+## Morten Welinder, James Wettenhall,
+## Simon Wood and Achim Zeileis.
+## 
+## Others have written code that has been
+## adopted by R and is acknowledged in the
+## code files, including
+</code></pre>
+
+<pre><code class="r">cat(str_wrap(thanks, width = 60, indent = 2), &quot;\n&quot;)
+</code></pre>
+
+<pre><code>##   R would not be what it is today without the invaluable
+## help of these people, who contributed by donating code, bug
+## fixes and documentation:
+## 
+##   Valerio Aimale, Thomas Baier, Henrik Bengtsson, Roger
+## Bivand, Ben Bolker, David Brahm, Goran Brostrom, Patrick
+## Burns, Vince Carey, Saikat DebRoy, Brian D&#39;Urso, Lyndon
+## Drake, Dirk Eddelbuettel, Claus Ekstrom, Sebastian
+## Fischmeister, John Fox, Paul Gilbert, Yu Gong, Gabor
+## Grothendieck, Frank E Harrell Jr, Torsten Hothorn, Robert
+## King, Kjetil Kjernsmo, Roger Koenker, Philippe Lambert, Jan
+## de Leeuw, Jim Lindsey, Patrick Lindsey, Catherine Loader,
+## Gordon Maclean, John Maindonald, David Meyer, Ei-ji Nakama,
+## Jens Oehlschaegel, Steve Oncley, Richard O&#39;Keefe, Hubert
+## Palme, Roger D. Peng, Jose&#39; C. Pinheiro, Tony Plate,
+## Anthony Rossini, Jonathan Rougier, Petr Savicky, Guenther
+## Sawitzki, Marc Schwartz, Detlef Steuer, Bill Simpson,
+## Gordon Smyth, Adrian Trapletti, Terry Therneau, Rolf
+## Turner, Bill Venables, Gregory R. Warnes, Andreas
+## Weingessel, Morten Welinder, James Wettenhall, Simon Wood
+## and Achim Zeileis.
+## 
+##   Others have written code that has been adopted by R and
+## is acknowledged in the code files, including
+</code></pre>
+
+<pre><code class="r">cat(str_wrap(thanks, width = 60, exdent = 2), &quot;\n&quot;)
+</code></pre>
+
+<pre><code>## R would not be what it is today without the invaluable help
+##   of these people, who contributed by donating code, bug
+##   fixes and documentation:
+## 
+## Valerio Aimale, Thomas Baier, Henrik Bengtsson, Roger
+##   Bivand, Ben Bolker, David Brahm, Goran Brostrom, Patrick
+##   Burns, Vince Carey, Saikat DebRoy, Brian D&#39;Urso, Lyndon
+##   Drake, Dirk Eddelbuettel, Claus Ekstrom, Sebastian
+##   Fischmeister, John Fox, Paul Gilbert, Yu Gong, Gabor
+##   Grothendieck, Frank E Harrell Jr, Torsten Hothorn, Robert
+##   King, Kjetil Kjernsmo, Roger Koenker, Philippe Lambert,
+##   Jan de Leeuw, Jim Lindsey, Patrick Lindsey, Catherine
+##   Loader, Gordon Maclean, John Maindonald, David Meyer,
+##   Ei-ji Nakama, Jens Oehlschaegel, Steve Oncley, Richard
+##   O&#39;Keefe, Hubert Palme, Roger D. Peng, Jose&#39; C. Pinheiro,
+##   Tony Plate, Anthony Rossini, Jonathan Rougier, Petr
+##   Savicky, Guenther Sawitzki, Marc Schwartz, Detlef Steuer,
+##   Bill Simpson, Gordon Smyth, Adrian Trapletti, Terry
+##   Therneau, Rolf Turner, Bill Venables, Gregory R. Warnes,
+##   Andreas Weingessel, Morten Welinder, James Wettenhall,
+##   Simon Wood and Achim Zeileis.
+## 
+## Others have written code that has been adopted by R and is
+##   acknowledged in the code files, including
+</code></pre>
+
+<pre><code class="r">
+sentences &lt;- c(&quot;Jane saw a cat&quot;, &quot;Jane sat down&quot;)
+word(sentences, 1)  # Extract words from a sentence.
+</code></pre>
+
+<pre><code>## [1] &quot;Jane&quot; &quot;Jane&quot;
+</code></pre>
+
+<pre><code class="r">word(sentences, 2)
+</code></pre>
+
+<pre><code>## [1] &quot;saw&quot; &quot;sat&quot;
+</code></pre>
+
+<pre><code class="r">word(sentences, -1)
+</code></pre>
+
+<pre><code>## [1] &quot;cat&quot;  &quot;down&quot;
+</code></pre>
+
+<pre><code class="r">word(sentences, 2, -1)
+</code></pre>
+
+<pre><code>## [1] &quot;saw a cat&quot; &quot;sat down&quot;
+</code></pre>
+
+<pre><code class="r">word(sentences[1], 1:3, -1)  # Also vectorised over start and end
+</code></pre>
+
+<pre><code>## [1] &quot;Jane saw a cat&quot; &quot;saw a cat&quot;      &quot;a cat&quot;
+</code></pre>
+
+<pre><code class="r">word(sentences[1], 1, 1:4)
+</code></pre>
+
+<pre><code>## [1] &quot;Jane&quot;           &quot;Jane saw&quot;       &quot;Jane saw a&quot;     &quot;Jane saw a cat&quot;
+</code></pre>
+
+<pre><code class="r">str &lt;- &quot;abc.def..123.4568.999&quot;
+word(str, 1, sep = fixed(&quot;..&quot;))  # Can define words by other separators
+</code></pre>
+
+<pre><code>## [1] &quot;abc.def&quot;
+</code></pre>
+
+<pre><code class="r">word(str, 2, sep = fixed(&quot;..&quot;))
+</code></pre>
+
+<pre><code>## [1] &quot;123.4568.999&quot;
+</code></pre>
+
+</body>
+
+</html>
+

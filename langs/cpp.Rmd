@@ -1,0 +1,405 @@
+---
+title: "Connecting with Cpp"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Connecting R with C++
+====================
+
+Refs: 
+
++ [Advanced R by Hadley Wickham](http://adv-r.had.co.nz/Rcpp.html)
+
++ [Rcpp function gallery](http://gallery.rcpp.org/)
+
++ [Calling C++ from R using Rcpp](http://www.r-bloggers.com/calling-c-from-r-using-rcpp/)
+
+```{r, message=FALSE, warning=FALSE}
+library(Rcpp)
+```
+
+## Inline Functions
+
+`cppFunction` allows you to write inline C++ functions in R:
+
+```{r}
+cppFunction('
+
+  int add(int x, int y, int z) {
+    int sum = x + y + z;
+    return sum;
+  }
+
+')
+
+add(1,2,3)
+```
+
+## Scalars & Vectors
+
+Some recognized types:
+
++ Scalars of type `double`, `int`, `String` and `bool` 
+
++ Vectors of type `NumericVector`, `CharacterVector`, `IntegerVector` and `LogicalVector`
+
+Here's an eg of making a vector sum in Rcpp
+
+```{r}
+cppFunction('
+
+  int sumCpp(NumericVector x) {
+
+    int i, sum = 0, n = x.size();
+
+    for(i=0; i<n; i++){    // note: vectors indices start at 0
+      sum += x[i];
+    }
+    return sum;
+  }
+
+')
+
+sumR <- function(x) { # the equivalent R function
+  sum <- 0
+  n = length(x)
+  for(i in 1:n) {
+    sum <- sum + x[i]
+  }
+  sum
+}
+
+library(microbenchmark)  # let's compare performances
+
+m <- microbenchmark(
+  sumR(1:10000),
+  sumCpp(1:10000),
+  sum(1:10000)      # sum is already C++ optimized
+)
+m
+```
+
+## Matrices
+
+There is also the type for matrices:
+
++ `NumericMatrix`, `IntegerMatrix`, `CharacterMatrix` and `LogicalMatrix`
+
+An eg that reproduces rowSums():
+
+```{r}
+cppFunction('
+
+  NumericVector rowSumsC(NumericMatrix x) {
+    int nrow = x.nrow(), 
+        ncol = x.ncol();
+    NumericVector out(nrow);
+  
+    for (int i = 0; i < nrow; i++) {
+      double total = 0;
+      for (int j = 0; j < ncol; j++) {
+        total += x(i, j);
+      }
+      out[i] = total;
+    }
+    return out;
+  }
+
+')
+
+x <- matrix(sample(100), 10)
+rowSums(x)
+rowSumsC(x)
+```
+
+
+## Using Function, Lists and DataFrames
+
+```{r}
+cppFunction('
+
+  RObject callWithOne(Function f) {
+    return f(1);
+  }
+
+')
+
+callWithOne(function(x) x*10+1)
+callWithOne(paste)
+callWithOne(plot)
+
+cppFunction('
+
+  List lapplyCpp(List input, Function f) {
+    int n = input.size();
+    List out(n);
+  
+    for(int i = 0; i < n; i++) {
+      out[i] = f(input[i]);
+    }
+
+    return out;
+  }
+
+')
+
+lapplyCpp(1:3, function(x) 2*x)
+
+cppFunction('
+
+  DataFrame makeDF(NumericVector a, NumericVector b, String d) {
+    int n = a.size();
+    NumericVector c(n);  
+
+    for(int i = 0; i < n; i++) {
+      c[i] = a[i] + b[i];
+    }
+
+    return DataFrame::create(_["col1"]=a, _["col2"]=b, _[d]=c);
+  }
+
+')
+
+makeDF(1:10,2:11,"result")
+
+cppFunction('
+
+  DataFrame makeDF(NumericVector a, NumericVector b, Function f) {
+    int n = a.size();
+    NumericVector c(n);  
+
+    for(int i = 0; i < n; i++) {
+      c[i] = as<double>(f(_["a"] = a[i], 
+                          _["b"] = b[i]));
+    }
+
+    return DataFrame::create(_["col1"]=a, _["col2"]=b, _["result"]=c);
+  }
+
+')
+
+makeDF(1:10,2:11,function(a,b) a*b)
+makeDF(1:5, 2:6, function(a,b) a^b)
+
+cppFunction('
+  DataFrame modifyDataFrame(DataFrame df) {
+    
+    // access the columns
+    Rcpp::IntegerVector   a = df["a"];
+    Rcpp::CharacterVector b = df["b"];
+    
+    // make some changes
+    a[2] = 42;
+    b[1] = "foo";       
+    
+    // return a new data frame
+    return DataFrame::create(_["a1"]= a, _["b1"]= b);
+  }
+')
+
+df <- data.frame(a = c(1, 2, 3),
+                 b = c("x", "y", "z"))
+
+modifyDataFrame(df)
+```
+
+## Missing Values
+
+```{r}
+cppFunction('
+            
+  List scalar_missings() {
+    int int_s = NA_INTEGER;
+    String chr_s = NA_STRING;
+    bool lgl_s = NA_LOGICAL;
+    double num_s = NA_REAL;
+    NumericVector x = NumericVector::create(NA_REAL);
+  
+    return List::create(int_s, chr_s, lgl_s, num_s, x);
+  }
+
+')
+
+str(scalar_missings())
+```
+
+But there are a lot of gotchas. Check [here](http://adv-r.had.co.nz/Rcpp.html#rcpp-na).
+
+To check if a value in a vector is missing, use the class method `::is_na()`
+
+```{r}
+cppFunction('
+            
+  int countNAs(NumericVector x) {
+    int i, count = 0, n = x.size();
+  
+    for(i=0; i<n; i++)
+      count += NumericVector::is_na(x[i]);
+  
+    return count;
+  }
+
+')
+
+countNAs(c(1,2,NA,NA,4,NA))
+```
+
+## Rcpp Sugar
+
+All the basic arithmetic and logical operators are vectorised: + *, -, /, pow, <, <=, >, >=, ==, !=, !. 
+
+```{r}
+cppFunction('
+           
+  NumericVector pdistC(double x, NumericVector ys) {
+  // computes the Euclidean distance between a value and a vector of values          
+    return sqrt(pow((x - ys), 2));
+  }
+
+')
+
+pdistC(2, c(1.1,2,10))
+```
+
++ The functions `any` and `all` are fully lazy.
+
++ A number of helpful functions provide a "view" of a vector: head(), tail(), rep\_each(), rep\_len(), rev(), seq\_along(), and seq\_len(). In R these would all produce copies of the vector, but in Rcpp they simply point to the existing vector and override the subsetting operator ([) to implement special behaviour. This makes them very efficient: for instance, rep_len(x, 1e6) does not have to make a million copies of x.
+
++ Math functions: abs(), acos(), asin(), atan(), beta(), ceil(), ceiling(), choose(), cos(), cosh(), digamma(), exp(), expm1(), factorial(), floor(), gamma(), lbeta(), lchoose(), lfactorial(), lgamma(), log(), log10(), log1p(), pentagamma(), psigamma(), round(), signif(), sin(), sinh(), sqrt(), tan(), tanh(), tetragamma(), trigamma(), trunc().
+
++ Scalar summaries: mean(), min(), max(), sum(), sd(), and (for vectors) var().
+
++ Vector summaries: cumsum(), diff(), pmin(), and pmax().
+
++ Finding values: match(), self\_match(), which_max(), which\_min().
+
++ Dealing with duplicates: duplicated(), unique().
+
++ d/q/p/r for all standard distributions.
+
++ noNA(x) asserts that the vector x does not contain any missing values, and allows optimisation of some mathematical operations.
+
+## Using C++ STL
+
+It's possible to use C++'s standard template library which includes lots of data structures and algorithms highly optimized.
+
+### Iterators
+
+Iterators abstract the methods for looping over a data structure. There are three operators:
+
++ Advance with `++`.
+
++ Get the value they refer to, or dereference, with `*`.
+
++ Compare with `==` or `!=`.
+
+An eg of summing a vector with an iterator:
+
+```{r}
+cppFunction('
+           
+  double sumIt(NumericVector x) {
+    double total = 0;
+    
+    NumericVector::iterator it;
+    for(it = x.begin(); it != x.end(); ++it) {
+      total += *it;
+    }
+    return total;
+  }
+
+')
+
+sumIt(c(1:100))
+```
+
+A more complex eg:
+
+```{r}
+# given a vector of non-decreasing breakpoints in vec, find the interval containing each element of x
+findInterval(x=c(11,-1,51,14,22,31,6), vec=c(0,10,20,30))
+
+cppFunction('
+           
+  IntegerVector findIntervalCpp(NumericVector x, NumericVector breaks) {
+    IntegerVector out(x.size());
+  
+    NumericVector::iterator it, pos;
+    IntegerVector::iterator out_it;
+  
+    // step through two iterators (input it and output out) simultaneously
+    for(it = x.begin(), out_it = out.begin(); it != x.end(); ++it, ++out_it) {
+      pos = std::upper_bound(breaks.begin(), breaks.end(), *it); // upper_bound() returns an iterator
+      *out_it = std::distance(breaks.begin(), pos);
+    }
+  
+    return out;
+  }
+
+')
+
+findIntervalCpp(c(11,-1,51,14,22,31,6), c(0,10,20,30))
+```
+
+There are many algorithms [available](http://www.cplusplus.com/reference/algorithm/). In non-inline codes, it's needed to include `#include <algorithm>` at the top of the cpp file.
+
+Also check the [standard containers](http://www.cplusplus.com/reference/stl/) of STL.
+
+## Non-Inline Functions
+
+The previous code is good for inline functions, but for more complex it's better to write cpp files and then read and compile them at R
+
+```{r, eval=FALSE}
+cpp.code = "
+
+  #include <cstdlib>
+  #include <iostream>
+  #include <Rcpp.h>
+  #include <omp.h>
+  
+  using namespace std;
+  // [[Rcpp::export]]
+  Rcpp::NumericVector parad(Rcpp::NumericVector x, Rcpp::NumericVector y) {
+  
+    int i,n,max;
+    n=x.size();
+    Rcpp::NumericVector product(n);
+    
+    max=omp_get_max_threads();  // eg with parallel version
+    omp_set_num_threads(max);
+    
+    #pragma omp parallel for
+    for(i=0; i<n; i++){
+      product[i] = x[i] / y[i];
+    }
+    
+    return(product);
+  }
+"
+
+write(cpp.code, "parad.cpp")  # assume the file was written elsewhere
+
+# Setting terminal environment variables from  within R so that the compiler 
+# compiles as "g++ .. -fopenmp ." which we need for the "omp.h" header.
+
+Sys.setenv("PKG_CXXFLAGS"="-fopenmp")
+Sys.setenv("PKG_LIBS"="-fopenmp")
+
+sourceCpp("parad.cpp") # sourceCpp is a wrapper that takes care of everything. 
+
+# after that one can immediately start using the parad() function.
+
+a <- rnorm(1000,0,1)
+b <- rnorm(1000,0,1)
+c <- parad(a,b)
+
+```
+

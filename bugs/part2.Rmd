@@ -1,0 +1,706 @@
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+# opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+#                tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+#                fig.width = 5, fig.height = 5, fig.align='center')
+options(comment = "", tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+        fig.width = 5, fig.height = 5, fig.align='center')
+```
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 300, warning = FALSE, message=FALSE)
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+BUGS tutorial (by example) Part II
+=============
+
+Let's repeat the essential code here:
+
+```{r}
+library(BRugs)
+
+run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.10, 
+                      init.func, n.chains=1) {
+  
+  writeLines(model, con="model.txt")  # Write the modelString to a file
+  modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
+  if (length(data)>0)                 # If there's any data available...
+    modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
+  modelCompile()                      # BRugs command tells BUGS to compile the model
+  
+  if (missing(init.func)) {
+    modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain
+  } else {
+    for (chain in 1:n.chains) {       # otherwise use user's init data
+      modelInits(bugsInits(init.func))
+    }
+  }
+    
+  modelUpdate(chainLength*burnin)     # Burn-in period to be discarded
+  samplesSet(samples)                 # BRugs tells BUGS to keep a record of the sampled values
+  modelUpdate(chainLength)            # BRugs command tells BUGS to randomly initialize a chain
+}
+```
+
+For ploting with error bars:
+
+```{r}
+plot.errors <- function(x, y, e) {
+  plot(x, y, pch=19,ylim=c(min(y)*0.75,max(y)*1.2))
+  segments(x, y-e,x, y+e)
+  width.bar <- mean(e)/10
+  segments(x-width.bar,y-e,x+width.bar,y-e)
+  segments(x-width.bar,y+e,x+width.bar,y+e)
+}
+```
+
+Bayesian Linear Regression
+--------------------------
+
+Given a data set $D = (x_1,y_1), \ldots, (x_N,y_N)$ where $x \in \mathbb{R}^d, y \in \mathbb{R}$, a Bayesian Linear Regression models the problem in the following way:
+
+Prior: $$w \sim \mathcal{N}(0, \sigma_w^2 I_d)$$
+
+$w$ is vector $(w_1, \ldots, w_d)^T$, so the previous distribution is a multivariate Gaussian; and $I_d$ is the $d\times d$ identity matrix.
+
+Likelihood: $$Y_i \sim \mathcal{N}(w^T x_i, \sigma^2)$$
+
+We assume that $Y_i \perp Y_j | w, i \neq j$
+
+For now we'll use the precision instead of the variance, $a = 1/\sigma^2$, and $b = 1/\sigma_w^2$. We'll also assume that $a,b$ are known.
+
+The prior can be stated as $$p(w) \propto \exp \Big\{ -\frac{b}{2} w^t w \Big\}$$
+
+And the likelihood $$p(D|w) \propto \exp \Big\{ -\frac{a}{2} (y-Aw)^T (y-Aw) \Big\}$$
+
+where $y = (y_1,\ldots,y_N)^T$ and $A$ is a $n\times d$ matrix where the i-th row is $x_i^T$.
+
+The the posterior is $$p(w|D) \propto p(D|w) p(w)$$
+
+After many [calculations](https://www.youtube.com/watch?v=nrd4AnDLR3U&list=PLD0F06AA0D2E8FFBA&index=61) we discover that
+
+$$p(w|D) \sim \mathcal{N}(w | \mu, \Lambda^{-1})$$
+
+where ($\Lambda$ is the precision matrix)
+
+$$\Lambda = a A^T A + b I_d $$
+$$\mu = a \Lambda^{-1} A^T y$$
+
+Notice that $\mu$ is equal to the $w_{MAP}$ of the regular linear regression, this is because for the Gaussian, the mean is equal to the mode.
+
+Also, we can make some algebra over $\mu$ and get the following equality ($\Lambda = aA^TA+bI_d$):
+
+$$\mu = (A^T A + \frac{b}{a} I_d)^{-1} A^T y$$
+
+and compare with $w_{MLE}$:
+
+$$w_{MLE} = (A^T A)^{-1} A^T y$$
+
+The extra expression in $\mu$ corresponds to the prior. This is similar to the expression for the Ridge regression, for the special case when $\lambda = \frac{b}{a}$. Ridge regression is more general because the technique can choose improper priors (in the Bayesian perspective).
+
+For the predictive posterior distribution:
+
+$$p(y|x,D) = \int p(y|x,D,w) p(w|x,D) dw = \int p(y|x,w) p(w|D) dw$$
+
+it is possible to calculate that
+
+$$y|x,D \sim \mathcal{N}(\mu^Tx, \frac{1}{a} + x^T \Lambda^{-1}x)$$
+
+Using BUGS
+----------
+
+```{r}
+modelString = "
+  model {
+      for (i in 1:5) {
+        y[i] ~ dnorm(mu[i], tau)
+        mu[i] <- beta0 + beta1 * (x[i] - mean(x[]))
+      }
+  
+      # Jeffreys priors
+      beta0 ~ dflat()
+      beta1 ~ dflat()
+      tau   <- 1/sigma2
+      log(sigma2) <- 2*log.sigma
+      log.sigma ~ dflat()
+  }
+"
+
+# data
+x <- c(  8,  15,  22,  29,  36)  # day of measure
+y <- c(177, 236, 285, 350, 376)  # weight in grams
+
+data.list = list(
+    x = x, 
+    y = y  
+)
+
+# initializations
+n.chains <- 1
+log.sigmas <- c(0)
+betas0 <- c(0)
+betas1 <- c(0)
+
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      log.sigma = log.sigmas[i],
+      beta0 = betas0[i],
+      beta1 = betas1[i]
+    ) 
+  }
+}
+
+run.model(modelString, samples=c("beta0", "beta1", "sigma2"), data=data.list, chainLength=15000,
+          init.func=genInitFactory(), n.chains=n.chains)
+
+samplesStats(c("beta0", "beta1", "sigma2"))
+
+# Extract chain values:
+beta0  <- samplesSample( "beta0" )
+beta1  <- samplesSample( "beta1" )
+sigma2 <- samplesSample( "sigma2" )
+
+# Posterior prediction [from Kruschke - Doing Bayesian Data Analysis (2010)]
+# Specify x values for which predicted y's are needed:
+xPostPred <- seq( min(x)-5 , max(x)+5 , length=100 ) # just make a bunch of them
+# Define matrix for recording posterior predicted y values at each x value.
+# One row per x value, with each row holding random predicted y values.
+postSampSize <- length(beta0)
+yPostPred <- matrix( 0 , nrow=length(xPostPred) , ncol=postSampSize )
+# Define matrix for recording HDI limits of posterior predicted y values:
+yHDIlim <- matrix( 0 , nrow=length(xPostPred) , ncol=2 )
+# Generate posterior predicted y values.
+# This gets only one y value, at each x, for each step in the chain.
+xM <- mean(xPostPred)
+# generate values according to the model specified in BUGS:
+# y[i] ~ dnorm(mu[i], tau)
+# mu[i] <- beta0 + beta1 * (x[i] - mean(x[]))
+for ( chainIdx in 1:postSampSize ) {
+  yPostPred[,chainIdx] <- rnorm( length(xPostPred) ,  # rnorm(n, mean, sd)
+                                 beta0[chainIdx] + beta1[chainIdx] * (xPostPred - xM),
+                                 sqrt(sigma2) )
+}
+
+source("HDIofMCMC.R") # call Kruschke's Highest Density Interval (HDI) script
+for ( xIdx in 1:length(xPostPred) ) {  # get 95% HDI for each predicted x
+    yHDIlim[xIdx,] <- HDIofMCMC( yPostPred[xIdx,] )
+}
+head(yHDIlim)
+# Display data with HDIs of posterior predictions.
+plot( x , y, xlim=c(8,36) , ylim=c(100,500), type="n", ylab=expression(hat(y)),
+      main="Data with 95% HDI & Mean of Posterior Predictions")
+polygon(c(xPostPred,rev(xPostPred)), c(yHDIlim[,1],rev(yHDIlim[,2])), col="lightgray")  # HDI's
+points(x,y, pch=19)
+lines( xPostPred , apply(yPostPred,1,mean) , col="red" ) # the linear regression
+```
+
+Checking the analytical solution vs. the simulated one:
+
+```{r}
+a <- 1/var(x)
+b <- 1/20
+A <- matrix(x, ncol=1)                           # d=1, ie, 1D samples
+
+Lambda <- a * t(A) %*% A + b * diag(ncol(A))
+mu     <- a * solve(Lambda) %*% t(A) %*% y
+
+i <- 31  # select one of the estimated values
+hist(yPostPred[i,], prob=T, breaks=100) # plot the estimated histogram
+
+new.x <- xPostPred[i]
+new.x
+
+ys <- seq(100,300,1)
+lines(ys, dnorm(ys, t(mu)%*%new.x, sqrt(1/a+t(new.x)%*%solve(Lambda)%*%new.x)) , lwd=2, col="red")
+```
+
+TODO: this does not fit :-(
+
+Bayesian Regression with outliers
+---------------------
+
+We got this data somehow (in fact, from [here](http://jakevdp.github.io/blog/2014/06/06/frequentism-and-bayesianism-2-when-results-differ/)).
+
+```{r}
+x <- c(0,  3,  9, 14, 15, 19, 20, 21, 30, 35, 40, 41, 42, 43, 54, 56, 67, 69, 72, 88)
+y <- c(33, 68, 34, 34, 37, 71, 37, 44, 48, 49, 53, 49, 50, 48, 56, 60, 61, 63, 44, 71)
+e <- c(3.6, 3.9, 2.6, 3.4, 3.8, 3.8, 2.2, 2.1, 2.3, 3.8, 2.2, 2.8, 3.9, 3.1, 3.4, 2.6, 3.4, 3.7, 2.0, 3.5) # error of y
+
+plot.errors(x,y,e)
+```
+
+We wish to model this using a linear model:
+
+$$\hat{y}(x|\theta) = \theta_0 + \theta_1 x$$
+
+and assume that the likelihood for each point is modelled by a Gaussian:
+
+$$p(x_i,y_i,e_i | \theta) \propto \exp \Big\{ -\frac{1}{2e_i^2} (y - \hat{y}(x|\theta))^2 \Big\}$$
+
+The traditional linear regression gives:
+
+```{r}
+fit <- lm(y~x, data=data.frame(x=x,y=y))
+plot.errors(x,y,e)
+abline(fit,col="red",lwd=2)                        # showing the linear fit
+points(x[c(2,6,19)],y[c(2,6,19)],col="red",pch=19) # showing the outliers
+```
+
+which does not seem right at all! This is because of the three obvious outliers (above in red) that influence the result.
+
+We can hack a bit and use the Huber loss function, which is useful to deal with outliers in a classic statistics setting, providing a robust linear regression:
+
+```{r}
+# a: residuals, ie, y - hat.y
+huber <- function(a, delta) {
+  ifelse(abs(a)<delta, a^2/2, delta*(abs(a)-delta/2))      # ifelse is a vectorized conditional
+}
+
+huber.loss <- function(theta, x=x, y=y, e=e, delta=3) {
+  sum( huber((y - theta[1] - theta[2]*x)/e, delta) )
+}
+
+fit.huber <- optim(par=c(0,0), fn=huber.loss, x=x, y=y, e=e) # find best values using optimization
+
+plot.errors(x,y,e)
+abline(fit,col="lightgrey",)                               # showing the linear fit  (in grey)
+abline(fit.huber$par[1],fit.huber$par[2], col="red",lwd=2) # showing the robust fit
+```
+
+which is way better. However the Huber loss function, and the choice of its parameter value (set here to $3$), are somewhat hacks, _ad hoc_ tools to attack the outlier problem.
+
+In Bayesian terms acknowledging the outliers exist, we should modify the model in order to account them.
+
+Now the likelihood will be the following:
+
+$$p(x_i,y_i,e_i | \theta, g_i,\sigma_B) = \frac{g_i}{\sqrt{2\pi e_i^2}} \exp \Big\{ -\frac{1}{2e_i^2} (y - \hat{y}(x|\theta))^2 \Big\} + \frac{1-g_i}{\sqrt{2\pi \sigma_B^2}} \exp \Big\{ -\frac{1}{2 \sigma_B^2} (y - \hat{y}(x|\theta))^2 \Big\}$$
+
+herein, parameter $g_i=0$ means that data point $x_i$ is an outlier, while $g=1$ means that $x_i$ is not. If the i-th point is an outlier the likelihhod will use a Gaussian of variance $\sigma_B$ that might be considered an extra nuissance parameter, or set to a high value (we'll choose value $50$). Our model has now 22 parameters instead of the initial two ($\theta_0$ and $\theta_1$).
+
+Since BUGS cannot sample from an arbitrary distribution, we can use the [zeros trick](http://users.aims.ac.za/~mackay/BUGS/Manuals/Tricks.html#SpecifyingANewSamplingDistribution) to plug the likelihood directly:
+
+```{r}
+modelString = "
+  model {
+      for (i in 1:n) {
+
+        phi[i] <- -log( (g[i]/sqrt(2*pi*pow(e[i],2))) * exp(-0.5*pow(y[i]-mu[i],2)/pow(e[i],2)) + ((1-g[i])/sqrt(2*pi*pow(sigmaB,2))) * exp(-0.5*pow(y[i]-mu[i],2)/pow(sigmaB,2)) ) + C
+        
+        dummy[i] <- 0
+        dummy[i] ~ dpois( phi[i] )
+
+        mu[i] <- theta0 + theta1 * x[i]
+        g[i] ~ dunif(0,1)
+        
+      }
+ 
+      theta0 ~ dflat()
+      theta1 ~ dflat()
+      
+      C <- 10000   # for the zero's trick
+      pi <- 3.14159
+  }
+"
+
+# data
+data.list = list(
+    x = x, 
+    y = y,
+    e = e,
+    n = length(x),
+    sigmaB = 50
+)
+
+# initializations
+n.chains <- 1
+theta0 <- c(0)
+theta1 <- c(0)
+g <- rep(0.01,length(x))
+
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      theta0 = theta0[i],
+      theta1 = theta1[i],
+      g = g
+    ) 
+  }
+}
+
+run.model(modelString, samples=c("theta0", "theta1", "g"), data=data.list, 
+          chainLength=25000, init.func=genInitFactory(), n.chains=n.chains)
+
+samplesStats(c("theta0", "theta1", "g"))
+
+theta0.hat <- mean(samplesSample("theta0"))
+theta1.hat <- mean(samplesSample("theta1"))
+
+plot.errors(x,y,e)
+abline(fit,col="lightgrey",)                                # showing the linear fit (in grey)
+abline(fit.huber$par[1],fit.huber$par[2], col="grey",lwd=2) # showing the robust fit (in solid grey)
+abline(theta0.hat, theta1.hat, col="red",lwd=2)
+# define outliers as those which g[i] is less than 0.5
+posterior.g <- rep(NA,length(g))
+for(i in 1:length(g)) {
+  posterior.g[i] <- mean(samplesSample(paste0("g[",i,"]")))
+}
+outliers <- which(posterior.g<0.5)
+# plot outliers
+points(x[outliers], y[outliers], col="red", pch=12)
+```
+
+If we do not care of outlier accounting, we can just use a more heavy-tailed distribution to prevent the outlier influence. The next model uses a t distribution for that effect:
+
+```{r}
+modelString = "
+  model {
+      for (i in 1:n) {
+        tau[i] <- 1/pow(e[i],2)
+        y[i] ~ dt(mu[i], tau[i], 4)
+    
+        mu[i] <- theta0 + theta1 * x[i]
+      }
+  
+      theta0 ~ dflat()
+      theta1 ~ dflat()
+  }
+"
+
+data.list = list(
+    x = x, 
+    y = y,
+    e = e,
+    n = length(x)
+)
+
+# initializations
+n.chains <- 1
+theta0 <- c(0)
+theta1 <- c(0)
+
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      theta0 = theta0[i],
+      theta1 = theta1[i]
+    ) 
+  }
+}
+
+run.model(modelString, samples=c("theta0", "theta1"), data=data.list, chainLength=15000,
+          init.func=genInitFactory(), n.chains=n.chains)
+
+samplesStats(c("theta0", "theta1"))
+
+theta0.hat <- mean(samplesSample("theta0"))
+theta1.hat <- mean(samplesSample("theta1"))
+
+plot.errors(x,y,e)
+abline(fit,col="lightgrey",)                                # showing the linear fit (in grey)
+abline(fit.huber$par[1],fit.huber$par[2], col="grey",lwd=2) # showing the robust fit (in solid grey)
+abline(theta0.hat, theta1.hat, col="red",lwd=2)
+```
+
+Non-linear Regression
+-----------------
+
+For this eg we'll use the Gelfand's dataset of dugongs (sea cows).
+
+The goal is to estimated the size $y_i$ given the age $x_i$.
+
+The model is the following:
+
+$$Y_i = \alpha - \beta \gamma^{x_i} + \epsilon_i, i = 1\ldots,n$$
+
+where $\alpha,\beta>0, 0 \leq \gamma \leq 1$, and the noise $\epsilon_i$ are iid with $\mathcal{N}(0,\sigma^2)$
+
+The interpretation is the following:
+
++ $\alpha$ is the size of a fully grown adult ($x \rightarrow \infty$)
+
++ $\alpha-\beta$ is the dugong's size at birth
+
++ $\gamma$ is the growth rate (with an initial steep growth, and ending with almost linear growth)
+
+The priors will be:
+
++ flat for $\alpha$ and $\beta$
+
++ uniform from $.01$ to $100$ for $sigma$
+
++ uniform from $.5$ to $1$ for $\gamma$ (not easy to estimate)
+
+```{r}
+modelString = "
+  model {
+  	for( i in 1:N ) {
+			y[i] ~ dnorm(mu[i], tau)
+			mu[i] <- alpha - beta * pow(gamma, x[i])			
+		}
+
+		alpha ~ dflat()
+		beta  ~ dflat()
+		gamma ~ dunif(0.5, 1.0)
+    sigma ~ dunif(0.01, 100)
+    tau   <- 1/(sigma*sigma)  
+  }
+"
+
+x = c( 1.0,  1.5,  1.5,  1.5, 2.5,   4.0,  5.0,  5.0,   7.0,
+       8.0,  8.5,  9.0,  9.5, 9.5,  10.0, 12.0, 12.0,  13.0,
+       13.0, 14.5, 15.5, 15.5, 16.5, 17.0, 22.5, 29.0, 31.5)
+
+y = c(1.80, 1.85, 1.87, 1.77, 2.02, 2.27, 2.15, 2.26, 2.47,
+      2.19, 2.26, 2.40, 2.39, 2.41, 2.50, 2.32, 2.32, 2.43,
+      2.47, 2.56, 2.65, 2.47, 2.64, 2.56, 2.70, 2.72, 2.57)
+
+data.list = list(
+  x = x,
+	y = y, 
+  N = length(x))
+
+# initializations (TODO: BUGS seems to crash with n.chains > 1 (?))
+n.chains <- 3
+alpha <- c(1,10,100)
+beta  <- c(1,10,100)
+gamma <- c(.9,.7,.5)
+sigma <- c(1,10,100)
+
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      alpha = alpha[i],
+      beta  = beta[i],
+      gamma = gamma[i],
+      sigma = sigma[i]
+    ) 
+  }
+}
+
+run.model(modelString, samples=c("alpha", "beta", "gamma", "sigma"), data=data.list, 
+          chainLength=50000, init.func=genInitFactory(), n.chains=1)
+
+samplesStats(c("alpha", "beta", "gamma", "sigma"))
+```
+
+So, let's plot the results:
+
+```{r}
+alpha.hat <- mean(samplesSample("alpha"))
+beta.hat  <- mean(samplesSample("beta"))
+gamma.hat <- mean(samplesSample("gamma"))
+
+plot(x,y,pch=19,xlab="Age (in years)", ylab="Size (in meters)",main="Dugong dataset")
+curve(alpha.hat - beta.hat * gamma.hat^x, from=0, to=35, col="red", lwd=2, add=T) # plot estimation
+
+# draw 2.5% and 97.5% growth curves
+alpha2.5 <- samplesStats(c("alpha"))$val2.5pc
+beta2.5  <- samplesStats(c("beta"))$val2.5pc
+gamma2.5 <- samplesStats(c("gamma"))$val2.5pc
+
+alpha97.5 <- samplesStats(c("alpha"))$val97.5pc
+beta97.5  <- samplesStats(c("beta"))$val97.5pc
+gamma97.5 <- samplesStats(c("gamma"))$val97.5pc
+
+curve(alpha97.5 - beta97.5 * gamma97.5^x, from=0, to=35, col="grey", lwd=2, lty=2, add=T) 
+curve(alpha2.5  - beta2.5  * gamma2.5^x,  from=0, to=35, col="grey", lwd=2, lty=2, add=T)
+```
+
+Generalized Linear Modelling
+-----------------
+
+Linear Regression predicts that the expected value of the dependent/response variable $y$ is a linear combination of the independent/observed variables $x_i$. This is appropriate when the response variable is modelled by a normal distribution. If this does not happen, linear regression is not suitable.
+
+If, for eg, the response $y$ is an exponential combination of $x$, then it is its logarithm that has a linear combination. This is called a log-linear model.
+
+Another eg is if $y$ is a boolean response. Then, say, if an increase of $x$ increases the probability of $y=1$, then the response might be a linear combination of the odds or the logarithm of the odds. This last eg is called a log-odds (aks logit) model.
+
+Generalized Linear Modelling (GLM) is a generalization of linear regression in the sense that it allows $y$ to have an arbitrary distribution, and that a certain function $g$ of $y$ to vary linearly with $x$. The function $g$ is called the *link function*.
+
+For the previous exponential eg $y$ can be modelled by a Poisson and $g(x)=log(x)$. For the 2nd eg, $y$ might be modelled by a Bernoulli while the link function is $g(x)=logit(x)=log(x/(1-x))$
+
+The GLM assumes $Y$ has distribution from the exponential family, like a Bernoulli, Binomial, Poisson, Exponential, Laplace, Normal, Gamma, ...
+
+$$E[Y_i] = g^{-1}(\beta_0 + \sum_k \beta_k x_{ki})$$
+
+For GLM to work there's the need of a distribution for $Y$, a link function $g$, and the linear predictor which can be found using several techniques, herein we'll use BUGS (surprise!).
+
+GLM with a Bernoulli: Logistic Regression
+----------------
+
+Assume we have a binary version of the previous dugong dataset, considering only a criteria to decide if a dugong is full grown (we no longer have access to $y_i$). In this case, our new response $Z$ is defined as $1$ if $y>2.4$, or $0$ otherwise:
+
+```{r}
+z <- as.numeric(y>2.4)
+z
+```
+
+To apply GLM (cf. section above) we choose:
+
++ $Y \sim$ Bernoulli
+
++ The logit link function
+
++ BUGS to find the linear predictor, ie, the values of $\beta$ 
+
+A logistic model for $p_i = P(Z_i=1|X_i)$ is
+
+$$logit(p_i) = \log(\frac{p_i}{1-p_i}) = \beta_0 + \beta_1 \log(x_i)$$
+
+```{r}
+modelString = "
+  model {
+    for( i in 1:N) {    
+      z[i] ~ dbern( p[i] )
+
+      # necessary to subtract the mean (ie, center x) to prevent MCMC convergence issues
+      logit(p[i]) <- beta0 + beta1 * (logAge[i] - mean(logAge[]))  # logistic model
+      logAge[i]  <- log(x[i])    
+    }
+
+    beta0 ~ dflat()
+    beta1 ~ dflat()
+  }
+"
+
+data.list = list(
+  x = x,
+  z = z, 
+  N = length(x))
+
+# initializations
+beta0  <- c(0)
+beta1  <- c(0)
+
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      beta0 = beta0[i],
+      beta1 = beta1[i]
+    ) 
+  }
+}
+
+run.model(modelString, samples=c("beta0", "beta1"), data=data.list, 
+          chainLength=50000, init.func=genInitFactory(), n.chains=1)
+
+samplesStats(c("beta0", "beta1"))
+```
+
+Plotting the results:
+
+```{r}
+beta0.hat  <- mean(samplesSample("beta0"))
+beta1.hat  <- mean(samplesSample("beta1"))
+
+plot(x,z,pch=19,xlab="Age (in years)", ylab="Adult", main="Dugong dataset")
+# draw the estimated values for E[Y_i] (it is a logistic curve)
+xs <- seq(0.1,32,.1)
+exp.logit <- exp( beta0.hat + beta1.hat*(log(xs) - mean(log(x))) )
+lines(xs,exp.logit/(1+exp.logit), col="red", lwd=2) # plot estimation 
+```
+
+For instance, what is the probability that a dugong with $8$ years is full grown?
+
+```{r}
+x.new <- 8
+exp.logit.new <- exp( beta0.hat + beta1.hat*(log(x.new) - mean(log(x))) )
+exp.logit.new/(1+exp.logit.new)
+```
+
+GLM: Poisson Regression
+----------------
+
+In Poisson Regression, usually used to express number of successes within a fixed time interval, we choose:
+
++ $Y_i \sim$ Poisson($\lambda_i$)
+
++ The log link function
+
++ BUGS to find the linear predictor, ie, the values of $\beta$ 
+
+A log-linear model for $\lambda$ is
+
+$$\log(\lambda_i) = \beta_0 + \beta_1 x_i$$
+ 
+```{r}
+set.seed(101)
+n <- 20
+x <- runif(n,0,30)
+beta.0 <- -4
+beta.1 <- 0.3
+y <- exp( beta.0 + beta.1*x + rpois(n,1.0) )
+plot(x,y,pch=19)
+xs <- seq(.1,30,len=101)
+lines(xs,exp(beta.0 + beta.1*xs),lwd=2,col="blue")
+
+modelString = "
+  model {
+    for( i in 1:N) {    
+      y[i] ~ dpois( lambda[i] )
+
+      log(lambda[i]) <- beta0 + beta1 * x[i]
+    }
+
+    beta0 ~ dnorm(0,0.0001)
+    beta1 ~ dnorm(0,0.0001)
+  }
+"
+
+data.list = list(
+  x = x,
+  y = y, 
+  N = n)
+
+# initializations
+beta0  <- c(0)
+beta1  <- c(1)
+
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      beta0 = beta0[i],
+      beta1 = beta1[i]
+    ) 
+  }
+}
+
+run.model(modelString, samples=c("beta0", "beta1"), data=data.list, 
+          chainLength=250000, init.func=genInitFactory(), n.chains=1)
+
+samplesStats(c("beta0", "beta1"))
+
+beta0.hat  <- mean(samplesSample("beta0"))
+beta1.hat  <- mean(samplesSample("beta1"))
+
+plot(x,y,pch=19)
+xs <- seq(.1,30,len=101)
+lines(xs,exp(beta.0 + beta.1*xs),lwd=2,col="blue")      # target function
+lines(xs,exp(beta0.hat + beta1.hat*xs),lwd=2,col="red") # proposed function
+```
+

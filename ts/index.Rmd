@@ -1,0 +1,372 @@
+---
+title: "Time Series"
+author: "João Neto"
+date: "October 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: yes
+---
+
+Refs:
+
++ [http://a-little-book-of-r-for-time-series.readthedocs.org/en/latest/src/timeseries.html](http://a-little-book-of-r-for-time-series.readthedocs.org/en/latest/src/timeseries.html)
+
++ [http://www.statoek.wiso.uni-goettingen.de/veranstaltungen/zeitreihen/sommer03/ts_r_intro.pdf](http://www.statoek.wiso.uni-goettingen.de/veranstaltungen/zeitreihen/sommer03/ts_r_intro.pdf)
+
++ Also check packages: zoo, [xts](http://cran.r-project.org/web/packages/xts/vignettes/xts.pdf) and [Quandl](https://www.quandl.com/help/r).
+
+Introduction
+------
+
+Time series are different than usual dataseries because there usually contain periodic patterns (weekly, yearly...). To find these patterns its needed different types of analysis, since instead of assuming the sequence of observations does not matter, we are assuming that it matters, old observations help predict new ones.
+
+Time series $X_t$ usually have two or three components
+
++ Trend component $T_t$
+
++ Seasonal component $S_t$
+
++ Irregular or residual component $e_t$
+
+A time series with seasonal component is called seasoned data (eg, sales per month). Some data series does not have a seasonal component (eg, a population mortality average).
+
+R has a class time series named `ts`:
+
+```{r}
+my.data <- round( sin( (0:47 %% 12)+1 ) + runif(48)  ,1) # some periodic data
+# make a time series with 48 observations from January 2009 to December 2014
+my.ts <- ts(my.data, start=c(2009, 1), end=c(2014, 12), frequency=12)
+my.ts
+plot(my.ts)
+ts(my.data, end=c(2009,1), frequency=4) # ts is smart and go back in time if we just give the 'end' parameter
+```
+
+`window` makes a subset of a timeseries:
+
+```{r}
+plot( window(my.ts, start=c(2014, 6), end=c(2014, 12)) )
+```
+
+Other operations:
+
+```{r}
+time(my.ts)                # creates the vector of times at which a time series was sampled.
+cycle(my.ts)               # gives the positions in the cycle of each observation.
+ts1 <- lag(my.ts, k=12)    # lagged version of time series, shifted back k observations
+plot(my.ts, , lwd=2, main="comparisation with next year")
+points(ts1, type="l", col="red")
+ds <- diff(my.ts, d=1)     # difference vector the time series, d times
+plot( ds )               
+```
+
+Preliminary Analysis of Time Series
+-----------------
+
+```{r}
+tui <- read.csv("tui.csv", header=T, dec=",", sep=";")
+head(tui)
+plot(tui[,5], type="l",lwd=2, col="red", xlab="time", ylab="closing values", main="Stock data of TUI AG", ylim=c(0,60) )
+hist(diff(tui[,5]),prob=T,ylim=c(0,0.65),xlim=c(-4.5,4.5),col="grey", breaks=20, main=" histogram of the differences")
+lines(density(diff(tui[,5])),lwd=2)
+points(seq(-4.5,4.5,len=100),dnorm(seq(-4.5,4.5,len=100), mean(diff(tui[,5])), sd(diff(tui[,5]))), col="red", type="l",lwd=2)
+```
+
+The Kolgomorov-Smirnoff test checks is a sample -- in this case the differences between consecutive values of the time series -- follows a specific distribution:
+
+```{r}
+ds <- diff(log(tui[,5]))
+ks.test(ds, "pnorm", mean(ds), sd(ds))          # it seems so
+qqnorm(diff(tui[,5])); abline(0,1,col="red")  # another normality test, this time visual
+shapiro.test(ds)  # test for normality (should fail for ds with p-value >= 0.05)
+```
+
+Linear Filtering
+--------------
+
+A common method to extract the trend component $T_t$ from time series $X_t$ is to apply filters,
+$$T_t = \sum_{i=-\infty}^{+\infty} \lambda_iX_{t+i}$$
+
+A common method is **moving averages**:
+$$T_t = \frac{1}{2a+1} \sum_{-a}^a X_{t+i}$$
+
+In R this is done with `filter`:
+
+```{r}
+a <- 20; tui.ma1 <- filter(tui[,5], filter=rep(1/a,a)) # check also package TTR about functions SMA et al.
+a <- 50; tui.ma2 <- filter(tui[,5], filter=rep(1/a,a)) 
+ts.plot(tui[,5], tui.ma1, tui.ma2, col=1:3, lwd=c(1,2,2))
+```
+
+Function `stl` performs a seasonal decomposition of $X_t$ by determining $T_t$ using a loess regression (linear regression 'plus' k-nearest-neighbors), and then calculating the seasonal component $S_t$ and residuals $e_t$ from the differences $X_t-T_t$.
+
+An eg:
+
+```{r, fig.height=10}
+beer <- read.csv("beer.csv", header=T, dec=",", sep=";")
+beer <- ts(beer[,1],start=1956,freq=12)
+plot(stl(log(beer), s.window="periodic"))
+```
+
+Using Linear Regression
+------------
+
+Let's say we would want to fit the beer time series by the following model:
+
+$$log(X_t) = \alpha_0 + \alpha_1 t + \alpha_2 t^2 + e_t$$
+
+```{r, fig.width=12}
+logbeer <- log(beer)
+
+t  <- seq(1956, 1995.2, len=length(beer))
+t2 <- t^2
+model <- lm(logbeer ~ t + t2)
+
+plot(logbeer)
+lines(t, model$fit, col="red", lwd=2)
+```
+
+But we are not considering the seasonal component. So let's improve the model adding the first Fourier harmonics, $cos(2\pi t/P)$ and $sin(2\pi t/P$ where $P$ is $12$ given the data is in months:
+
+$$log(X_t) = \alpha_0 + \alpha_1 t + \alpha_2 t^2 + \beta \cos(\frac{2\pi}{12}) + \gamma \sin(\frac{2\pi}{12}) + e_t$$
+
+```{r, fig.width=12}
+cos.t <- cos(2*pi*t) # the period P=12 is already included in the time series
+sin.t <- sin(2*pi*t)
+model <- lm(logbeer ~ t + t2 + cos.t + sin.t)
+
+plot(logbeer)
+lines(t, model$fit, col="red", lwd=2)
+```
+
+We can check what coefficients are significant:
+
+```{r}
+summary(model)
+```
+
+The only coefficient that seems to not differ significantly from zero is the cosine component.
+
+Exponential Smoothing
+------------
+
+One way to estimate the next value of a time series $x_t$ is $$\hat{x} = \lambda_1 x_{t-1} + \lambda_2 x_{t-2} + \ldots$$
+
+It seems reasonable to weight recent observations more than observations less recent. One possibility is to use geometric weights: $$\lambda_i = \alpha(1-\alpha)^i;~~ 0 \lt \alpha \lt 1$$
+
+This is called **exponential smoothing** and, in its basic form, should be used with time series with no trend or seasonal components. This method, however, has been extended to the [Holt-Winters smoothing](http://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing) that accepts time series with those components.
+
+This method has three parameters, $\alpha, \beta, \gamma$. When $\gamma=FALSE$ the function assumes no seasonal component.
+
+```{r, fig.width=12}
+model <- HoltWinters(beer)
+plot(beer)
+lines(model$fitted[,"xhat"], col="red")
+```
+
+To predict the next values in the time series:
+
+```{r, fig.width=12}
+pred <- predict(model, n.ahead=24) # values for the next 24 months
+plot(beer, xlim=c(1956,1997))
+lines(pred, col="red", lty=2)
+```
+
+An eg with the `tui` time series which does not seem to have a seasonal component:
+
+```{r}
+model <- HoltWinters(tui[,5], gamma=FALSE)
+plot(tui[,5], type="l",xlim=c(0,length(tui[,5])+36))
+lines(model$fitted[,"xhat"], col="red")
+pred <- predict(model, n.ahead=36)
+lines(pred, col="red", lty=2)
+```
+
+Function `forecast` adds a significance interval to the prediction:
+
+```{r, warning=FALSE}
+library(forecast)
+plot(forecast(model, h=40, level=c(75,95))) # the next 40 data points using 75% and 95% confidence intervals
+```
+
+There is also function `ets` that returns an exponential smoothing model:
+
+```{r}
+fit <- ets(my.ts) # Automated forecasting using an exponential model
+plot(forecast(fit, level=c(75,95))) # using 75% and 95% confidence intervals
+```
+
+Detrending
+----
+
+It's possible to remove the trend component using `decompose` or `stl`:
+
+```{r}
+report <- decompose(beer, type="multiplicative")
+plot(beer - report$trend, main="signal without trend component")
+plot(report$seasonal, main="signal without trend and irregular components")
+
+report <- stl(beer, s.window="periodic")
+plot(beer - report$time.series[,"trend"], type="l", main="signal without trend component")
+plot(report$time.series[,"seasonal"], type="l", main="signal without trend and irregular components")
+```
+
+Those functions only work with detectable seasonal signals. It's still possible to detrend using the residuals of a linear regression:
+
+```{r}
+idxs  <- 1:nrow(tui)
+trend <- lm(tui[,"close"] ~ idxs)
+plot(tui[,5], type="l")
+abline(trend, col="red", lwd=2)
+detrended <- trend$residuals
+plot(detrended, type="l")
+```
+
+We can also use Fourier Analysis to find some pattern in the seasonal (plus irregular) component:
+
+```{r, warning=FALSE}
+library(GeneCycle)
+
+f.data <- GeneCycle::periodogram(detrended)
+harmonics <- 1:30   # find patterns up to one month
+plot(f.data$freq[harmonics]*length(detrended), 
+     f.data$spec[harmonics]/sum(f.data$spec), 
+     xlab="Harmonics (Hz)", ylab="Amplitute Density", type="h")
+```
+
+ARIMA models
+----------
+
+[ARIMA](http://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average) means Autoregressive integrated moving average. While exponential smoothing methods do not make any assumptions about correlations between successive values of the time series, in some cases you can make a better predictive model by taking correlations in the data into account. ARIMA models include an explicit statistical model for the irregular component of a time series, that allows for non-zero autocorrelations in the irregular component.
+
+It consists of three stages
+
+1. Model Identification
+
+2. Parameter Estimation
+
+3. Diagnostic Checking
+
+These stages are repeated until a 'suitable' model is identified.
+
+ARIMA models have three parameters, ARIMA($p$,$d$,$q$). Parameter $p$ concerns the AR part (the autoregression), parameter $d$ the I part, and $q$ the MA (moving average).
+
+For this eg the data is from the age of death of 42 successive kings of England:
+
+```{r}
+kings <- scan("kings.dat",skip=3)
+plot(kings, type="l", main="Age of death of 42 successive kings of England")
+```
+
+ARIMA models are defined for stationary time series, ie, the statistical properties -- mean and variance in our case -- do not change over time. If you start off with a non-stationary time series, you will first need to 'difference' the time series until you obtain a stationary time series. If you have to difference the time series d times to obtain a stationary series, then you have an ARIMA(p,d,q) model, where d is the order of differencing used.
+
+`Box.test` tests whether there is significant evidence for non-zero correlations at lags autocorrelation coefficients. Small p-values (i.e., less than 0.05) suggest that the series is stationary.
+
+```{r, warning=FALSE}
+kings.dif <- diff(kings, d=1)
+Box.test(kings.dif, lag=10)
+kings.dif <- diff(kings, d=2)
+Box.test(kings.dif, lag=10)
+kings.dif <- diff(kings, d=3)
+Box.test(kings.dif, lag=10)
+plot(kings.dif, type="l")
+# other tests
+library(fpp)
+adf.test(kings.dif, alternative="stationary") # small p-values suggest the data is stationary
+kpss.test(kings.dif) # small p-values suggest that the series is not stationary and a differencing is required
+```
+
+So, in this case we are going to use $d=3$, this means ARIMA($p$,3,$q$) models.
+
+The next step is to find appropriate values for $p$ and $q$. For this we start by plotting the a correlogram and partial correlogram of the time-series, which is done by `acf` and `pacf`. The get the values use function parameter `plot=FALSE`:
+
+```{r}
+acf(kings.dif,  lag.max=20)
+acf(kings.dif,  lag.max=20, plot=FALSE)
+pacf(kings.dif, lag.max=20)
+pacf(kings.dif, lag.max=20, plot=FALSE)
+```
+
+Only the correlation at lag $1$ exceeds the significance bounds. The partial correlogram shows that the partial autocorrelations at lags 1, 2 and 3 exceed the significance bounds, are negative, and are slowly decreasing in magnitude with increasing lag.
+
+Since the correlogram is zero after lag 1, and the partial correlogram tails off to zero after lag 3, this means that the following ARMA (autoregressive moving average) models are possible for the time series of third differences:
+
++ an ARMA(3,0) model, that is, an autoregressive model of order p=3, since the partial autocorrelogram is zero after lag 3, and the autocorrelogram tails off to zero (although perhaps too abruptly for this model to be appropriate)
+
++ an ARMA(0,1) model, that is, a moving average model of order q=1, since the autocorrelogram is zero after lag 1 and the partial autocorrelogram tails off to zero
+
++ an ARMA(p,q) model, that is, a mixed model with p and q greater than 0, since the autocorrelogram and partial correlogram tail off to zero (although the correlogram probably tails off to zero too abruptly for this model to be appropriate)
+
+We use the principle of parsimony to decide which model is best: that is, we assume that the model with the fewest parameters is best. The ARMA(3,0) model has 3 parameters, the ARMA(0,1) model has 1 parameter, and the ARMA(p,q) model has at least 2 parameters. Therefore, the ARMA(0,1) model is taken as the best model.
+
+Finally the chosen model with be an ARIMA(0,3,1).
+
+There is a R function (surprise!) that finds an appropriate ARIMA model:
+
+```{r}
+library(forecast)
+report <- auto.arima(kings) #  parameter ic="bic"" penalises the number of parameters
+report
+```
+
+Knowing the parameters we use `arima` to fit this model to the original time series:
+
+```{r}
+kings.arima <- arima(kings, order=c(0,1,1))
+kings.arima
+kings.forecast <- forecast.Arima(kings.arima, h=5, level=c(.75, .90, .99))  # confidence levels
+kings.forecast
+plot.forecast(kings.forecast)
+```
+
+It is a good idea to investigate whether the forecast errors of an ARIMA model are normally distributed with mean zero and constant variance, and whether the are correlations between successive forecast errors.
+
+```{r}
+acf(kings.forecast$residuals, lag=20) # seems ok
+Box.test(kings.forecast$residuals, lag=20, type="Ljung-Box")
+```
+
+Since the p-value for the Ljung-Box test is 0.85, we can conclude that there is very little evidence for non-zero autocorrelations in the forecast errors at lags 1-20.
+
+```{r}
+# investigate whether the forecast errors are normally distributed with mean zero and constant variance
+plotForecastErrors <- function(forecasterrors)
+  {
+     # make a histogram of the forecast errors:
+     mybinsize <- IQR(forecasterrors)/4
+     mysd   <- sd(forecasterrors)
+     mymin  <- min(forecasterrors) - mysd*5
+     mymax  <- max(forecasterrors) + mysd*3
+     # generate normally distributed data with mean 0 and standard deviation mysd
+     mynorm <- rnorm(10000, mean=0, sd=mysd)
+     mymin2 <- min(mynorm)
+     mymax2 <- max(mynorm)
+     if (mymin2 < mymin) { mymin <- mymin2 }
+     if (mymax2 > mymax) { mymax <- mymax2 }
+     # make a red histogram of the forecast errors, with the normally distributed data overlaid:
+     mybins <- seq(mymin, mymax, mybinsize)
+     hist(forecasterrors, col="red", freq=FALSE, breaks=mybins)
+     # freq=FALSE ensures the area under the histogram = 1
+     # generate normally distributed data with mean 0 and standard deviation mysd
+     myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
+     # plot the normal curve as a blue line on top of the histogram of forecast errors:
+     points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+  }
+
+plotForecastErrors(kings.forecast$residuals)
+```
+
+Autoregressive model
+-----------
+
+Find an autoregressive model for the time series, and predict future observations:
+
+```{r}
+my.ts <- ts(my.data, start=c(2009, 1), end=c(2014, 12), frequency=12) # using the sine data
+ar.model <- ar(my.ts)       
+pred <- predict(ar.model, n.ahead=12)
+ts.plot(my.ts, pred$pred, lty=c(1:2), col=1:2)
+```

@@ -1,0 +1,297 @@
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = FALSE, echo = TRUE,
+               fig.width = 10, fig.height = 5)
+```
+
+Optimization
+========================================================
+
+ref:
++ [http://horicky.blogspot.pt/2013/01/optimization-in-r.html](http://horicky.blogspot.pt/2013/01/optimization-in-r.html)
+
+Check [http://cran.r-project.org/web/views/Optimization.html](CRAN Task View: Optimization and Mathematical Programming) for a more complete information about optimization functions available in R.
+
+Optimization refers to the case where we have variables $x_1, \ldots, x_n$ that we can assign values and we want to minimize or maximize a certain objective function $f(x_1, \ldots, x_n)$
+
+Unconstrained optimization
+--------------------------
+
+In this case there is no restriction for the values of $x_i$.
+
+A typical solution is to compute the gradient vector of the objective function [$\delta f/\delta x_1, \ldots, \delta f/\delta x_n$] and set it to [$0, \ldots, 0$].  Solve this equation and output the result $x_1, \ldots, x_n$ which will give the local maximum.
+
+Eg in R to find the minimum of function $f(x_1,x_2) = (x_1-5)^2 + (x_2-6)^2$:
+
+```{r}
+f <- function(x) { (x[1] - 5)^2 + (x[2] - 6)^2 }
+initial_x <- c(10, 11)
+x_optimal <- optim(initial_x, f, method="CG") # performs minimization
+x_min <- x_optimal$par
+x_min
+```
+
+Using simulated annealing to find the minimum of a wild function with a global minimum at about -15.81515:
+```{r}
+fw <- function (x) { 10*sin(0.3*x)*sin(1.3*x^2) + 0.00001*x^4 + 0.2*x+80 }
+plot(fw, -50, 50, n = 1000, main = "optim() minimising 'wild function'")
+abline(v=-15.81515,lty=3,col="red")
+res <- optim(50, fw, method = "SANN", control = list(maxit = 20000, temp = 20, parscale = 20))
+res$par
+```
+
+Function `optim()` has lots of options. Check its help file.
+
+Equality constraint optimization
+--------------------------------
+
+Now $x_1, \ldots, x_n$ are not independent in some particular way: 
++ $g_1(x_1, \ldots, x_n) = 0$
++ $\ldots$
++ $g_k(x_1, \ldots, x_n) = 0$
+
+This can be solved by Linear Programming (check below)
+
+Another way is to transform the objective function into
+$$f^*(x_1, \ldots, x_n, \lambda_1, \ldots, \lambda_k) = f(x_1, \ldots, x_n) + \lambda_1 g_1(x_1, \ldots, x_n) + \ldots + \lambda_k g_k(x_1, \ldots, x_n)$$
+
+making it an unconstrained optimization problem using [Lagrange multipliers](http://www.slimy.com/~steuard/teaching/tutorials/Lagrange.html) and to solve it for
+
+$$[\delta f/\delta x_1, \ldots, \delta f/\delta x_n, \delta f/\delta \lambda_1, \ldots, \delta f/\delta \lambda_k] = [0, \ldots, 0]$$
+
+Inequality constraint optimization
+--------------------------------
+
+We cannot use the Lagrange multiplier technique because it requires equality constraint.  There is no general solution for arbitrary inequality constraints.
+
+However, we can put some restriction in the form of constraint.  In the following, if we restrict the constraints _and_ the objective function to be linear functions of the variables then the problem can be solved again by Linear Programming
+
+Linear Programming
+----------------------
+
+Linear Programming (LP) works when the objective function is a linear function. The constraint functions are also linear combination of variables.
+
+The first part of the next code sets this problem:
+
+$$
+\left\{
+ \begin{array}{rl}
+   6c_1 + 2c_2 + 4c_3 & \leq 150 \\
+    c_1 +  c_2 + 6c_3 & \geq 0 \\
+   4c_1 + 5c_2 + 4c_3 & = 40 
+ \end{array} \right. 
+$$ 
+
+with the following objective function:
+
+$$minimize: -3c_1 -4c_2 -3c_3$$
+
+The result should be the following:
+
+$$c_1 = 0 \wedge c_2 = 8 \wedge c_3 = 0$$
+
+```{r, tidy=FALSE}
+library(lpSolveAPI)
+
+lps.model <- make.lp(0, 3) # define 3 variables, the constraints are added below
+add.constraint(lps.model, c(6,2,4), "<=", 150)
+add.constraint(lps.model, c(1,1,6), ">=",   0)
+add.constraint(lps.model, c(4,5,4), "=" ,  40)
+# set objective function (default: find minimum)
+set.objfn(lps.model, c(-3,-4,-3))  
+# write model to a file
+write.lp(lps.model,'model.lp',type='lp')
+
+# these commands defines the model 
+# /* Objective function */
+#   min: -3 C1 -4 C2 -3 C3;
+# 
+# /* Constraints */
+# +6 C1 +2 C2 +4 C3 <= 150;
+# +  C1 +  C2 +6 C3 >=   0;
+# +4 C1 +5 C2 +4 C3  =  40;
+#
+# writing it in the text file named 'model.lp'
+solve(lps.model)
+# Retrieve the var values from a solved linear program model 
+get.variables(lps.model)  # check with the solution above!
+# another eg
+lps.model2 <- make.lp(0, 3)
+add.constraint(lps.model2, c(1, 2, 3), "<=", 14)
+add.constraint(lps.model2, c(3,-1,-6), ">=",  0)
+add.constraint(lps.model2, c(1,-1, 0), "<=",  2)
+set.objfn(lps.model2, c(3,4), indices = c(1,2)) # does not use C3
+lp.control(lps.model2,sense='max')     # changes to max: 3 C1 + 4 C2 
+write.lp(lps.model2,'model2.lp',type='lp')
+solve(lps.model2)
+get.variables(lps.model2)
+```
+
+Quadratic Programming
+---------------------
+
+Quadratic Programming (QP) works when the objective function is a quadratic function, ie, contains up to two ter products. Here the constraint functions are still linear combination of variables.
+
+We can express the problem in matrix form.
+
+Minize objective: $$\frac{1}{2} X^T D X - d^T X$$ where $X$ is the vector $[x_1,\ldots,x_n]^T$, $D$ is the matrix of weights of each par $x_ix_j$ and $d$ are the weights for each $x_i$. The $\frac{1}{2}$ comes from the fact that $D$ is simmetric and so, each $x_ix_j$ is counted twice.
+
+with constraints: $$A^T X [ = | \geq ]~b$$, where the first $k$ operators are equality, the others are $\geq$ and $b$ the values the constraints should be equal to.
+
+An eg of a QP objective function:
+$$f(x_1, x_2, x_3) = 2.x_1^2  - x_1x_2 - + 2 x_2^2 + x_2x_3 + 2x_3^2 - 5.x_2 + 3.x_3$$
+Subject to constraints:
++ $-4x_1 + -3x_2 = -8$
++ $2x_1 + x_2 = 2$
++ $-2x_2 + x_3 \geq 0$
+
+In R:
+
+```{r}
+library(quadprog)
+Dmat       <- matrix(c( 2,-1, 0,
+                       -1, 2,-1,
+                        0,-1, 2),3,3)
+dvec       <- c(0,-5,3)
+Amat       <- matrix(c(-4,-3,0,
+                        2, 1,0,
+                        0,-2,1),3,3)
+bvec       <- c(-8,2,0)
+n.eqs      <- 2 # the first two constraints are equalities
+sol <- solve.QP(Dmat,dvec,Amat,bvec=bvec,meq=2)
+sol$solution
+sol$value
+```
+
+So, the solution is $x_1=-1$, $x_2=4$ and $x_3=8$ with a minimum of $49$.
+
+In QP if $D$ is a definitive positive matrix (ie, $X^T D X \gt 0$, for all non-zero $X$) the problem is solved in polinomial time. if not QP is NP-Hard. If $D$ has only one negative eigenvalue, the problem is NP-hard. 
+
+Function `solve.QP()` expects a definitive positive matrix $D$.
+
+General Non-linear Optimization
+----------------------------
+
+Package Rsolnp provides function `solnp()` which solves the general nonlinear programming problem:
+
+$$min f(x)$$
+
+such that
+
+$$g(x)=0$$
+$$l_h \leq h(x) \leq u_h$$
+$$l_x \leq x \leq u_x$$
+
+where $f(x), g(x), h(x)$ are smooth functions.
+
+Let's see some example of use (egs from [here](http://tutorial.math.lamar.edu/Classes/CalcIII/LagrangeMultipliers.aspx) and [here](www.stanford.edu/~yyye/matlab/manual.ps)).
+
++ Example 1: minimize $f(x,y)=5x-3y$, constrained by $x^2+y^2=136$ which has solution (-10,6).
+
+```{r}
+library("Rsolnp")
+
+fn <- function(x) { # f(x,y) = 5x-3y
+  
+  5*x[1] - 3*x[2]
+}
+
+# constraint z1: x^2+y^2=136
+
+eqn <- function(x) { 
+  
+  z1=x[1]^2 + x[2]^2
+    
+  return(c(z1))
+}
+constraints = c(136)
+
+x0 <- c(1, 1) # setup init values
+sol1 <- solnp(x0, fun = fn, eqfun = eqn, eqB = constraints)
+sol1$pars
+```
+
++ Example 2: minimize $f(x,y) = 4x^2 + 10y^2$ with $x^2+y^2 \leq 4$ (notice the inequality) which has a minimumm at the origin.
+
+```{r}
+fn <- function(x) {  # f(x,y) = 4x^2 + 10y^2
+
+  4*x[1]^2 + 10*x[2]^2
+}
+
+# constraint z1: x^2+y^2 <= 4
+
+ineq <- function(x) { 
+  
+  z1=x[1]^2 + x[2]^2
+    
+  return(c(z1))
+}
+
+lh <- c(0)
+uh <- c(4)
+
+x0 = c(1, 1) # setup init values
+sol1 <- solnp(x0, fun = fn, ineqfun = ineq, ineqLB = lh, ineqUB=uh)
+sol1$pars
+```
+
+The result is quite close to $(0,0)$.
+
+We can give some extra controls tot he procedure, like `TOL` which defines the tolerance for optimality (which impacts on the convergence steps) or `trace=0` is switches off the printing of the major iterations. Eg:
+
+```{r}
+ctrl <- list(TOL=1e-15, trace=0)
+sol2 <- solnp(x0, fun = fn, ineqfun = ineq, ineqLB = lh, ineqUB=uh, control=ctrl)
+sol2$pars
+```
+
++ Example 3: minimize $f(X) = -x_1 x_2 x_3$ such that $4x_1x_2+2x_2x_3+2x_3x_1 = 100$ and $1 \leq x_i \leq 10, i = 1,2,3$
+
+
+
+```{r}
+fn <- function(x,...){
+  -x[1]*x[2]*x[3]
+}
+
+eqn <- function(x,...){
+	4*x[1]*x[2]+2*x[2]*x[3]+2*x[3]*x[1]
+}
+constraints = c(100)
+
+lx <- rep(1,3)
+ux <- rep(10,3)
+
+pars <- c(1.1,1.1,9) # tricky setup
+ctrl <- list(TOL=1e-6, trace=0)
+sol3 <- solnp(pars, fun=fn, eqfun=eqn, eqB = constraints, LB=lx, UB=ux, control=ctrl)
+sol3$pars
+```
+
+The initial parameters can be sensible if the objective function is not smooth or there are many local minima. Check function `gosolnp()` that generates initial parameters (see [manual](http://cran.r-project.org/web/packages/Rsolnp/index.html) for more info).
+
++ Example 4: minimize $f(x,y,z) = 4y-2z$ subject to $2x-y-z=2$ and $x^2+y^2=1$.
+
+```{r}
+fn <- function(x)  # f(x,y,z) = 4y-2z
+{
+  4*x[2] - 2*x[3]
+}
+
+# constraint z1: 2x-y-z  = 2 
+# constraint z2: x^2+y^2 = 1
+eqn <- function(x){ 
+  z1=2*x[1] - x[2] - x[3]
+  z2=x[1]^2 + x[2]^2
+  
+  return(c(z1,z2))
+}
+constraints <- c(2,1)
+
+x0 <- c(1, 1, 1)
+ctrl <- list(trace=0)
+sol4 <- solnp(x0, fun = fn, eqfun = eqn, eqB = constraints, control=ctrl)
+sol4$pars
+```

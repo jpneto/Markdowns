@@ -1,0 +1,168 @@
+---
+title: "Mixture of Gaussians"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 5
+    fig_height: 5
+cache: yes
+---
+
+Ref: 
+
++ Bishop, Pattern Matching and ML, chapter 9.
+
+This first function generates a dataset from a mixture of Gaussians:
+
+```{r}
+# generating n datapoints from a mixture of K Gaussians with dimensions d
+# k  : the respective datapoint classes
+# mu : kxd matrix with means
+# sig: kxdxd matrix with dxd covariate matrices
+gen.mix <- function(n, k, mu, sig) {
+  library(MASS)
+
+  d <- length(mu[1,])  # number of dimensions
+  result <- matrix(rep(NA,n*d), ncol=d)
+  colnames(result) <- paste0("X",1:d)
+  
+  for(i in 1:n) {
+    result[i,] <- mvrnorm(1, mu = mu[k[i],], Sigma=sig[,,k[i]])
+  }
+  
+  result
+}
+```
+
+So, let's make one dataset from a mixture of three gaussians to try our stuff:
+
+```{r}
+set.seed(101)
+n <- 360
+
+mu <- matrix(c(4.0,4.0,
+               5.0,5.0,
+               6.5,  5), ncol=2, byrow=T)
+
+sigs <- array(rep(NA,2*2*3), c(2,2,3))  # 3D matrix
+sigs[,,1] <- matrix(c(.25, .21, .21,.25), nrow=2, byrow=TRUE)
+sigs[,,2] <- matrix(c(.25,-.21,-.21,.25), nrow=2, byrow=TRUE)
+sigs[,,3] <- matrix(c(.25, .21, .21,.25), nrow=2, byrow=TRUE)
+
+pi <- c(.2,.5,.3) # mixing coeffs
+classes <- sample(1:3, n, replace=TRUE, prob=pi)
+
+mydata <- gen.mix(n, classes, mu, sigs)
+```
+
+We can plot the **complete dataset**, i.e., including the distribution that produced each datapoint:
+
+```{r}
+plot(mydata, col=c("red","green","blue")[classes], xlab="X1", ylab="X2", pch=19)
+```
+
+But usually we do not know the details of the mixing process, so we only have the **incomplete dataset**:
+
+```{r}
+plot(mydata, col="black", xlab="X1", ylab="X2", pch=19)
+```
+
+## The Model
+
+If we decide to model the previous dataset as a mixture of $K$ Gaussians, then for a given datapoint $x$:
+
+$$p(x) = \sum_{i=1}^K p(K=i)p(x|K=i) = \sum_{i=1}^K \pi_k \mathcal{N}(x|\mu_k,\Sigma_k)$$
+
+is a superposition of $K$ Gaussians. Each density $\mathcal{N}(x|\mu_k,\Sigma_k)$ is a **component** of the mixture with its own mean and covariance matrix. The parameters $\pi_k$ are called the **mixing coefficients**, such that $\sum_k \pi_k = 1, \pi_k \geq=0$ ($\pi_k$ are probabilities).
+
+An important value is $\gamma_k(x) \equiv p(K=k|x)$ which is called the **responsability** of Gaussian $k$ over datapoint $x$. By Bayes theorem,
+
+$$\gamma_k(x) \equiv p(K=k|x) = \frac{p(K=k)p(x|K=k)}{\sum_i p(K=i)p(x|K=i)} = \frac{\pi_k \mathcal{N}(x|\mu_k,\Sigma_k)}{\sum_i \pi_i \mathcal{N}(x|\mu_i,\Sigma_i)}$$
+
+The parameters of this model are $\pi \equiv \{\pi_1,\ldots,\pi_K\}$, $\mu \equiv \{ \mu_1,\ldots,\mu_K \}$ and $\Sigma \equiv \{\Sigma_1,\ldots,\Sigma_k\}$.
+
+The log-likelihood of the dataset $X \equiv \{X_1,\ldots,X_N\}$ given the parameters is
+
+$$\log p(X|\pi,\mu\Sigma) = \sum_{n=1}^N \log \left\{ \sum_{k=1}^K \pi_k \mathcal{N}(x|\mu_k,\Sigma_k) \right\}$$
+
+Notice that there is not a closed-form analytic solution for the MLE. This is a good eg where the Expectation-maximization (EM) algorithm can find a numerical solution.
+
+## The EM solution
+
+We have an incomplete dataset $X$ with no information about which density produced each datapoint. Let's call the parameters $\theta = \{\pi,\mu,\Sigma\}$.
+
+So, we introduce a K-dimensional binary random variable $Z$, where each concretization $z$ consists of a vector of zeros except for one coordinate that has a one (eg for $K=5$, $z=(0,0,0,1,0)$). So, there are $K$ possible different states of $z$. Let's call $z_k$ the k-th coordinate of $z$.
+
+The marginal distribution is specified in terms of the mixing coefficient $$p(z_k=1) = \pi_k \iff p(z) = \prod_{k=1}^K \pi_k^{z_k}$$ since $z$ has zero everywhere else.
+
+The conditional distribution of $x$ given a value $z$ is $$p(x|z_k=1) = \mathcal{N}(x|\mu_k,\Sigma_k)$$
+which can be also stated as $$p(x|z) = \prod_{k=1}^K \mathcal{N}(x|\mu_k,\Sigma_k)^{z_k}$$
+
+With these two distributions we can compute the joint distribution $p(x,z)$
+
+$$p(x,z) = p(x|z)p(z) = \prod_{k=1}^K ( \pi_k \mathcal{N}(x|\mu_k,\Sigma_k) )^{z_k}$$
+
+The marginal distribution of $x$ becomes
+
+$$p(x) = \sum_z p(z)p(x|z) = \sum_{k=1}^k \pi_k \mathcal{N}(x|\mu_k,\Sigma_k)$$
+
+which corresponds to the original mixing Gaussian model from the previous section. This means that this new model with latent variables $z$ is equivalent to the original model.
+
+The advantage is that the original model could not be used with MLE, but this new model can be used in the [EM algorithm](http://www.di.fc.ul.pt/~jpn/r/EM/EM.html)!
+
+The likelihood of the complete dataset $\{X,Z\}$ is
+
+$$p(X,Z|\theta) = \prod_{n=1}^N \prod_{k=1}^K ( \pi_k^{z_k} \mathcal{N}(x|\mu_k,\Sigma_k) )^{z_k}$$
+
+so the log-likelihood:
+
+$$\log p(X,Z|\theta) = \sum_{n=1}^N \sum_{k=1}^K z_k \left\{ \log \pi_k + \log \mathcal{N}(x|\mu_k,\Sigma_k) \right\}$$ check and compare with the previous log-likelihood of incomplete dataset $X$; this one is much simpler for a MLE solution.
+
+Using the formulas for marginal $p(z)$ and the conditional $p(x|z)$, and Bayes theorem, we can find the posterior distribution
+
+$$p(Z|X,\theta) \propto \prod_{n=1}^N \prod_{k=1}^K ( \pi_k^{z_k} \mathcal{N}(x|\mu_k,\Sigma_k) )^{z_k}$$
+
+The e-step of the EM is finding the value
+
+$$E_{Z|X,\theta} [ \log p(X,Z|\theta) ] = \sum_{n=1}^N \sum_{k=1}^K \gamma_k(x_i) \left\{ \log \pi_k + \log \mathcal{N}(x|\mu_k,\Sigma_k) \right\}$$
+
+For that we need to compute each responsability $\gamma_k(x_i)$ using the current parameter values $\theta$. To recall the expression:
+
+$$\gamma_k(x) \equiv p(K=k|x) = \frac{p(K=k)p(x|K=k)}{\sum_i p(K=i)p(x|K=i)} = \frac{\pi_k \mathcal{N}(x|\mu_k,\Sigma_k)}{\sum_i \pi_i \mathcal{N}(x|\mu_i,\Sigma_i)}$$
+
+The m-step fixes the responsabilities and maximizes the previous expected value wrt $\theta$. These updates have closed-forms (we do not to compute the expected value):
+
++ $\mu_k = \frac{1}{N_k} \sum_{n=1}^N \gamma_k(x_i) x_n$
+
++ $\Sigma_k = \frac{1}{N_k} \sum_{n=1}^N \gamma_k(x_i) (x_n - \mu_k)(x_n - \mu_k)^T$
+
++ $\pi_k = \frac{N_k}{N}$
+
++ $N_k = \sum_{n=1}^N \gamma_k(x_i)$
+
+After an iteration (e-step plus m-step) we check if the parameters are within convergence tolerance, and if not, run another iteration.
+
+## Fitting mixtures with R
+
+The [package](http://cran.r-project.org/web/packages/mixtools/vignettes/mixtools.pdf) `mixtools` provides a set of functions for analyzing a variety of finite mixture models, and some functions use EM methods. 
+
+Herein, we use `mvnormalmixEM` which runs the EM algorithm for mixtures of multivariate normal distributions:
+
+```{r}
+library(mixtools)
+
+model <- mvnormalmixEM(mydata, k=3, epsilon=1e-04)
+model$mu
+model$sigma
+
+plot(model, which=2)
+head(model$posterior)
+
+pred <- apply(model$posterior, 1, function(row) which.max(row))
+table(classes, pred)
+```
+
+There is an error rate of `r 100*(round(18/n,2))`% (the different number labels are meaningless). This is a consequence that the point clouds of different classes mix with each other, which simply cannot be recovered with this model (and, arguably, not by any other).

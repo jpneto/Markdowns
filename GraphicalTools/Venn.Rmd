@@ -1,0 +1,161 @@
+---
+title: "Venn Diagrams"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Ref: [http://www.rpubs.com/kaz_yos/venn](http://www.rpubs.com/kaz_yos/venn)
+
+```{r, message=FALSE}
+library(VennDiagram)
+```
+
+```{r}
+grid.newpage() # make new page for plot, venn diagrams add to current plot
+venn.plot <- draw.single.venn(area      = 5,           # size of set
+                              category  = "\n\nClass XYZ",
+                              cat.cex   = 3,
+                              cat.pos   = 0,
+                              cat.dist  = -0.20,
+                              cat.col   = "white",
+                              lwd       = 5,           # width of the circle's circumference 
+                              lty       = "blank",     # type of circle's circumference
+                              cex       = 2,           # size of the area label
+                              label.col = "orange",
+                              fill      = "red",
+                              alpha     = 0.15         # transparecy
+                             )
+```
+
+```{r, eval=FALSE}
+# Writing to file
+png(filename = "Single_Venn_diagram.png");
+grid.draw(venn.plot);
+dev.off();
+```
+
+
+```{r}
+grid.newpage()
+venn.plot <- draw.pairwise.venn(area1      = 100,
+                                area2      = 70,
+                                cross.area = 30,
+                                category   = c("First", "Second"))
+grid.newpage()
+# switch off scaling
+venn.plot <- draw.pairwise.venn(area1      = 100,
+                                area2      = 70,
+                                cross.area = 30,
+                                category   = c("First", "Second"),
+                                scaled     = FALSE)
+```
+
+```{r}
+grid.newpage()
+## A more complicated diagram Demonstrating external area labels
+venn.plot <- draw.pairwise.venn(area1           = 100,
+                                area2           = 70,
+                                cross.area      = 68,
+                                category        = c("First", "Second"),
+                                fill            = c("blue", "red"),
+                                lty             = "blank",
+                                cex             = 2,
+                                cat.cex         = 2,
+                                cat.pos         = c(285, 105),
+                                cat.dist        = 0.09,
+                                cat.just        = list(c(-1, -1), c(1, 1)),
+                                ext.pos         = 30,
+                                ext.dist        = -0.05,
+                                ext.length      = 0.85,
+                                ext.line.lwd    = 2,
+                                ext.line.lty    = "dashed"
+                               )
+```
+
+```{r}
+grid.newpage()
+
+## Demonstrating an Euler diagram
+venn.plot <- draw.pairwise.venn(area1           = 100,
+                                area2           = 70,
+                                cross.area      = 0,
+                                category        = c("First", "Second"),
+                                cat.pos         = c(0, 180),
+                                euler.d         = TRUE,
+                                sep.dist        = 0.03,
+                                rotation.degree = 45
+                               )
+```
+
+```{r}
+grid.newpage()
+venn.plot <- draw.triple.venn(area1           = 4,
+                              area2           = 3,
+                              area3           = 4,
+                              n12             = 2,
+                              n23             = 2,
+                              n13             = 2,
+                              n123            = 1,
+                              category        = c('A', 'B', 'C'),
+                              fill            = c('red', 'blue', 'green'),
+                              cat.col         = c('red', 'blue', 'green'),
+                              cex             = c(1/2,2/2,3/2,4/2,5/2,6/2,7/2),
+                              cat.cex         = c(1,2,3),
+                              euler           = TRUE,
+                              scaled          = FALSE
+                             )
+```
+
+```{r}
+grid.newpage()
+venn.plot <- draw.quintuple.venn(
+  area1 = 301,
+	area2 = 321,
+	area3 = 311,
+	area4 = 321,
+	area5 = 301,
+	n12 = 188,
+	n13 = 191,
+	n14 = 184,
+	n15 = 177,
+	n23 = 194,
+	n24 = 197,
+	n25 = 190,
+	n34 = 190,
+	n35 = 173,
+	n45 = 186,
+	n123 = 112,
+	n124 = 108,
+	n125 = 108,
+	n134 = 111,
+	n135 = 104,
+	n145 = 104,
+	n234 = 111,
+	n235 = 107,
+	n245 = 110,
+	n345 = 100,
+	n1234 = 61,
+	n1235 = 60,
+	n1245 = 59,
+	n1345 = 58,
+	n2345 = 57,
+	n12345 = 31,
+	category = c("A", "B", "C", "D", "E"),
+	fill = c("dodgerblue", "goldenrod1", "darkorange1", "seagreen3", "orchid3"),
+	cat.col = c("dodgerblue", "goldenrod1", "darkorange1", "seagreen3", "orchid3"),
+	cat.cex = 2,
+	margin = 0.05,
+	cex = c(1.5, 1.5, 1.5, 1.5, 1.5, 1, 0.8, 1, 0.8, 1, 0.8, 1, 0.8, 1, 0.8, 
+	1, 0.55, 1, 0.55, 1, 0.55, 1, 0.55, 1, 0.55, 1, 1, 1, 1, 1, 1.5),
+	ind = TRUE
+	)
+```
+
+There is also another package: [venneuler](http://cran.r-project.org/web/packages/venneuler/index.html).

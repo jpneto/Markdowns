@@ -1,0 +1,552 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+               fig.width = 5, fig.height = 5, fig.align='center')
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+Information Theory
+========================================================
+
+_This is based on the book of Thomas Cover "Elements of Information Theory" 2ed (2006)_
+
+In Information Theory there are two key concepts:
+
++ Information is _uncertainty_ and is modeled as random variables;
++ Information is _digital_, it is the same as transmiting 0s/1s with no reference to what they represent
+
+Notations & Definitions:
+
++ $\mathcal{X}$ is the **range** of $X$, the set of the values it can output
++ $S_X$ is the **support** of random var $X$, i.e., $\{x \in X: p(x) \gt 0\}$
++ If $S_X = X$ we say that probability distribution $p$ is **strictly positive**
+
++ Conditional Independence, $X \perp Z | Y$ if $p(x,z,y) = p(x,y)p(z,y)/p(y) = p(x,y)p(z|y)$. This is the same as saying $p(x,z|y) = p(x|y)p(z|y)$
+
+Def: A function $f(x)$ is **convex** over interval (a,b) if for $x_1,x_2 \in (a,b) \land 0 \leq \lambda \leq 1$,
+
+$$f(\lambda x_1 + (1-\lambda)x_2) \leq \lambda f(x_1) + (1-\lambda) f(x_2)$$
+
+Def: A function $f(x)$ is **concave** if $-f(x)$ is convex.
+
+A function is convex if it always lies below a chord:
+
+```{r}
+f <- function(x) {x^2*log(x)} # a convex function
+
+xs <- seq(0,5,len=100)
+a <- 1.5; b <- 4.5
+
+plot(xs,f(xs),type='l',xlab="x",ylab="f(x)")
+abline(v=c(a,b),col="blue",lty=2)
+lines(c(a,b),f(c(a,b)), col="red")
+```
+
+A convex function over interval (a,b) has a non-negative second derivative over that interval, i.e., it never decreases in that interval. If the second derivative is always positive then the function is _strictly convex_.
+
+**Jensen's Inequality**: If $f$ is a convex function and $X$ is a random variable:
+
+$$E[f(X)] \geq f(E[X])$$
+
+And if $f$ is strictly convex, the equality implies that $X=E[X]$ with probability $1$, i.e., $X$ is a constant.
+
+This result is important to prove several inequalities below (since most measures below are concave functions).
+
+Entropy
+-------
+
+Def: The **entropy** of $X$ is $$H(X) = - \sum_{x \in S_X} p(x)~\log p(x)$$
+
+Notes:
+
++ The entropy is a measure of the uncertainty of a discrete random variable. Notice that $H(X)$ depends only on the distribution of X not on its actual values.
+
++ Usually the log is to the base 2 and entropy is expressed in _bits_. Other common values are _nats_ (log base $e$) and _dits_ (log base $10$). All these units are proportional to each other, since for bases $a$ and $b$, $log_a k = log_a b \times log_b k$ and $log_a b$ is a constant. Let $H_a(X)$ denote the entropy in base $a$, then, $$H_b(X) = (\log_b~a) H_a(X)$$
+
++ Instead of just summing the values of the support of $X$, it is common to follow the convention that $0~\log 0 = 0$ since $lim_{x \to 0}~x~\log x = 0$
+
+```{r}
+entropy <- function(distribution) {
+  distribution <- distribution[distribution!=0] # only compute support
+  -sum(distribution * log2(distribution))
+}
+
+p <- c(.5,.25,.125,.125)
+entropy(p)
+```
+
+Entropy can be interpreted as expectation, namely $$H(X) = E\Big[\frac{1}{\log p(x)}\Big]$$ Remember that $E[g(x)] = \sum_x~g(x)p(x)$.
+
+```{r}
+g <- function(x) log2(1/x)
+sum( sapply(p, g) * p )
+```
+
+For a binary $X \sim \{ \gamma, 1-\gamma \}$ we define the _binary entropy function_,
+
+$$h_b(\gamma) = -\gamma~\log\gamma - (1-\gamma)~\log(1-\gamma)$$
+
+so, $H(X) = h_b(\gamma)$.
+
+The entropy is maximized when $\gamma = 0.5$
+
+```{r}
+hb <- function(gamma) {
+  -gamma*log2(gamma)-(1-gamma)*log2(1-gamma) # output in bits
+}
+
+xs <- seq(0,1,len=100)
+plot(xs,hb(xs),type='l',xlab="p",ylab="hb(p)")
+lines(xs,-xs*log2(xs), col="red",lty=1)
+lines(xs,-(1-xs)*log2(1-xs), col="green",lty=1)
+mtext("Red and Green lines show individual contributions \nfrom p*log p and (1-p)*log(1-p)",3)
+```
+
+Def: The **joint entropy** $H(X,Y)$ is defined as
+$$H(X,Y) = -\sum_{x,y} p(x,y)~\log p(x,y)$$
+
+Def: The **conditional entropy** $H(Y|X)$ is defined as
+$$H(Y|X) = -\sum_{x,y} p(x,y)~\log p(y|x)$$
+
+These measures related in the following way:
+
+$$H(X,Y) = H(X) + H(Y|X) = H(Y) + H(X|Y)$$
+
+This is the special case of the theorem called **chain rule for entropy**:
+
+$$H(X_1, X_2, \ldots X_n) = \sum_{i=1}^n H(X_i | X_{i-1}, \ldots, X_1)$$
+
+An eg that computes the various entropies for a given distribution:
+
+```{r}
+# distribution p(x,y), where X=Y={1,2,3,4} (assume X values in the columns)
+pxy <- matrix(c(4,2,1,1,
+                2,4,1,1,
+                2,2,2,2,
+                8,0,0,0), nrow=4, byrow=TRUE) 
+pxy <- pxy / sum(pxy)
+
+# entropy H(X):
+H.x <- entropy(apply(pxy,2,sum)) # sum the cols to get p(X) = \sum_i p(X,Y=i)
+H.x
+# entropy H(Y):
+H.y <- entropy(apply(pxy,1,sum)) 
+H.y
+# conditional entropy H(X|Y):
+H.x_y <- 0
+for(i in 1:4) { # for every X=i
+  for(j in 1:4) { # for every Y=j
+    px.given.y <- pxy[j,i] / sum(pxy[j,])  # p(x|y) = p(x,y)/p(y)
+    if (px.given.y>0)
+      H.x_y <- H.x_y - pxy[j,i]*log2(px.given.y)
+  }
+}
+H.x_y
+# conditional entropy H(Y|X):
+H.y_x <- 0
+for(i in 1:4) { # for every X=i
+  for(j in 1:4) { # for every Y=j
+    py.given.x <- pxy[j,i] / sum(pxy[,i])  # p(y|x) = p(x,y)/p(x)
+    if (py.given.x>0)
+      H.y_x <- H.y_x - pxy[j,i]*log2(py.given.x)
+  }
+}
+H.y_x
+# joint entropy H(X,Y):
+H.x.y <- entropy(pxy)
+H.x.y
+```
+
+Other properties:
+
++ $0 \leq H(Y|X) \leq H(Y)$, knowing $X$~never increases the entropy of $Y$
++ If $X \perp Y$ then $H(Y|X) = H(Y)$ and $H(X,Y) = H(X) + H(Y)$
++ $H(X) \leq~\log|\mathcal{X}|$, with $|\mathcal{X}|$ the number of elements in the range of $X$
++ $H(X) = \log|\mathcal{X}|$ iff $X$~has a uniform distribution over its range
++ $H(X_1,X_2,\ldots X_n) \leq \sum_i H(X_i)$ with equality only when $X_i$ are mutually independent.
+
+Relative Entropy and Mutual Information
+-------
+
+The entropy of a random variable $X$ is a measure of the amount of information requires on average to describe $X$. Here we introduce two related concepts.
+
+First, the **relative entropy** $D(p||q)$ is a measure of the distance between distributions $p$ and $q$. It is a measure of the inefficiency of assuming distribution $q$ when $p$ is the true distribution. Eg, if we knew $p$ we would build  a code with average length $H(p)$. If instead we used $q$, the we would need $H(p) + D(p||q)$ bits on average.
+
+Def: The relative entropy betweem two probability mass functions $p(x)$ and $q(x)$ is defined as $$D(p||q) = \sum_x p(x)~\log\frac{p(x)}{q(x)}$$
+By convention, $0~\log\frac{0}{0} = 0, 0~\log\frac{0}{q} = 0, 0~\log\frac{p}{0} = \infty$.
+
+```{r}
+rel.entropy <- function(p,q) {
+  q <- q[p!=0] # remove the values not in the support of p
+  p <- p[p!=0]  
+  sum(p*log2(p/q))
+}
+p <- c(.5,.5)
+q <- c(.25,.75)
+rel.entropy(p,q)
+rel.entropy(q,p)
+```
+
+The relative entropy is always non-negative, and $D(p||q)=0 \iff p=q$. It is not a true distance because it is not symmetric. $D(p||q)$ is convex in the pair $(p,q)$.
+
+**Mutal information** is a measure of the amount of information that one ramdom variable contains about another ramdom variable. It means the reduction in the uncertainty of one random var due to the knowledge of the other. 
+
+Def: The **mutual information** $I(X;Y)$ is defined as the relative entropy between the joint distribution and the product of the two distributions:
+$$I(X;Y)=\sum_{x,y} p(x,y)~\log\frac{p(x,y)}{p(x)p(y)}$$
+
+Relations in the entropy measures:
+
++ $I(X;Y) = I(Y;X)$
++ $I(X;X) = H(X)$
+
+The mutual information of a random var with itself is its entropy, this is why sometimes entropy is referred to as _self-information_.
+
++ $I(X;Y) = H(X) - H(X|Y) = H(Y) - H(Y|X)$
+
+That is, $X$ says as much about $Y$ and $Y$ says about $X$.
+
++ $I(X;Y) = H(X) + H(Y) - H(X,Y)$
++ $I(X;Y) \geq 0$, with equality only when $X \perp Y$
+
+```{r}
+# mutual information I(X;Y) from the previous distribution:
+I.x.y <- H.x - H.x_y
+I.x.y 
+```
+
+Def: the **conditional mutual information** $I(X;Y|Z)$ is defined as
+$$I(X;Y|Z)= H(X|Z) - H(X|Y,Z) = \sum_{x,y,z} p(x,y,z)~\log\frac{p(x,y|z)}{p(x|z)p(y|z)}$$
+
++ $I(X;Y|Z)  \geq 0$, with equality only when $X \perp Y | Z$
+
+The mutual information also satisfy the chain rule:
+
+$$I(X_1, X_2, \ldots X_n;Y) = \sum_{i=1}^n I(X_i;Y | X_{i-1}, \ldots, X_1)$$
+
+Data-processing Inequality
+------------
+
+For random vars $X_1, X_2 \ldots X_n (n \gt 2)$, $X_1 \rightarrow X_2 \rightarrow \ldots \rightarrow X_n$ forms a **markov chain** if
+$$p(x_1, x_2, \ldots, x_n) = p(x_1)p(x_2|x_1)p(x_3|x_2)\ldots p(x_n|x_{n-1})$$
+if $p(x_i)>0, i \ge 2$, or zero otherwise. 
+
++ $X_1 \rightarrow X_2 \rightarrow X_3$ is equivalent to $X_1 \perp X_3 | X_2$
++ $X_1 \rightarrow X_2 \rightarrow X_3$ implies $X_3 \rightarrow X_2 \rightarrow X_1$
++ If $X_3 = f(X_2)$ then $X_1 \rightarrow X_2 \rightarrow X_3$
+
+Data processing inequality: If $X_1 \rightarrow X_2 \rightarrow X_3$ then $I(X_1;X_2) \geq I(X_1;X_3)$
+
+The inequality occurs only when $I(X_1;X_2|X_3)=0$, i.e., $X_1 \rightarrow X_3 \rightarrow X_2$ also forms a Markov chain.
+
+A corollary: If $X_3 = g(X_2)$ then $I(X_1,X_2) \geq I(X_1;g(X_2))$, i.e., the functions of the data $X_2$ cannot increase the information about $X_1$.
+
+Another corollary: If $X_1 \rightarrow X_2 \rightarrow X_3$ then $I(X_1;X_2|X_3) \leq I(X_1;X_2)$, i.e., the dependence of $X_1$ and $X_2$ is decreased (or remains unchanged) by the observation of a 'downstream' random variable $X_3$.
+
+A nice use of this concept is to clarify the notion of _sufficient statistic_. Given a family of distribution parameterized by $\theta$, a sample from a distribution of this family, and a statistic $T(X)$ from the sample, we have $\theta \rightarrow X \rightarrow T(X)$. A statistic is called sufficient for $\theta$ if it containg all the information in $X$ about $\theta$, i.e., $I(\theta;X) = I(\theta;T(X))$. If the statistic $T(X)$ is sufficient, then $\theta \rightarrow T(X) \rightarrow X$ also forms a Markov chain.
+
+Fano's Inequality
+-----------------
+
+Fano's Inequality deals with the problem of knowing the value of $X$ given that we only know the value of the correlated $Y$.
+
+It is known that $X=f(Y)$ iff $H(X|Y) = 0$. So we can estimate $X$ from $Y$ with zero probability of error iff $H(X|Y) = 0$. Fano's idea extends and quantifies the idea that we can estimate $X$ with a small error only if $H(X|Y)$ is small.
+
+Suppose we wish to estimate a random variable $X \sim p$. We observe $Y$ which is related to $X$ by the conditional distribution $p(y|x)$. From $Y$ we compute an estimation $\hat X = g(Y)$. The range of $\hat X$ can be different from the range of $X$. We wish to bound the probability $P_e$ that $\hat X \neq X$. Notice that $X \rightarrow Y \rightarrow \hat X$ forms a Markov chain.
+
+**Fano's Inequality**: For any estimator $\hat X$ such that $X \rightarrow Y \rightarrow \hat X$, we have $$H(P_e) + P_e~\log|\mathcal{X}| \geq H(X|\hat X) \geq H(X|Y)$$
+
+This inequality can be weakened to $$P_e \geq \frac{H(X|Y)-1}{\log|\mathcal{X}|}$$
+
+If the estimator $\hat X$ has the same range as $X$ the inequality can be strengthen by replacing $\log|\mathcal{X}|$ with $\log(|\mathcal{X}|-1)$.
+
+Another inequalities relating error and entropy:
+
++ If $X$ and $X'$ are iid's random vars with entropy $H(X)$, $$Pr(X=X') \geq 2^{-H(X)}$$
+
++ If $X \sim p$ and $X' \sim q$ with both distributions in the same range, then, $$Pr(X=X') \geq 2^{-H(p)-D(p||q)}$$ $$Pr(X=X') \geq 2^{-H(q)-D(q||p)}$$
+
+Asymptotic Equipartition Property
+-----------------
+
+The Asymptotic Equipartition Property (AEP) is the analog of the law of large numbers.
+
+The law of large numbers state that for iid's $X_i$ and large $n$, $\frac{1}{n} \sum_i X_i$ is close to the expected value $E[X]$.
+
+The AEP state that for iid's $X_i$ and large $n$, $\frac{1}{n} \log\frac{1}{p(X_1,X_2,\ldots,X_n)}$ is close to the entropy $H(X)$. So, the probability $p(X_1,X_2,\ldots,X_n)$ of a certain sequence will be close to $2^{-n H(X)}$.
+
+This is used to divide the set of all sequences into two sets, the _typical set_ and the _non-typical_. Any property proved for the typical sequences will then be true with high probability and will determine the average behavior of a large sample.
+
+Let's see an eg. $X \in \{0,1\}$ have a probability  distribution defined by $p(1)=p, p(0)=1-p=q$. $X_1,X_2,\ldots,X_n$ are iid's $\sim p(x)$. The probability of sequence $x_1,x_2,\ldots x_n$ is $\prod_i p(x_i)$, say, $p(1,0,1,1,0,1) = p^4q^2$. It's clear that not all $2^n$ sequences of length $n$ have the same probability. 
+
+It turns out that $p(X_1,X_2,\ldots X_n)$ is close to $2^{-n H(p)}$ with high probability. This can be summarized as _almost all events are almost equally surprinsing_, i.e., $$Pr\{(X_1,X_2, \ldots X_n) : p(X_1,X_2,\ldots X_n) = 2^{-n(H(p) \pm \epsilon)}\} \approx 1$$ when $X_1,X_2,\ldots,X_n$ are iid's $\sim p(x)$.
+
+In the previous eg we are saying that the number of $1$'s in a sequence of length $n$ is close to $np$ with high probability, and all such sequences have (roughly) the same probability $2^{-n H(p)}$.
+
+Another eg. $X \in \{0,1\}$ have a probability distribution defined by $p(1)=p=0.005, p(0)=1-p=0.995$ and we are dealing messages with 100 bits. Let's consider a typical sequence one that has, at most, 3 ones. The amout of possible messages is $2^100 \approx 10^30$ while the number of typical messages is $\sum_{i=0}^3 {100 \choose i} = 166751$. This means that we only need $\log_2 166751 \approx 18$ bits to encode a typical message. The probability to occur a typical message (from all the possible messages) is $$\sum_{i=0}^3 p^{100-i}(1-p)^i {100 \choose i} \approx 0.998$$
+
+Def: Given a sequence of random vars $X_1,X_2,\ldots$ we say that the sequence **converges** to a random var $X$,
++ In _probability_ if for every $\epsilon > 0, Pr\{|X_n-X| > \epsilon \} \rightarrow 0$
++ In _mean square_ if $E[(X_n - X)^2] \rightarrow 0$
++ _With probability_ $1$ (also called _almost surely_) if $Pr\{ \text{lim}_{n \to \infty} X_n = X \} = 1$
+
+**Theorem AEP**: If $X_1,X_2,\ldots,X_n$ are iid's $\sim p(x)$, then
+$$-\frac{1}{n} \log p(X_1,X_2,\ldots X_n) \to H(X)$$
+in probability.
+
+Def: The **typical set** $A_{\epsilon}^{(n)}$ wrt $p(x)$ is the set of sequences $(x_1,x_2,\ldots x_n) \in \mathcal{X}^n$ with the property
+$$2^{-n(H(X)+\epsilon)} \leq p(x_1,x_2,\ldots x_n) \leq 2^{-n(H(X)-\epsilon)}$$
+
++ The typical set has probability near 1, i.e., $Pr\{ A_{\epsilon}^{(n)} \} > 1 - \epsilon$ for n sufficiently large
++ All elements of the typical set are nearly equiprobable, i.e., if $(x_1,x_2,\ldots x_n) \in A_{\epsilon}^{(n)}$, then $H(X)-\epsilon \leq -\frac{1}{n}p(x_1,x_2,\ldots x_n) \leq H(X)+\epsilon$
++ The number of elements of the typical set is nearly $2^{nH}$, i.e., $(1-\epsilon)2^{n(H(X)-\epsilon)} \leq |A_{\epsilon}^{(n)}| \leq 2^{n(H(X)+\epsilon)}$
++ The typical set is a relative small set with contains most of the probability mass.
+
+These results have consequences for **data compression**.
+
+Let $X_1,X_2,\ldots,X_n$ are iid's $\sim p(x)$. We wish to find shorter descriptions for such sequences of random vars. We divide all possible sequences into the typical set $A_{\epsilon}^{(n)}$ and its complement $\mathcal{X}^n - A_{\epsilon}^{(n)}$.
+
+Since there are $\leq 2^{n(H+\epsilon)}$ sequences in the typical set, we need 
+$n(H+\epsilon)+1$ bits to index, say, a lexicographic ordering of them. Let's prefix $0$ to those descriptions. Then we need a total of $n(H+\epsilon)+2$ bits. In the same way, we can index the complement set (the non-typical set) using $n \log|\mathcal{X}|+2$ bits.
+
+The code just proposed is one-to-one and easily decodable, the initial bit act as a flag bit to indicate if the sequence is typical or not. The typical sequences have short descriptions of length $\approx nH$.
+
+It can be shown (Cover, pg.61-2) that the expected code length of a sequence $x_1,x_2,\ldots x_n$ uses $nH(X)$ bits on average.
+
+Entropy Rates of a Stochastic Process
+-----------------
+
+A **stochastic process** $\{ X_i \}$ is an indexed sequence of random variables. Usuallt the index is called the time index, since it's common to deal with temporal processes. In general there can be an arbitrary dependence among the random vars. The process is characterized by the joint probability mass function $p(x_1,x_2,\ldots x_n)$.
+
+Def: A stochastic process is **stationary** if the joint distribution of any subset of sequences of random vars is invariant to shifts in the time index, i.e., $$Pr\{X_1=x_1, \ldots, X_n=x_n\} = Pr\{X_{1+t}=x_1, \ldots, X_{n+t}=x_n\}$$
+
+A Markov chain is a stochastic process where each random variable depends only on the preceding one, and is conditionally indepenent of all the others. 
+
+Def: A Markov chain is said to be **time invariant** if $p(x_{n+1}|x_n)$ does not depend on $n$, i.e, for all $n>0, a,b \in \mathcal{X}$,
+$$Pr\{X_{n+1}=b | X_n=a\} = Pr\{X_2=b | X_1=a\}$$
+
+We'll assume that Markov chains are time invariant, unless otherwise stated.
+
+$X_n$ is called the **state** at time $n$. A time invariant Markov chain is speficied by its initial state and a _probability transition matrix_ $P$ where $P_{ij} = Pr\{X_{n+1}=j|X_n=i\}$. So, $$p(x_{n+1}) = \sum_{x_n} p(x_n) P_{x_nx_{n+1}}$$
+
+Def: A Markov chain is **irreducile** if it is possible to go from any state to any other state in a finite number of steps.
+
+Def: A Markov chain is **aperiodic** if the largest common factor of the lengths
+of different paths from a state to itself is 1.
+
+Def: A distribution of the sates is a **stationary distribution** if it is the same in the next time step.
+
+E.g., let's consider the two-state Markoc chain with probability transition matrix,
+
+$$
+\left\lbrack
+\begin{matrix}
+1-\alpha & \alpha \cr
+\beta & 1-\beta \cr
+\end{matrix}
+\right\rbrack
+$$
+
+The stationary distribution $\mu$ is such that $\mu P = \mu$. Solving the equation we get,
+
+$$\mu_1 = \frac{\beta}{\alpha+\beta},  \mu_2 = \frac{\alpha}{\alpha+\beta}$$
+
+The entroypy of the state $X_n$ at time $n$ is given by, $$H(X_n) = H(\frac{\beta}{\alpha+\beta},\frac{\alpha}{\alpha+\beta})$$
+
+This is not, however, the rate at which entropy grows, the dependence among the $X_i$ will matter.
+
+Def: The **entropy of a stochastic process** $\{X_i\}$ is defined by,
+$$H(\mathcal{X}) = \lim\limits_{n \to \infty} \frac{1}{n} H(X_1, X_2, \ldots X_n)$$ when the limit exists.
+
+For a stationary Markov chain the entropy rate is given by $$H(\mathcal{X}) = H(X_2|X_1) = - \sum_{ij} \mu_i P_{ij} \log P_{ij}$$ using the stationary distribution $\mu$.
+
+Data Compression
+----------------
+
+Data compression can be achieved by assigning short descriptions to the most frequent outcomes of the data source, and necessarily longer descriptions to the less frequent outcomes. For example, in Morse code, the most frequent symbol is represented by a single dot.
+
+Def: A __source code__ $C$ for a random var $X$ is a mapping from $\mathcal{X}$ to $D^*$, a set of finite-length strings from an alphabet $\mathcal{D}$. Let's denote $C(x)$ as the code for $x \in \mathcal{X}$ and $l(x)$ as the lenght of $C(x)$.
+
+```{r}
+source.code.factory <- function(mapping) {
+  function(x) { 
+    mapping[[x]]
+  }
+}  
+  
+map <- c(red="00", blue="11") # a source code using alphabet {0,1}
+C <- source.code.factory(map)  
+  
+X.range = c("red","blue")
+for(x in X.range)
+  print(C(x))
+```
+
+Def: The expected length $L(C)$ for a source code $C$ for a random var $X \sim p$ is, $$L(C) = \sum_{x \in \mathcal{X}} p(x)l(x)$$
+
+Def: A code is __nonsingular__ if every element of $\mathcal{X}$ maps into a different string in $D^*$.
+
+Def: The __extension__ $C^*$ of code $C$ is the mapping $$C(x_1x_2\ldots x_n) = C(x_1)C(x_2)\ldots C(x_n)$$ where $C(x_1)C(x_2)\ldots C(x_n)$ denotes concatenation of strings.
+
+```{r}
+extension <- function(msg) {
+  paste0(lapply(msg,C), collapse="")
+}
+
+extension(c("red","blue","red","red"))
+```
+
+Def: A code is __uniquely decodable__ if its extension is non-singular.
+
+In other words, any encoded string in a uniquely decodable code has
+only one possible source string producing it. However, one may have
+to look at the entire string to determine even the first symbol in the
+corresponding source string.
+
+Def: A code is a __prefix code__ or __instantaneous code__ if no codeword is a prefix of any other codeword.
+
+An instantaneous code can be decoded without reference to future codewords since the end of a codeword is immediately recognizable. Hence, for an instantaneous code, the symbol $x_i$ can be decoded as soon as we come to the end of the codeword corresponding to it. These are the type of codes easier to decode.
+
+We wish to construct instantaneous codes of minimum expected length to
+describe a given source. It is clear that we cannot assign short codewords
+to all source symbols and still be prefix-free. The set of codeword lengths
+possible for instantaneous codes is limited by the following inequality.
+
+**Kraft Inequality**: For an instantaneous code over an alphabet of size $D$, the codeword lengths $l_1,\ldots l_m$ must satisfy $$\sum_i D^{-l_i} \leq 1$$ If there a set of codewords satisfying this inequality, there exists an instantaneous code with these word lengths.
+
+Optimal Codes
+-------------
+
+How to find the shortest possible instantaneous code, ie, with the minimum expected length?
+
+We want to minimize $$L = \sum p_i l_i$$ satisfying $$\sum_i D^{-l_i} \leq 1$$ which is an optimization problem.
+
+Solving this problem (negleting that $l_i$ must be integer, and assuming equality in the constraint) will yield that the optimal lengths are $l_i^* = -\log_D p_i$ (which usually is not an integer). This way, the theoretical optimal code $L^*$ is $$L^* = \sum p_il_i^* = - \sum p_i \log_D p_i = H_D(X)$$
+
+The entropy gives the optimal expected length of a code for $X$!
+
+But because $l_i^*$ are not always integers, we must choose a set of codewords close to the optimal set, which will increase the expected length of the code.
+
+An optimal (shortest expected length) prefix code for a given distribution
+can be constructed by a simple algorithm discovered by Huffman, which are called [_Huffman Codes_](http://rosettacode.org/wiki/Huffman_coding).
+
+Channel Capacity
+----------------
+
+The transfer of information is a physical process and therefore is subject to the
+uncontrollable ambient noise and imperfections of the physical signaling
+process itself. The communication is successful if the receiver B and the
+transmitter A agree on what was sent.
+
+Def: A __discrete channel__ is a system consisting of an input alphabet $\mathcal{X}$ and a probability transition matrix $p(y|x)$ that expresses the probability of observing the output symbol $y$ given that $x$ was sent.
+
+Def. A channel is __memoryless__ if $p(y|x)$ depends only at the imput at that time, and it is conditionally independent of previous inputs and outputs.
+
+Eg, in a memoryless channel, $p(y_1,y_2|x_1,x_2) = p(y_1|x_1)p(y_2|x_2)$.
+
+Def: The __information channel capacity__ of a discrete memeoryless channel is $$C = \max\limits_{p(x)} I(X;Y)$$ where the maximum is taken over all possible input distributions $p(x)$.
+
+The channel capacity is the highest rate in bits per channel use at which information can be sent with arbitrarily low probability of error.
+
+There is a duality between the problems of data compression and data
+transmission. During compression, we remove all the redundancy in the
+data to form the most compressed version possible, whereas during data
+transmission, we add redundancy in a controlled fashion to combat errors
+in the channel.
+
+Eg, noiseless binary channel, any transmitted bit is received without error:
+
+```{r, echo=FALSE, fig.width=4, fig.height=4}
+library(diagram)
+
+names <- c("0", "0", "1", "1")
+M <- matrix(nrow = 4, ncol = 4, byrow = TRUE, data = 0)
+M[2, 1] <- M[4, 3] <- ""
+
+par(mar = c(0, 0, 0, 0))
+plotmat(M, pos = c(2, 2), name = names, lwd = 1, curve = 0,
+           box.lwd = 1, cex.txt = 0.8, box.size = .1,
+           box.type = "circle", box.prop = 0.5)
+text(0.25,.5,"X"); text(.75,.5,"Y");
+```
+
+The information capacity $C = max I(X;Y)$ is 1 bit, which is achieved with $p(0) = p(1) = \frac{1}{2}$.
+
+Eg, noisy channel with nonoverlapping outputs
+
+```{r, echo=FALSE, fig.width=4, fig.height=4}
+names <- c("0", "1", "2", "1", "3", "4")
+M <- matrix(nrow = 6, ncol = 6, byrow = TRUE, data = 0)
+M[2, 1] <- "1/2" 
+M[3, 1] <- "1/2"
+M[5, 4] <- "1/3" 
+M[6, 4] <- "2/3"
+
+par(mar = c(0, 0, 0, 0))
+plotmat(M, pos = matrix(c(.25,.875, .75,.875, .75,.675, .25,.5, .75,.5, .75,.25), ncol=2, byrow=TRUE),
+           name = names, lwd = 1, curve = 0,
+           box.lwd = 1, cex.txt = 0.8, box.size = .1,
+           box.type = "circle", box.prop = 0.5)
+text(0.1,.5,"X"); text(.9,.5,"Y");
+```
+
+This channel is noisy but the input can be deterministically discovered from the output. Again the information capacity is 1 bit.
+
+This is a case where $H(Y|X) \neq 0 \land H(X|Y)=0$, there's noise but no ambiguity.
+
+The reverse, i.e., when a channel has $H(Y|X)=0 \land H(X|Y) \neq 0$ we have a noiseless channel but with ambiguity! An eg is when two input different values as transmitted as the same output value (which is not very useful...).
+
+Eg, binary symmetric channel
+
+```{r, echo=FALSE, fig.width=4, fig.height=4}
+names <- c("0", "0", "1", "1")
+M <- matrix(nrow = 4, ncol = 4, byrow = TRUE, data = 0)
+M[2, 1] <- M[4, 3] <- "1-e"
+M[4, 1] <- M[2, 3] <- "e"
+
+par(mar = c(0, 0, 0, 0))
+plotmat(M, pos = c(2, 2), name = names, lwd = 1, curve = 0,
+           box.lwd = 1, cex.txt = 0.8, box.size = .1,
+           box.type = "circle", box.prop = 0.5)
+text(0.25,.5,"X"); text(.75,.5,"Y");
+```
+
+The information capacity is maximized when the input distribution is uniform. In that case $C = 1- H(p)$. 
+
+Some measures, assuming $p(x=0) = p$:
+
++ $H(X) = h_b(p)$
++ $H(Y|X) = p h_b(1-e) + (1-p) h_b(e)$
++ $H(Y) = h_b(p+e-2pe)$
++ $H(X|Y) = h_b(e) + h_b(p) + h_b(p+e-2pe)$
+
+Notice that if $e= 1/2$, then the entropy would be 1, and the capacity would be zero bits ($e \to 1/2 \Rightarrow H(X|Y) \to H(X) \Rightarrow I(X;Y) \to 0$), which makes sense: the channel would be enterily random (like a perfect flip coin).
+
+Properties of Channel Capacity
++ $C \geq 0$
++ $C \leq \log |\mathcal{X}|$
++ $I(X;Y)$ is a concave function of $p(x)$, which means it's possible to find its maximum (a local maximum is a global maximum)
+
+Parity Codes
+-------------
+
+If we like to reduce the errors in communication using a noisy channel, there is the need to introduce redundancy so that even if some of the information is lost or corrupted, it will still be possible to recover the message at the receiver. 
+
+The most obvious coding scheme is to repeat information. For example, to send a 1, we send 11111, and to send a 0, we send 00000. This scheme uses five symbols to send 1 bit, and therefore has a rate of $1/5$ bit per symbol. If this code is used on a binary symmetric channel, the optimum decoding scheme is to take the majority vote of each block of five received bits. By using longer repetition
+codes, we can achieve an arbitrarily low probability of error. But the rate of the code also goes to zero with block length, so even though the code is simple, it is really not a very useful code.
+
+Instead of simply repeating the bits, we can combine the bits in some intelligent fashion so that each extra bit checks whether there is an error in some subset of the information bits. A simple example of this is a parity check code. We add an extra bit which states if the remaining bits have an odd number of 1s (so the sequence plus the parity bit always have an even number of 1s). This coding does not detect an even number of transmission errors.
+
+We can extend the idea of parity checks to allow for more than one parity check bit and to allow the parity checks to depend on various subsets of the information bits. The Hamming code is such an eg.
+

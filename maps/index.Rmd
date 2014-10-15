@@ -1,0 +1,123 @@
+---
+title: "Maps"
+author: "Joao Neto"
+date: "Saturday, October 04, 2014"
+output: html_document
+---
+
+Refs
+
++ OpenStreeMap http://download.geofabrik.de/
+
++ http://www.molecularecologist.com/2012/09/making-maps-with-r/
+
+Draft version, still lots to explore
+
+```{r}
+library(maptools)
+
+uk <- readShapeSpatial("map.shp", proj4string=CRS("+proj=longlat"))
+plot(uk)
+summary(uk)
+```
+
+
+
+```{r}
+library(maps)
+
+france<-map(database="france")
+names(france)
+head(france$names)
+```
+
+
+```{r}
+library(mapdata)
+
+map(database="worldHires", "Portugal") 
+```
+
+
+
+```{r}
+library(RgoogleMaps)
+
+lat <- c(37,42) #define our map's ylim
+lon <- c(-9,-6) #define our map's xlim
+center = c(mean(lat), mean(lon))  #tell what point to center on
+zoom <- 7  #zoom: 1 = furthest out (entire globe), larger numbers = closer in
+
+terrmap <- GetMap(center=center, zoom=zoom, maptype= "terrain", destfile = "terrain.png") 
+# lots of visual options, just like google maps: 
+#   maptype = c("roadmap", "mobile", "satellite", "terrain", "hybrid", "mapmaker-roadmap", "mapmaker-hybrid")
+PlotOnStaticMap(terrmap)
+
+path = paste0("&path=color:0x0000ff|weight:3|",
+              "38.7138,-9.14|39.12,-9.21|39.0,-8.5")
+MyMap <- GetMap(center=center, zoom=zoom, path = path)
+PlotOnStaticMap(MyMap)
+```
+
+```{r, fig.width=12, fig.height=8}
+library(ggmap)
+library(geosphere) # use: gcIntermediate
+
+# this example shows obtaining coordinates (latitude, longitude) using
+# map_world function, and drawing them using geom_polygon
+world <- map_data("world")
+basemap <- ggplot(legend = FALSE) + 
+           geom_polygon(data = world, aes(x = long,  y = lat, group = group, fill = group)) + 
+           theme(legend.position = "none")  
+
+lx <- geocode("Lisbon, PT") # find coordinates
+ny <- geocode("New York, USA")
+
+inter <- as.data.frame(gcIntermediate(c(lx$lon, lx$lat), c(ny$lon, ny$lat), n = 50, addStartEnd = TRUE))
+basemap + geom_line(data = inter, aes(x = lon, y = lat), color = "red")
+```
+
+```{r, fig.width=8, fig.height=12}
+# using maps to plot routes
+rt1 = route(from = "Lisbon", to = "Castelo Branco", mode = "driving")
+PortugalMap <- qmap("Portugal", zoom = 8, color = "bw")
+PortugalMap + geom_leg(aes(x = startLon, y = startLat, xend = endLon, yend = endLat),
+                       color = "blue", data = rt1)
+
+# select a map and plot some markers
+LisbonMap = qmap("Lisboa", zoom = 16, color = "bw", maptype='hybrid', legend = "topleft",
+                 location = c(lon = -9.138, lat = 38.7098))
+LisbonMap
+
+# make some data
+df <- data.frame(lat=c(38.7098,38.7139,38.7122),
+                 lon=c(-9.1330,-9.1336,-9.1400),
+                 type=c("igreja", "castelo", "igreja"),
+                 nome=c("sé lisboa", "castelo são jorge", "convento do carmo" ))
+df
+
+LisbonMap + geom_point(aes(x = lon, y = lat, colour = type, shape=type), data = df)
+```
+
+
+
+```{r, fig.width=12, fig.height=12}
+library(maps)
+library(mapproj)
+
+countries <- c("Portugal", "Poland", "Greece", "Iran", "Brazil")
+
+m <- map("world", plot = FALSE)
+countryMatch <- match.map("world", countries)
+
+# color code any states with visit data as light blue
+colorCountry <- sapply(countryMatch, function(c) {
+    if (!is.na(c)) 
+        c <- "#FF0000" else c <- "#FFFFFF"
+})
+
+map("world", proj = "azequalarea", orient = c(25, 10, 0), boundary = TRUE, col = colorCountry, fill = TRUE)
+map.grid(m, col = "lightblue", label = FALSE, lty = 2, pretty = TRUE)
+map.scale()
+```
+

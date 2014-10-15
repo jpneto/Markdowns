@@ -1,0 +1,199 @@
+Binomial Likelihood with Hierarchical Prior
+========================================================
+
+This file codes and plots figure 9.2 (p.162) from 
+Kruschke - Doing Bayesian Data Analysis (2010)
+
+```{r init, results='hide', message=FALSE}
+library(aws)
+library(lattice) 
+library(base)
+
+rotate       <- (-25)  # parameters used for 3D plots
+tilt         <- 25
+parallelness <- 5.0
+shadeval     <- 0.05
+perspcex     <- 0.7
+ncontours    <- 9
+```
+
+First we plot the Prior distribution $p(\theta,\mu)$. This prior is calculated
+by the product of the likelihood of the parameter $\theta$ given hyperparameter $\mu$, i.e., $p(\theta|\mu)$ by the prior $p(\mu)$. So,  $p(\theta,\mu) = p(\theta|\mu) \times p(\mu)$. The prior $p(\mu)$ is modeled by a $beta(2,2)$ and the likelihood by a $beta(100\mu, 100(1-\mu))$. The 100 in the last formula means we assign high confidence to the dependence of $\theta$ on the hyperparameter $\mu$.
+
+```{r prior, fig.width=12, fig.height=6, dependson="init"}
+# make a grid of thetas and mus
+dim.grid <- 100  # arbitrary number of intervals for grid on theta.
+thetas   <- seq(from=((1/dim.grid)/2), to=(1-((1/dim.grid)/2)), by=(1/dim.grid))
+mus      <- thetas
+
+# the prior function, muiltiplying the two beta distributions
+fPrior <- function(theta,mu) {
+  return(dbeta(theta,100*mu,100*(1-mu)) * dbeta(mu,2,2))
+}
+
+priors <- outer(thetas, mus, fPrior)  # outer product
+priors <- priors / sum(priors)        # normalize
+
+length.step <- length(thetas)
+num.steps   <- 30
+step.thetas <- seq( 1, length.step, by = round( length.step/num.steps ) )
+step.mus    <- step.thetas
+
+zmax <- max(priors)
+par(mfrow=c(1,2))
+persp(thetas[step.thetas] , mus[step.mus] , priors[step.thetas,step.mus],
+      xlab="theta" , ylab="mu" , main="Prior Distribution" , cex=perspcex ,
+      lwd=0.1  , xlim=c(0,1) , ylim=c(0,1) , zlim=c(0,2*zmax),
+      zlab="p(theta,mu)" , theta=rotate , phi=tilt , d=parallelness ,
+      shade=shadeval)
+
+# make the contour plot
+contour(thetas[step.thetas] , mus[step.mus] , priors[step.thetas,step.mus],
+        main=bquote(" ") , levels=signif(seq(0,zmax,length=ncontours),3) ,
+        drawlabels=FALSE , xlab=bquote(theta) , ylab=bquote(mu) )
+
+par(mfrow=c(1,1))
+
+# check a slice of the prior distribution
+mu <- 0.25
+col <- 100*round(mu*100/dim.grid,2) # find right column
+
+plot(priors[,col]/sum(priors[,col]),
+     type="l",xlab=bquote(theta),
+     ylab=bquote(paste("p(",theta,"|",mu,"=",.(mu),")")), 
+     main=bquote(paste("A slice of p(",theta,"|",mu,")")))
+
+```
+The marginal probability $p(\mu) \approx \sum_{i} p(\theta_i, \mu)$
+
+```{r marginal, dependson="prior"}
+# compute marginal probability of p(mu) based on the prior grid
+marginal.mu <- rep(0,dim.grid)
+for(i in 1:dim.grid) {
+  marginal.mu[i] <- sum(priors[,i]) 
+}
+
+# normalize
+sum.priors <- sum(marginal.mu)
+for(i in 1:dim.grid) {
+  marginal.mu[i] <- marginal.mu[i] / sum.priors 
+}
+                                              
+plot(marginal.mu, xlab=bquote(mu), ylab=bquote(p(mu)),type="l")
+title("Marginal Probability p(mu)")
+abline(v=seq(0,100,20),h=seq(.0025,.015,.0025),col="lightgray")
+
+#compute marginal probability of p(theta) based on the prior grid
+marginal.theta <- rep(0,dim.grid)
+for(i in 1:dim.grid) {
+  marginal.theta[i] <- sum(priors[i,]) 
+}
+
+# normalize
+sum.priors <- sum(marginal.theta)
+for(i in 1:dim.grid) {
+  marginal.theta[i] <- marginal.theta[i] / sum.priors 
+}
+                                              
+plot(marginal.theta, xlab=bquote(theta), ylab=bquote(p(theta)),type="l")
+title("Marginal Probability p(theta)")
+abline(v=seq(0,100,20),h=seq(.002,.016,.002),col="lightgray")
+```
+
+Now comes some data D. We had 12 coin drops and 9 were heads.
+
+This means the likelihood function $p(D|\mu,\theta) = p(D|\theta) = \theta^9 \times (1-\theta)^3$ ($\theta$ is the probability for heads).
+
+Let's plot it:
+
+```{r likelihood, dependson="prior"}
+n.heads <- 9
+n.tails <- 3
+
+# currying function
+Curry <- function(FUN,...) { 
+  .orig <- list(...)
+  function(...) {
+    do.call(FUN, c(.orig, list(...)))
+  }
+}
+
+likelihood <- function(theta, mu, heads, tails) {
+  return (theta^heads * (1-theta)^tails)
+}
+
+data.likelihood <- Curry(likelihood, heads=n.heads, tails=n.tails)
+
+likelihoods <- outer(thetas, mus, data.likelihood)  # outer product
+
+length.step <- length(thetas)
+num.steps   <- 30
+step.thetas <- seq( 1, length.step, by = round( length.step/num.steps ) )
+step.mus    <- step.thetas
+
+zmax <- max(likelihoods)
+persp(thetas[step.thetas] , mus[step.mus] , likelihoods[step.thetas,step.mus],
+      xlab="theta" , ylab="mu" , main="Likelihood Distribution", cex=perspcex,
+      lwd=0.1  , xlim=c(0,1) , ylim=c(0,1) , zlim=c(0,2*zmax),
+      zlab="p(D|theta,mu)" , theta=rotate , phi=tilt , d=parallelness ,
+      shade=shadeval)
+
+```
+
+Given the prior and the likelihood, we have what it takes to compute the posterior $p(\mu,\theta|D)$. The posterior is proportional to the prior times the likelihood, $p(\mu,\theta|D) \propto p(D|\theta,\mu) \times p(\theta,\mu) = p(D|\theta) \times p(\theta | \mu) \times p(\mu)$
+
+```{r posterior, dependson=c("prior","likelihood")}
+posteriors <- priors * likelihoods # simply as that!
+evidence <- sum(posteriors)
+posteriors  <- posteriors / evidence #normalize
+
+length.step <- length(thetas)
+num.steps   <- 30
+step.thetas <- seq( 1, length.step, by = round( length.step/num.steps ) )
+step.mus    <- step.thetas
+
+zmax <- max(posteriors)
+persp(thetas[step.thetas] , mus[step.mus] , posteriors[step.thetas,step.mus],
+      xlab="theta" , ylab="mu" , main="Posterior Distribution", 
+      sub=paste0("Evidence, p(D) = ", signif(evidence,3)),
+      cex=perspcex, lwd=0.1  , xlim=c(0,1) , ylim=c(0,1) , zlim=c(0,2*zmax),
+      zlab="p(theta,mu|D)" , theta=rotate , phi=tilt , d=parallelness ,
+      shade=shadeval)
+
+#compute marginal probability of p(mu|D) based on the posterior grid
+marginal.post.mu <- rep(0,dim.grid)
+for(i in 1:dim.grid) {
+  marginal.post.mu[i] <- sum(posteriors[,i]) 
+}
+
+# normalize
+sum.priors <- sum(marginal.post.mu)
+for(i in 1:dim.grid) {
+  marginal.post.mu[i] <- marginal.post.mu[i] / sum.priors 
+}
+                                              
+plot(marginal.post.mu, xlab=bquote(mu), ylab=bquote(paste("p(",mu,"|D)")),
+     type="l")
+#title(expression("Marginal Distribution p("~theta~"|D)")) # cf demo(plotmath)
+title(bquote(paste("Marginal Distribution p(",mu,"|D)")))
+abline(v=seq(0,100,20),h=seq(.005,.035,.005),col="lightgray")
+
+#compute marginal probability of p(theta|D) based on the posterior grid
+marginal.post.theta <- rep(0,dim.grid)
+for(i in 1:dim.grid) {
+  marginal.post.theta[i] <- sum(posteriors[i,]) 
+}
+
+# normalize
+sum.priors <- sum(marginal.post.theta)
+for(i in 1:dim.grid) {
+  marginal.post.theta[i] <- marginal.post.theta[i] / sum.priors 
+}
+                                              
+plot(marginal.post.theta, xlab=bquote(theta), 
+     ylab=bquote(paste("p(",theta,"|D)")),type="l")
+#title(expression("Marginal Distribution p("~theta~"|D)")) # cf demo(plotmath)
+title(bquote(paste("Marginal Distribution p(",theta,"|D)")))
+abline(v=seq(0,100,20),h=seq(.005,.035,.005),col="lightgray")
+
+```

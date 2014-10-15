@@ -1,0 +1,38 @@
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="generator" content="R package animation 2.3">
+	<title>Animations Using the R Language</title>
+	<link rel="stylesheet" href="css/reset.css" />
+	<link rel="stylesheet" href="css/styles.css" />
+	<link rel="stylesheet" href="css/scianimator.css" />
+  <link rel="stylesheet" href="http://yandex.st/highlightjs/7.3/styles/github.min.css">
+
+	<script src="js/jquery-1.4.4.min.js"></script>
+	<script src="js/jquery.scianimator.min.js"></script>
+  <script type="text/javascript" src="http://yandex.st/highlightjs/7.3/highlight.min.js"></script>
+  <script type="text/javascript" src="http://yandex.st/highlightjs/7.3/languages/r.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+<body>
+
+	<div class="scianimator"><div id="dnorms" style="display: inline-block;"></div></div>
+	<div class="scianimator" style="width: 480px; text-align: left"><pre><code class="r">## Animations generated in R version 3.1.0 (2014-04-10)
+##   using the package animation
+library(animation)
+xs <- seq(-2, 2, len = 100)
+oopt <- ani.options(interval = 0.2, nmax = 5, autobrowse = FALSE)
+for (i in 1:ani.options("nmax")) {
+    plot(dnorm(xs, 0, 1/i), type = "l")
+    ani.pause()
+}
+ani.options(oopt)
+## R version 3.1.0 (2014-04-10)
+## Platform: i386-w64-mingw32/i386 (32-bit)
+## Other packages: animation 2.3</code></pre></div>
+	<script src="js/dnorms.js"></script>
+<!-- highlight R code -->
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+CREATE TABLE companies (
+  PERMALINK varchar(256), 
+  NAME varchar(256), 
+  HOMEPAGE varchar(256),
+  CATEGORY_CODE varchar(32), 
+  FUNDING_TOTAL_USD bigint, 
+  STATUS varchar(12),
+  COUNTRY_CODE varchar(16),
+  STATE_CODE varchar(3),
+  REGION varchar(64),
+  CITY varchar(256),
+  FUNDING_ROUNDS double precision,
+  ID integer PRIMARY KEY
+);
+
+\COPY companies FROM 'C:\Users\jpn\Downloads\companies.csv' DELIMITER ';' CSV HEADER;
+
+CREATE TABLE acquisitions (
+  COMPANY_PERMALINK varchar(128), 
+  COMPANY_NAME varchar(128), 
+  COMPANY_CATEGORY_CODE varchar(16), 
+  COMPANY_COUNTRY_CODE varchar(3),
+  COMPANY_STATE_CODE varchar(2),
+  COMPANY_REGION varchar(64), 
+  COMPANY_CITY varchar(64), 
+  ACQUIRER_PERMALINK varchar(128), 
+  ACQUIRER_NAME varchar(128), 
+  ACQUIRER_CATEGORY_CODE varchar(16), 
+  ACQUIRER_COUNTRY_CODE varchar(3),
+  ACQUIRER_STATE_CODE varchar(2),
+  ACQUIRER_REGION varchar(64), 
+  ACQUIRER_CITY varchar(64), 
+  PRICE_AMOUNT bigint, 
+  ID integer PRIMARY KEY
+);
+
+\COPY acquisitions FROM 'C:\Users\jpn\Downloads\acquisitions.csv' DELIMITER ';' CSV HEADER;

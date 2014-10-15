@@ -1,0 +1,278 @@
+---
+title: "Bayesian Model Packages"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+## Bayesian First Aid (cont.)
+
+```{r, warning=FALSE, message=FALSE,echo=FALSE}
+library(BayesianFirstAid)
+```
+
+### Test of Proportions
+
+A lot of questions out there involves estimating the proportion or relative frequency of success of two or more groups (where success could be a saved life, a click on a link, or a happy baby) and there exists a little known R function that does just that, `prop.test`. Here we'll use its Bayesian version `bayes.prop.test`.
+
+This is an extension of the binomial test which estimates the underlying relative frequency of success given a number of trials.
+
+For $m$ different trials, in the i-th trial there were $x_1$ successes out of $n_i$ trials, so:
+
+$$x_i \sim \text{Binomial}(\theta_i, n_i)$$
+
+$$\theta_i \sim \text{Beta}(1,1)$$
+
+Here's an eg with two trials:
+
+```{r}
+trial.1 <- c( 43, 275)
+trial.2 <- c(170,1454)
+model <- bayes.prop.test(trial.1, trial.2)
+model
+```
+
+It seems that the first trial has more successes by around 7\%. However this is not very solid evidence since the 95\% confidence interval includes 0 even if barely.
+
+We can calculate the probability that the difference between the two trials is small (say 5\%):
+
+```{r}
+ts <- as.data.frame(model)
+head(ts)
+diff <- mean(abs( ts$theta1 - ts$theta2 ) < 0.05) # check Kruschke's ROPE
+diff
+```
+
+So, there's a `r round(100*diff,0)`\% that the relative frequency of successes in the two trials is equivalent, which is weak evidence for the 'no difference' hypothesis.
+
+
+```{r}
+plot(model)
+diagnostics(model)
+model.code(model)
+```
+
+Let's see an eg with four groups:
+
+```{r, fig.height=12, fig.width=12}
+smokers  <- c(83, 90, 129, 70)
+patients <- c(86, 93, 136, 82)
+model <- bayes.prop.test(smokers, patients)
+model
+plot(model)
+```
+
+The 4th group seems slighty different from the others.
+
+```{r}
+model.code(model)
+```
+
+### Poisson Test
+
+Given a set of counts per time period, and assuming a Poisson distribution, the goal is to estimate the $\lambda$ parameter of the Poisson. It assumes that every count comes from equal periods of time, and that the parameter is fixed, ie, all counts com from the same distribution.
+
+```{r}
+sales.per.period <- c(14,16,9,18,10,6,13)
+poisson.test(x=sum(sales.per.period), T=length(sales.per.period),r=10) # r -- hypothesized rate
+```
+
+The bayes version uses the following model:
+
+$$x \sim \text{Poisson}(\lambda_{\text{total}})$$
+
+$$\lambda_{\text{total}} = \lambda . T$$
+
+$$\lambda \sim \text{Gamma}(0.5,0.00001)$$
+
+The $\text{Gamma}(0.5,0.00001)$ is the JAGS-friendly approximation of the Jeffrey's prior for the parameter of the Poisson (which is $p(\lambda) \propto 1/\sqrt{\lambda}$).
+
+Using `bayes.poisson.text`:
+
+```{r}
+model <- bayes.poisson.test(x=sum(sales.per.period), T=length(sales.per.period), r=10)
+model
+plot(model)
+diagnostics(model)
+model.code(model)
+```
+
+The test accepts two different counts and compare its ratios. In the following eg we are comparing if the first group, that was X-rayed, the cancer rate is 1.5 higher than in the 2nd group, the control group:
+
+```{r}
+cancer.cases <- c(41,15)
+person.per.thousand  <- c(28.011,19.025)
+model <- bayes.poisson.test(x=cancer.cases, T=person.per.thousand, r=1.5)
+model
+```
+
+So, there is evidence, around 75\%, that the cancer rate after the patients being X-rayed, is higher than 1.5 times the control group.
+
+```{r}
+plot(model)
+diagnostics(model)
+model.code(model)
+```
+
+It's possible to add Poisson tests for more than two groups. Just copy-paste the R and JAGS code above, and change the input data for longer vectors. Then update the `for(group_i in 1:2)` to the required group size.
+
+# Zelig package
+
+Zelig is a unified framework for a large range of statistical models. Here in we'll check [its](http://cran.r-project.org/web/packages/Zelig/vignettes/manual-bayes.pdf) bayesian models.
+
+```{r, warning=FALSE, message=FALSE}
+library(MCMCpack)
+library(Zelig)
+```
+
+## Bayesian Logistic Regression
+
+A logistic model for $p_i = P(Z_i=1|X_i)$ is
+
+$$logit(p_i) = \log(\frac{p_i}{1-p_i}) = \beta_0 + \beta_1 \log(x_i)$$
+
+$$\beta_0, \beta_1 \sim U(-\infty,+\infty)$$
+
+The model option for `zelig` is `model = "logit.bayes"`. Here's an eg of training and testing using the bayesian logistic regression (check [here](http://web.cse.ohio-state.edu/~kulis/teaching/788_sp12/scribe_notes/lecture6.pdf) for more info):
+
+```{r}
+head(mtcars)
+
+set.seed(101)
+n <- nrow(mtcars)
+sample.set <- sample(1:n, 0.7*n)
+train.set  <- mtcars[sample.set,]
+test.set   <- mtcars[-sample.set,]
+
+# model the probability of a manual transmission in a vehicle based on its engine horsepower & weight
+z.out <- zelig(am ~ hp + wt, model = "logit.bayes", data = train.set, verbose=FALSE, cite=FALSE)
+# test a new record:
+x.out <- setx(z.out, wt=test.set[1,"wt"], hp=test.set[1,"hp"]) # this is test.set[1,]
+s.out <- sim(z.out, x = x.out)
+summary(s.out)
+test.set[1,"am"] # compare with real value
+
+# check the entire test set
+ams <- rep(NA, nrow(test.set))
+for(i in 1:nrow(test.set)) {
+   
+  x.out <- setx(z.out, wt=test.set[i,"wt"], hp=test.set[i,"hp"])
+  s.out <- sim(z.out, x = x.out)
+  
+  ams[i] <- which.max(s.out$stats$`Predicted Value: Y|X`)-1
+}
+table(test.set$`am`, ams, dnn = c("real","predicted"))
+```
+
+<!-- ----------------------------------------------------
+
+Another eg ([ref](http://www2.ku.edu/~ipsr/new/qm/presentation_imai.pdf)):
+
+Given the following dataset about voting behavior:
+
+```{r, eval=FALSE}
+data(turnout)
+head(turnout)
+```
+
+How does age affect voting behavior among (a) high-school graduates (12 years of education), and (b) college graduates (16 years of education)?
+
+The model:
+
+$$Y_i \text{\Bernoulli(\pi_i)}$$
+
+$$\pi_i \equiv p(Y_i=1|x_i) = \frac{1}{1+\exp(-x_i\beta)} $$
+
+$$x_i\beta = \beta_0 + \beta_1 \text{race} + \beta_2 \text{educate} + \beta_3 \text{age} + \beta_4 \text{age}^2 + \beta_5 \text{income}$$
+
+and the priors of $\beta_i$ are normals with large variance.
+
+```{r, eval=FALSE}
+z.out <- zelig(vote ~ race + educate + age + I(age^2) + income, model = "logit.bayes", data = turnout, verbose=FALSE, cite=FALSE)
+# set explanatory variables
+x.lo <- setx(z.out, educate = 12)
+x.hi <- setx(z.out, educate = 16)
+# simulate quantities of interest
+s.out <- sim(z.out, x = x.lo, x1 = x.hi)
+summary(s.out)
+names(s.out)
+plot.ci(s.out, xlab = "Age in Years", ylab = "Predicted Probability of Voting", 
+        ci=c(75,95,99), leg = 1, col=c("red","orange","gold", "darkgreen","green","lightgreen"), 
+        main = "Effect of Education and Age", ylim=c(0.4,1))
+legend(35,0.65, c("High-School Education", "College Education"), col=c("red", "darkgreen"), lty=1, lwd=2,
+       cex=0.8)
+```
+
+---------------------------------------------------- -->
+
+To check more bayesian models from this package check [Zelig's manual](http://cran.r-project.org/web/packages/Zelig/vignettes/manual-bayes.pdf).
+
+# Laplace's Demon
+
+This is another package that offers many different kinds of MCMC. Check their [webpage](http://www.bayesian-inference.com/software) for more info.
+
+```{r, eval=FALSE}
+# to install, download from http://www.bayesian-inference.com/softwaredownload
+install.packages(pkgs="path\\LaplacesDemon_[version].tar.gz", repos=NULL, type="source")
+
+# check package documentation
+vignette("BayesianInference")
+vignette("LaplacesDemonTutorial")
+vignette("Examples")
+```
+
+Let's implement the following model ([ref](http://www.sumsar.net/blog/2013/06/three-ways-to-run-bayesian-models-in-r/)):
+
+$$y_i \sim \mathcal{N}(\mu,\sigma)$$
+$$\mu \sim \mathcal{N}(0,100)$$
+$$\sigma \sim \text{LogNormal}(0,4)$$
+
+and get some data:
+
+```{r}
+set.seed(1337)
+y <- rnorm(20,10,5)
+```
+
+There is no special mechanism for keeping the parameters inside a bounded range, therefore $\sigma$ is sampled on the log-scale and then exponentiated to make sure it is always positive.
+
+```{r, message=FALSE, results=FALSE}
+library(LaplacesDemon)
+
+model <- function(theta, data) {
+  mu       <- theta[1]
+  sigma    <- exp(theta[2])
+  log_lik  <- sum( dnorm(data$y, mu, sigma, log=T) )  # sum ( log p(y_i|theta) )
+  log_post <- log_lik + dnorm(mu, 0, 100, log=T) + dlnorm(sigma, 0, 4, log=T)
+  
+  # return list in package required format
+  list(LP=log_post, 
+       Dev= -2*log_lik, 
+       Monitor=c(log_post,sigma),
+       yhat=NA,
+       parm=theta)
+}
+
+data.list <- list(N=length(y), y=y, mon.names=c("log_post","sigma"), parm.names=c("mu","log.sigma"))
+mcmc.samples <- LaplacesDemon(Model=model, 
+                              Data=data.list, 
+                              Iterations=1e4, 
+                              Algorithm="HARM", # Hit-and-Run Metropolis, www.bayesian-inference.com/mcmcharm
+                              Thinning=1
+                             )
+```
+
+We can present the results from the sampling:
+
+```{r}
+Consort(mcmc.samples)
+plot(mcmc.samples, BurnIn=1e3, data.list)
+```
+
+The modelling with this package is less user-friendly since there is no declarative language like in BUGS, JAGS or STAN. However it has the possibility of lots of configuration options.

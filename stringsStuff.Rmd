@@ -1,0 +1,186 @@
+String stuff
+========================================================
+
+_This markdown present several ways to manipulate strings._
+
+Standard functions
+------------------
+
++ paste: pastes vectors together
++ substr: extract/replace substrings in a character vector
++ substring: expand cyclically several results
++ strsplit: split the elements into substrings according to the matches (uses regular expressions)
+
+```{r}
+paste("Today is ", date())
+xs <- 1:7
+paste0("A", xs)  
+paste("A", xs, sep=",")
+paste(letters[1:10],xs,sep="|")
+paste(letters[1:10],xs,sep="|",collapse=",")
+cs <- "o mapa nao e o territorio"
+paste0("'", cs, "' tem ", nchar(cs), " caracteres")
+substr(cs,3,6)
+substr(cs,3,6) <- "MAPA"
+cs
+substring(cs, 2, 4:6)
+xs <- c("ontem", "hoje", "amanha", "depois de amanha")
+substring(xs, 2) <- c("XX", "YY", "Z")
+xs
+cs <- "o mapa nao e o territorio"
+strsplit(cs,"[oa]")
+cs <- paste(letters[1:10],1:7,sep="|",collapse=",")
+cs
+cs1 <- strsplit(cs,"[,|]")[[1]]
+cs1
+cs1 <- paste0(cs1,collapse="")
+cs1
+```
+
+Regular Expressions
+-------------------
+
+```{r}
+strsplit(cs1,"[1-9]")   # use every digit as a separator
+strsplit("a.b.c",".")   # . is the operator that accepts all as separator
+strsplit("a.b.c","\\.") # separates by the point
+cs <- c("aaa","abb","ccc","dda","eaa")
+sub("a","X",cs)  # sub replaces the first match for the entries of a vector
+gsub("a","X",cs) # the same but replaces all matches
+text.test <- "Evidence for a model (or belief) must be considered against alternative models. Let me describe a neutral (and very simple) example: Assume I say I have Extra Sensorial Perception (ESP) and tell you that the next dice throw will be 1. You throw the dice and I was right. That is evidence for my claim of ESP. However there's an alternative model ('just a lucky guess') that also explains it and it's much more likely to be the right model (because ESP needs much more assumptions, many of those in conflict with accepted facts and theories). This is a subject of statistical inference. It's crucial to consider the alternatives when we want to put our beliefs to the test."
+gsub("belief|model","XXX",text.test) # erase every word equals to belief *or* model
+gsub("t([a-z]*)?t","XXX",text.test) # erase every 0+ letters between 2 t's
+gsub("([a-z])\\1","YY",text.test)   # erase every letter repeated twice (eg: 'ee', 'll')
+gsub("(model)","*\\1*",text.test)   # bold every 'model' word
+gsub("(t)(h)","\\2\\1", text.test)  # swap every 'th' to 'ht'
+gsub("([^a-zA-Z])([aA][a-z]+)","\\1*\\2*",text.test) # bold every word that begins with 'a'
+gsub("([^a-zA-Z])([a-z]){1,3}([^a-zA-Z])","\\1ZZZ\\3",text.test)   # erase every word with 1 to 3 letters 
+# {3} means exactly 3 and {3,} means 3 or more
+separators <- "[,.: ()']"
+tokens <- strsplit(text.test, separators)[[1]]  # tokenize text into words
+tokens <- tokens[tokens != ""]                  # remove empty tokens
+tokens
+grep("dice", tokens, fixed=TRUE)                # where are 'dice' tokens (returns indexes)
+string <- "abcedabcfaa"
+cs <- strsplit(gsub("([a-z])","\\1,",string),",")[[1]] # convert to vector of chars
+grepl("a",cs)   # TRUE if there's a match, FALSE otherwise
+# regexpr() gives you the first match in each element of the vector (-1 if not found)
+# the second vector is the length of the first match
+cs <- c("aaa", "axx", "xaa", "axx", "xxx", "xxx")
+regexpr("a", cs)
+regexpr("a*", cs)
+# regexpr() gives the indexes of each sub-expression
+cs <- c("123ab67","ab321","10000","0","abc")
+regexec("[a-z]*([0-9]+)",cs)
+# A more complex eg:
+set.seed(101)
+pop.data <- paste("the population is", floor(runif(20,1e3,5e4)),"birds")
+head(pop.data)
+reg.info <- regexec("the population is ([0-9]*) birds", pop.data)
+reg.info[1:3]
+reg.data <- regmatches(pop.data, reg.info)
+reg.data[1:3]
+bird.population <- sapply(reg.data, function(x)x[2])
+bird.population
+```
+
+One more example (based on [this one](http://www.r-bloggers.com/finding-patterns-in-time-series-using-regular-expressions/)). This one shows how to draw grey rectangle over depressions in a time-series:
+
+```{r}
+set.seed(1303)
+# make time-series
+steps <- sample(-2:2, size=200, prob=c(.1,.2,.2,.4,.1) ,replace=TRUE)
+ts <- cumsum(steps)
+plot(ts, type="l")
+
+# assume we didn't know how ts was made
+difs <- sign(diff(ts)>=0)  # 0 if decreased, 1 otherwise
+
+bits <- paste0(difs,collapse="")  # colapse into a string of bits
+bits
+
+# let's signal a consecutive decrease of 2+ time stamps (aka, a depression)
+matches <- gregexpr("00+", bits, perl = T)[[1]]
+matches
+attributes(matches)$match.length # this allows to access the length of each matches[i]
+
+# let's plot the time series with the depressions marked as grey rectangles
+plot(ts, type="n")
+min.y <- rep(min(ts),length(matches))
+max.y <- rep(max(ts),length(matches))
+rect(matches, min.y, matches+attributes(matches)$match.length, max.y, col="lightgrey", border=FALSE)
+points(ts, type="l")
+```
+
+ 
+Package `stringr`
+----------------
+
+[R Help] _stringr is a set of simple wrappers that make R's string functions more consistent, simpler and easier to use. It does this by ensuring that: function and argument names (and positions) are consistent, all functions deal with NA's and zero length character appropriately, and the output data structures from each function matches the input data structures of other functions_
+
+```{r}
+library(stringr)
+
+str1 <- c("o mapa")
+str2 <- c("nao e o territorio")
+str3 <- str_c(str1,str2, sep=" ")  # join 2+ strings
+str3
+str_c(letters, collapse = ", ")
+str_length(str3)
+str_dup("ab",5)                    # duplicates strings
+str_dup(c("ab","c"),3)
+str_dup("ab",1:3)
+str_count(str3, "r")               # the number of matches
+str_detect(str3, "r")              # verifies if match exists
+str_extract(str3, "[it][eo]+")     # extract first match
+str_extract_all(str3, "[it][eo]+") # extract all matches
+str_locate(str3, "[it][eo]+")      # locate where's first match
+str_locate_all(str3, "[it][eo]+")  # locate where're all matches
+str_replace(str3,"r","R")          # replace first match
+str_replace_all(str3,"r","R")      # replace all matches
+str_split(str3,"e")
+str_split(str3,"e",n=2)
+str_sub(str3,1,3)                  # extract substrings
+str_sub(str3,seq(1,24,2),seq(2,25,2)) 
+
+str4 <- "BBCDEF"
+str_sub(str4, 1, 1) <- "A"
+str4
+str_sub(str4, -1, -1) <- "K"
+str4
+
+strings <- c(" 219 733 8965", "329-293-8753 ", "banana", "595 794 7569",
+  "387 287 6718", "apple", "233.398.9187  ", "482 952 3315",
+  "239 923 8115", "842 566 4692", "Work: 579-499-7527", "$1000",
+  "Home: 543.355.3679")
+phone <- "([2-9][0-9]{2})[- .]([0-9]{3})[- .]([0-9]{4})"
+str_extract(strings, phone)
+str_match(strings, phone)
+
+rbind(
+  str_pad("hadley", 10, "left"),
+  str_pad("hadley", 10, "right"),
+  str_pad("hadley", 10, "both")
+)
+
+thanks_path <- file.path(R.home("doc"), "THANKS")
+thanks <- str_c(readLines(thanks_path), collapse = "\n")
+thanks <- word(thanks, 1, 3, fixed("\n\n"))
+cat(str_wrap(thanks), "\n")
+cat(str_wrap(thanks, width = 40), "\n")
+cat(str_wrap(thanks, width = 60, indent = 2), "\n")
+cat(str_wrap(thanks, width = 60, exdent = 2), "\n")
+
+sentences <- c("Jane saw a cat", "Jane sat down")
+word(sentences, 1)               # Extract words from a sentence.
+word(sentences, 2)
+word(sentences, -1)
+word(sentences, 2, -1)
+word(sentences[1], 1:3, -1)      # Also vectorised over start and end
+word(sentences[1], 1, 1:4)
+str <- 'abc.def..123.4568.999'
+word(str, 1, sep = fixed('..'))  # Can define words by other separators
+word(str, 2, sep = fixed('..'))
+```
+
+

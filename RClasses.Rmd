@@ -1,0 +1,357 @@
+Classes & Environments
+========================================================
+
+Taken from [Advanced R programming](http://adv-r.had.co.nz/) by Hadley Wickham
+
+Reference Classes
+----------------
+
+> Reference classes (or RC for short) are the newest OO system in R. They were introduced in version 2.12. They are fundamentally different to S3 and S4 because:
+RC methods belong to objects, not functions
+RC objects are mutable: the usual R copy-on-modify semantics do not apply
+These properties make RC objects behave more like objects do in most other programming languages, e.g., Python, Ruby, Java and C#. [ref](http://adv-r.had.co.nz/OO-essentials.html#rc)
+
+```{r}
+Account <- setRefClass("Account")  # a new class
+my.account <- Account$new()        # a new object
+```
+
+Classes have attributes:
+
+```{r}
+Account <- setRefClass("Account",
+  fields = list(balance = "numeric"))
+
+my.account <- Account$new(balance = 100)
+my.account$balance
+my.account$balance <- 200
+my.account$balance
+```
+
+Unlike other R objects, RC objects are mutable and are not copied when modified:
+
+```{r}
+b <- my.account
+b$balance
+my.account$balance <- 0
+b$balance
+# for a copy:
+c <- my.account$copy()
+my.account$balance <- 100
+c$balance
+```
+
+And we can add methods also:
+
+```{r}
+Account <- setRefClass("Account",
+  fields = list(balance = "numeric"),
+  methods = list(
+    withdraw = function(x) {
+      balance <<- balance - x   # use <<- to modify attributes 
+    },
+    deposit = function(x) {
+      balance <<- balance + x
+    }
+  )
+)
+
+a <- Account$new(balance = 100)
+a$deposit(100)
+a$balance
+```
+
+For subclassing use contains:
+
+```{r}
+NoOverdraft <- setRefClass("NoOverdraft",
+  contains = "Account",
+  methods = list(
+    withdraw = function(x) {    # overwrites superclass 'withdraw'
+      if (balance < x) 
+        stop("Not enough money")
+      balance <<- balance - x
+    }
+  )
+)
+accountJohn <- NoOverdraft$new(balance = 100)
+accountJohn$deposit(50)
+accountJohn$balance
+accountJohn$withdraw(200)
+```
+
+Environments
+------------
+
+> The job of an environment is to associate, or bind, a set of names to a set of values. Environments are the data structures that power scoping. An environment is very similar to a list, with three important exceptions:
+
+> 1.Environments have reference semantics. So R's usual copy on modify rules do not apply. Whenever you modify an environment, you modify every copy.
+In the following code chunk, we create a new environment, create a "copy" and then modify the original environment. Notice that the copy also changes. If you change e to a list (or any other R datastructure), f will become a list. e and f are identical. 
+
+```{r}
+e <- new.env()
+f <- e
+
+e$a <- 10
+f$a
+```
+
+> As well as powering scoping, environments can also be useful data structures because they have reference semantics and can work like a hashtable.
+
+> 2. Environments have parents. If an object is not found in an environment, then R will look at its parent (and so on). There is only one exception: the empty environment does not have a parent.
+
+```{r}
+e <- new.env()
+# the default parent provided by new.env() is environment from which it is called
+parent.env(e)
+```
+> 3. Every object in an environment must have a name. And, those names must be unique.
+
+> Technically, an environment is made up of a frame, a collection of named objects (like a list), and a reference to a parent environment. [ref](http://adv-r.had.co.nz/Environments.html)
+
+```{r}
+e <- new.env()
+identical(e, globalenv())
+e$a <- 1
+ls(e)  # check contents of e (does not show names beginning with .)
+e$a
+e$.b <- 0
+ls(e)
+ls(e, all=TRUE)
+# we can coerce to a list:
+as.list(e)
+str(as.list(e, all=TRUE))
+```
+
+We can use $ or [[ to extract an element which looks only within the environment. Function `get` will also looks into its parents:
+
+```{r}
+e$a
+e[["a"]]
+c <- 1 # global env
+e$c
+get("c",e)
+```
+
+To remove an element use `rm`:
+
+```{r}
+e <- new.env()
+e$a <- 1
+e$a <- NULL
+ls(e)
+rm("a", envir = e)
+ls(e)
+```
+
+Generally, when you create your own environment, you want to manually set the parent environment to the empty environment. This ensures you don't accidentally inherit objects from somewhere else:
+
+```{r}
+x <- 1
+e1 <- new.env()
+get("x", e1)
+e2 <- new.env(parent = emptyenv())
+get("x", e2)
+```
+
+You can determine if a binding exists in a environment with the exists() function. Like get(), the default is to follow regular scoping rules and look in parent environments. If you don't want this behavior, use inherits = FALSE:
+
+```{r}
+exists("x", e1)
+exists("x", e1, inherits = FALSE)
+```
+
+There are a few special environments that you can access directly:
+
++ globalenv(): the user's workspace
++ baseenv(): the environment of the base package
++ emptyenv(): the ultimate ancestor of all environments, the only environment without a parent.
+
+```{r}
+search() #  lists all environments between and including the global and base environments
+```
+
+Function environments
+-------------------
+
+The environment where the function is created:
+
+```{r}
+y <- 1
+f <- function(x) x + y
+environment(f)
+```
+
+To make an equivalent function that is safer (it throws an error if the input isn't a function), more consistent (it can take a function name as an argument not just a function), and more informative (it has a better name), we'll create funenv():
+
+```{r}
+funenv <- function(f) {
+  f <- match.fun(f) #  extract the desired function object
+  environment(f)
+}
+
+funenv(plot)
+environment(plot)
+
+funenv("plot")
+environment("plot")
+```
+
+The environment created when a function is run: each time a function is called, a new environment is created to host execution.
+
+```{r}
+f <- function(x) {
+  list(
+    e = environment(),
+    p = parent.env(environment())
+  )
+}
+str(f())
+str(f())
+funenv("f")
+```
+
+The environment where the function is called:
+
+```{r}
+f <- function() {
+  x <- 10
+  function() {
+    x
+  }
+}
+g <- f()
+x <- 20
+g()
+```
+
+What value x is associated with in the environment where g() is called? x is 10 in the environment where g() is defined, but it is 20 in the environment where g() is called.
+
+We can access this environment using the confusingly named parent.frame(). This function returns the environment where the function is called. We can also use this function to look up the value of names in that environment:
+
+```{r}
+f2 <- function() {
+  x <- 10
+  function() {
+    def <- get("x", environment())
+    cll <- get("x", parent.frame())
+    list(defined = def, called = cll)
+  }
+}
+g2 <- f2()
+x <- 20
+str(g2())
+```
+
+We can get a list of all calling environments using sys.frames():
+
+```{r}
+x <- 0
+y <- 10
+f <- function(x) {
+  x <- 1
+  g(x)
+}
+g <- function(x) {
+  x <- 2
+  h(x)
+}
+h <- function(x) {
+  x <- 3
+  i(x)
+}
+i <- function(x) {
+  x <- 4
+  sys.frames()
+}
+
+es <- f()
+es
+sapply(es, function(e) get("x", e, inherits = TRUE))
+sapply(es, function(e) get("y", e, inherits = TRUE))
+```
+
+Assignment
+-----------
+
+> Assignment is the act of binding (or rebinding) a name to a value in an environment. It is the counterpart to scoping, the set of rules that determines how to find the value associated with a name.
+
+There are four types of binding:
+
++ With the regular behaviour, name <- value, the name is immediately associated with the value in the current environment. assign("name", value) works similarly, but allows assignment in any environment.
+
++ The double arrow, name <<- value, assigns in a similar way to variable lookup, so that i <<- i + 1 modifies the binding of the original i, which is not necessarily in the current environment.
+
++ Lazy assignment, delayedAssign("name", expression), binds an expression that isn't evaluated until you look up the name.
+
++ Active assignment, makeActiveBinding("name", function, environment) binds the name to a function, so it is "active" and can return a different value each time the name is found.
+
+
+Regular Binding:
+
+```{r}
+a <- 1
+`a+b` <- 2 # a name can actually be any sequence of characters
+a + `a+b`
+`:)` <- "smile"
+paste0(`:)`,"!")
+
+e <- new.env()
+assign("a", 1, envir = e) # same as e$a <- 1
+
+e <- new.env()
+eval(quote(a <- 2), e) # Evaluate an R expression in a specified environment
+# quote simply returns its argument, which is not evaluated then
+e$a
+```
+
+Constants:
+
+```{r}
+x <- 10
+lockBinding("x", globalenv())
+x <- 15
+rm(x)
+```
+
+<<-
+
+The regular assignment arrow, <-, always creates a variable in the current environment. The special assignment arrow, <<-, never creates a variable in the current environment, but instead modifies an existing variable found by walking up the parent environments.
+
+```{r}
+x <- 1
+inc <- function() x <<- x+1 
+inc()
+x
+inc()
+x
+```
+
+Delayed bindings:
+
+Another special type of assignment is a delayed binding: rather than assigning the result of an expression immediately, it creates and stores a promise to evaluate the expression when needed (much like the default lazy evaluation of arguments in R functions).
+```
+
+```{r}
+makeActiveBinding("x1", (function() runif(1)), environment())
+x1
+x1
+
+f <- local({ 
+    x <- 1  
+    function(val) {   # with 1 argument is a 'set', with 0 args is a 'get'
+      if (missing(val)) 
+        2^x 
+      else 
+        x <<- val
+    }
+  })
+
+makeActiveBinding("pow2", f, environment())
+pow2
+pow2 <- 3
+pow2
+pow2 <- 4
+pow2
+```
+

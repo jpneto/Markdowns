@@ -1,0 +1,525 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = FALSE, echo = T,
+               fig.width = 8, fig.height = 8)
+
+## R configuration
+options(width = 116, scipen = 5)
+
+#  knitr options
+# comment = "": No preceeding in the output.
+# error = TRUE: Errors will be shown in the output
+# warning = FALSE: No warnings will not be shown in the output.
+# message = FALSE: No message will not be shown in the output.
+# tidy = FALSE: Codes will be shown as they are, including spaces. No reformating will be done.
+# cache = F: No caching. Caching can speeds up repeated knitting.
+# echo = T: Codes will be shown in the output
+# fig.width = 5: Figures will be 5-inch wide.
+# fig.height = 5: Figures will be 5-inch high.
+
+# R Options
+# width = 116: The width of the output in characters.
+# scipen = 5: Penalty for scientific notation such as 1e5 for 100000.
+```
+Graphs
+========================================================
+
+Package `diagram` is used for making simple diagrams (check [reference](diagram.pdf)). Some egs:
+
+```{r}
+library(diagram)
+
+names <- c("0", "0", "1", "1")
+M <- matrix(nrow = 4, ncol = 4, byrow = TRUE, data = 0)
+M[2, 1] <- M[4, 3] <- ""
+
+par(mar = c(0, 0, 0, 0))
+plotmat(M, pos = c(2, 2), # pos: the first 2 nodes in the same line, next 2 in the line below
+           name = names, lwd = 1, curve = 0,
+           box.lwd = 1, cex.txt = 0.8, box.size = .1,
+           box.type = "circle", box.prop = 0.5)
+text(0.25,.5,"X"); text(.75,.5,"Y");
+```
+
+```{r}
+names <- c("0", "1", "2", "1", "3", "4")
+M <- matrix(nrow = 6, ncol = 6, byrow = TRUE, data = 0)
+M[2, 1] <- "1/2" 
+M[3, 1] <- "1/2"
+M[5, 4] <- "1/3" 
+M[6, 4] <- "2/3"
+
+par(mar = c(0, 0, 0, 0))
+plotmat(M, pos = matrix(c(.25,.875, .75,.875, .75,.675, .25,.5, .75,.5, .75,.25), ncol=2, byrow=TRUE),
+        # in this case, pos is given the coordenates for each node (inside the [(0,0),(1,1)] box)
+           name = names, lwd = 1, curve = 0,
+           box.lwd = 1, cex.txt = 0.8, box.size = .1,
+           box.type = "circle", box.prop = 0.5)
+text(0.1,.5,"X"); text(.9,.5,"Y");
+```
+
+```{r}
+names <- c("0", "0", "1", "1")
+M <- matrix(nrow = 4, ncol = 4, byrow = TRUE, data = 0)
+M[2, 1] <- M[4, 3] <- "1-e"
+M[4, 1] <- M[2, 3] <- "e"
+
+par(mar = c(0, 0, 0, 0))
+plotmat(M, pos = c(2, 2), name = names, lwd = 1, curve = 0,
+           box.lwd = 1, cex.txt = 0.8, box.size = .1,
+           box.type = "circle", box.prop = 0.5)
+text(0.25,.5,"X"); text(.75,.5,"Y");
+```
+
+There is also the `igraph` package. Check their [website](http://igraph.sourceforge.net/index.html) for [documentation](http://igraph.sourceforge.net/doc/R/igraph.pdf), also [online](http://igraph.sourceforge.net/documentation.html). Check this [tutorial](http://igraph.sourceforge.net/igraphbook/).
+
+Another source was [http://horicky.blogspot.pt/2012/04/basic-graph-analytics-using-igraph.html](http://horicky.blogspot.pt/2012/04/basic-graph-analytics-using-igraph.html)
+
+```{r,fig.width = 12, fig.height = 6}
+library(igraph)
+par(mfrow=c(1,2))
+plot(graph.ring(5,circular=TRUE))
+plot(graph.ring(5,directed=TRUE,mutual=TRUE))
+par(mfrow=c(1,3))
+plot(graph.star(7,mode="in"))
+plot(graph.star(7,mode="out"))
+plot(graph.star(7,mode="undirected"))
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(graph.lattice( c(3,3) ))
+plot(graph.lattice( c(3,3), directed=TRUE ))
+# In a circular lattice the difference of the coordinates of the vertices is calculated modulo the size of the lattice along the given dimension so for example in the circular 5x3 two dimensional lattice vertices (1,1) and (1,3) are also connected just like (1,1) and (5,1).
+plot(graph.lattice( c(3,3), circular=TRUE ))
+plot(graph.tree(20))
+plot(graph.tree(20, children=3))
+plot(graph.tree(20, mode="out"))
+plot(graph.tree(20, mode="in"))
+plot(graph.tree(20, mode="undirected"))
+```
+
+Some more messy graphs:
+
+```{r}
+g <- graph( c(1,2, 1,3, 1,1, 3,4, 4,5, 5,6), directed=TRUE )
+plot(g)
+are.connected(g,1,3)
+are.connected(g,3,1)
+g <- graph.full(4, directed=TRUE)
+plot(g)
+is.directed(g)
+g <- graph( c(1,2, 1,3, 1,1, 3,4, 4,5, 5,6), directed=TRUE, n=8 )
+plot(g)
+get.edgelist(g)
+# a matrix can be used to create a graph
+edgelist <- matrix(c(1:5,2:5,1),ncol=2)
+edgelist
+g <- graph(t(edgelist))
+plot(g)
+adjacency.matrix <- matrix( (runif(64)>.5)+0, nrow=8 )
+g <- graph.adjacency(adjacency.matrix)
+plot(g)
+get.adjacency(g)
+# data frame can also be used
+set.seed(151)
+size <- 10
+df <- data.frame(name = letters[1:10],
+                 age = rpois(size,20),
+                 gender = sample(c("F","M"),size,replace=TRUE))
+df
+df.edges <- data.frame(origin = sample(letters[1:size],size,replace=TRUE),
+                       destiny = sample(letters[1:size],size,replace=TRUE),
+                       friend = sample(c("Y","N"),size,replace=TRUE))
+df.edges
+g <- graph.empty()
+g <- add.vertices(g, nrow(df), 
+                  name=as.character(df[,1]), 
+                  age=df[,2],
+                  gender=as.character(df[,3]))
+V(g)$name
+V(g)$age
+V(g)$gender
+vcount(g) # number of vertices
+ids <- 1:length(V(g)$name)
+names(ids) <- V(g)$name
+ids
+from <- as.character(df.edges[,1])
+to   <- as.character(df.edges[,2])
+edges <- matrix(c(ids[from], ids[to]), ncol=2)
+edges
+g <- add.edges(g, t(edges), 
+                  friend=as.character(df.edges[,3]))
+E(g)
+ecount(g) # number of edges
+
+# customize graph for ploting
+V(g)[gender=="F"]$color <- "green"
+V(g)[gender=="M"]$color <- "red"
+E(g)$color <- "black"
+E(g)[friend=="Y"]$color <- "red"
+E(g)$labels <- 1:ecount(g) #E(g)$friend
+E(g)$weight <- 1:2
+
+E(g)$names <- letters[1:10] # just an an eg
+
+igraph.options(arrow.width=13)
+plot(g)
+
+# for all options check plot.igraph at reference manual
+
+plot.igraph(g, layout=layout.fruchterman.reingold,
+            vertex.label.dist=0,
+            vertex.label.cex=1:2,  
+            vertex.label.degree=pi/2,  
+            vertex.shape=c("square","circle"),
+            vertex.label.color=c(0,1),
+            edge.color=E(g)$color,
+            edge.width=E(g)$weight,
+            edge.label=E(g)$names, 
+            edge.label.cex=2, 
+            edge.lty=2, 
+            edge.curved=TRUE,
+            edge.loop.angle=pi/4,
+            edge.arrow.size=1,
+            frame=TRUE)
+```
+
+```{r}
+g <- barabasi.game(100, directed=FALSE)
+d <- get.diameter(g)
+E(g)$color <- "SkyBlue2"
+E(g)$width <- 1
+E(g, path=d)$color <- "red"
+E(g, path=d)$width <- 2
+V(g)$labelcolor <- V(g)$color  <- "blue"
+V(g)[ d ]$labelcolor <- V(g)[ d ]$color <- "red"
+igraph.options(label.dist=0.4)
+
+plot(g, layout=layout.kamada.kawai, 
+     edge.color=E(g)$color,edge.width=E(g)$width,
+     vertex.color=V(g)$color, 
+     vertex.size=3)
+```
+
+Some extra manipulations and a mention to the [Nexus repository](http://www.rpubs.com/sixhat/igraph-colouring)
+
+```{r}
+library(igraph)
+nexus.info(2)  # Nexus repository is an online collection of network data sets.
+gg <- as.undirected( nexus.get(2) )
+plot(gg)
+head(get.adjacency(gg)) # show adjacency matrix
+head(get.data.frame(gg),n=12) # convert to data.frame
+
+gg.com <- fastgreedy.community(gg) # tries to find dense subgraphs (aka communities)
+V(gg)$color <- gg.com$membership + 1 # color each community differently
+plot(gg)
+
+# select one community
+gg.one <- delete.vertices(gg, V(gg)[V(gg)$color != 2 ])
+plot(gg.one)
+
+gg.one <- delete.edges(gg.one, E(gg.one)[ E(gg.one)$weight < 10]) # remove edges less than 10
+plot(gg.one)
+
+# get the number of neighbors for each vertice
+n.neighbors <- sapply(V(gg.one), function(v)length(neighbors(gg.one, v)))
+# change the shape of all the vertices with less than 3 neighbors
+V(gg.one)[V(gg.one)[n.neighbors<3]]$shape <- "square"
+V(gg.one)[V(gg.one)[n.neighbors>=3]]$shape <- "circle"
+plot(gg.one)
+
+# add the strenght of the edge
+plot.igraph(gg.one, layout=layout.reingold.tilford,
+            edge.width=E(gg.one)$weight/4, edge.color="black")
+```
+
+Next ref: [http://statistics.ats.ucla.edu/stat/r/faq/snplot.htm](http://statistics.ats.ucla.edu/stat/r/faq/snplot.htm)
+
+```{r}
+library(igraph)
+
+# this is the context of mat25.txt
+
+# 0 0 1 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0 1 0
+# 0 0 0 0 1 1 0 0 0 1 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0
+# 0 1 0 0 1 0 1 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0
+# 0 0 0 0 1 0 0 0 0 0 0 1 1 0 0 0 0 1 0 0 0 0 0 1 0
+# 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 1 0 0 0 1
+# 0 0 0 0 0 0 0 1 0 0 0 1 0 1 0 1 0 0 0 0 1 0 0 0 0
+# 1 0 0 0 1 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+# 1 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 1 0
+# 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 1 0 0 0 1
+# 0 0 0 0 0 0 0 1 1 0 0 0 0 0 1 0 0 1 0 0 0 0 0 0 1
+# 1 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 1 0 0
+# 0 0 0 0 1 0 1 0 0 0 0 0 0 1 0 0 0 0 1 0 0 1 0 0 0
+# 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 1
+# 1 0 0 1 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0
+# 1 0 0 0 1 0 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 1 0 0 0
+# 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 1
+# 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 1
+# 0 0 1 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 1
+# 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 0 0 0 0 0 0 1 1 0 0
+# 1 0 0 1 0 0 0 0 0 0 1 0 0 0 0 1 0 0 1 0 0 0 0 0 0
+# 0 1 1 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 1 0 0 0 0 0 0
+# 0 0 0 1 0 1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0
+# 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 1 0 1 0
+# 0 0 0 0 0 1 0 0 0 1 1 0 0 0 0 0 0 0 1 0 0 0 1 0 0
+# 1 1 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+x <- read.table("http://www.ats.ucla.edu/stat/data/mat25.txt", header = FALSE)
+head(x)
+
+# In order for the igraph package to recognize this table as a network, we can first convert it to a matrix. Then, if we wish to calculate graph-related statistics on it (betweenness, closeness, degree), we can use the matrix to create a graph object.
+
+network <- as.matrix(x)
+g1 <- graph.adjacency(network)  
+
+# Betweenness is a centrality measure of a vertex within a graph (there is also edge betweenness, which is not discussed here). Betweenness centrality quantifies the number of times a node acts as a bridge along the shortest path between two other nodes.
+(b1 <- betweenness(g1, directed = FALSE))
+
+# In connected graphs there is a natural distance metric between all pairs of nodes, defined by the length of their shortest paths. The farness of a node s is defined as the sum of its distances to all other nodes, and its closeness is defined as the inverse of the farness.
+(c1 <- closeness(g1, mode = "out"))
+
+# the degree (or valency) of a vertex of a graph is the number of edges incident to the vertex, with loops counted twice.
+(d1 <- degree(g1, mode = "out"))
+
+###########
+
+# Let file elist1.txt be a edge list like this:
+# 
+# 1 2
+# 1 3
+# 1 4
+# 3 5
+# 4 6
+# 6 4
+#
+# We can read in this file as a graph, indicating that the format is an "edgelist".
+
+xlist <- read.graph("http://www.ats.ucla.edu/stat/data/elist1.txt", format = "edgelist")
+str(xlist)
+plot.igraph(xlist)
+
+# Looking at the summary of our graph object, R believes our graph has 7 vertices although we only listed edges ranging from vertices 1 through 6. R makes a few assumptions unless otherwise specified:
+ 
+# Vertices are indexed from zero and go through the highest numbered vertex in the edged list. You can specify that your graph contains more vertices than this, but not less.
+# Edges are directed, going from the first vertex listed to the second.
+
+# So let's amend considering that we have 8 vertices and the graph is indirected:
+
+xlist.8un <- read.graph("http://www.ats.ucla.edu/stat/data/elist1.txt", format = "edgelist", n = 8, directed = FALSE)
+str(xlist)
+plot.igraph(xlist.8un)
+
+# Our first graph has an unconnected 0 vertex and arrows on the edges. Our second has unconnected 0 and 7 vertices and no arrows on the edges. We could also enter our data in a single vector of vertex indices where an edge connects the first and second, third and fourth, fifth and sixth entries and so on.
+
+g2 <- graph(c(1, 2, 2, 3, 2, 4, 2, 5, 4, 6, 5, 7, 7, 5))
+str(g2)
+plot.igraph(g2)
+```
+
+Package `igraph` also includes graph algorithms. Some egs:
+
+Shortest Path(s)
+----------------
+
+```{r}
+g <- graph.ring(10)
+shortest.paths(g)
+get.shortest.paths(g, 5)
+get.all.shortest.paths(g, 1, 6:8)
+average.path.length(g)
+## Weighted shortest paths
+el <- matrix(nc=3, byrow=TRUE,
+             c(1,2,0, 
+               1,3,2, 
+               1,4,1, 
+               2,3,0, 
+               2,5,5, 
+               2,6,2,
+               3,2,1, 
+               3,4,1,
+               3,7,1,
+               4,3,0, 
+               4,7,2, 
+               5,6,2, 
+               5,8,8, 
+               6,3,2, 
+               6,7,1, 
+               6,9,1,
+               6,10,3,
+               8,6,1, 
+               8,9,1, 
+               9,10,4) )
+g2 <- add.edges(graph.empty(10), t(el[,1:2]), weight=el[,3])
+plot.igraph(g2,edge.label=el[,3])
+shortest.paths(g2, mode="out")
+# Another example
+g <- erdos.renyi.game(12, 0.25)
+plot(g, layout=layout.fruchterman.reingold)
+pa <- get.shortest.paths(g, 5, 9)[[1]]
+pa
+V(g)[pa]$color <- 'green'
+E(g)$color <- 'grey'
+E(g, path=pa)$color <- 'red'
+E(g, path=pa)$width <- 3
+plot(g, layout=layout.fruchterman.reingold)
+```
+
+Minimum Spanning Tree
+----------------------
+
+Minimum Spanning Tree algorithm is to find a Tree that connect all the nodes within a connected graph while the sum of edges weight is minimum.
+
+```{r}
+# Create the graph and assign random edge weights
+g <- erdos.renyi.game(12, 0.35)
+E(g)$weight <- round(runif(length(E(g))),2) * 50
+plot(g, layout=layout.fruchterman.reingold,  edge.label=E(g)$weight)
+# Compute the minimum spanning tree
+mst <- minimum.spanning.tree(g)
+plot(mst, layout=layout.reingold.tilford, edge.label=E(mst)$weight)
+```
+
+Clustering
+----------
+
+```{r}
+g <- erdos.renyi.game(20, 1/20)
+plot(g)
+clusters(g)
+# membership: numeric vector giving the cluster id to which each vertex belongs.
+# csize: numeric vector giving the sizes of the clusters.
+# no: numeric constant, the number of clusters
+```
+
+Subcomponents
+-------------
+
+```{r}
+# subcomponent() finds all vertices reachable from a given vertex, or the opposite: all vertices from which a given vertex is reachable via a directed path.
+
+set.seed(100)
+g <- erdos.renyi.game(20, 1/50, directed=TRUE)
+plot(g)
+subcomponent(g, 3, "in")
+subcomponent(g, 3, "out")
+subcomponent(g, 3, "all")
+```
+Graph Statistics
+----------------
+
+There are many statistics that we can look to get a general ideas of the shape of the graph.  At the highest level, we can look at summarized statistics of the graph. This includes
++ Size of the graph (number of nodes and edges)
++ Density of the graph measure weither the graph dense (|E| proportional to |V|^2) or sparse (|E| proportional to |V|) ?
++ Is the graph very connected (large portion of nodes can reach each other), or is it disconnected (many islands) ?
++ Diameter of the graph measure the longest distance between any two nodes
++ Reciprocity measures in a directed graph, how symmetric the relationships are
++ Distribution of in/out "degrees"
+
+```{r}
+set.seed(121)
+# Create a random graph
+g <- erdos.renyi.game(200, 0.02)
+plot(g, layout=layout.fruchterman.reingold, 
+       vertex.label=NA, vertex.size=3)
+# No of nodes
+length(V(g))
+# No of edges
+length(E(g))
+# Density (No of edges / possible edges)
+graph.density(g)
+# Number of islands
+clusters(g)$no
+# Global cluster coefficient:
+#(close triplets/all triplets)
+transitivity(g, type="global")
+# Edge connectivity, 0 since graph is disconnected
+edge.connectivity(g)
+# Same as graph adhesion
+graph.adhesion(g)
+# Diameter of the graph
+diameter(g)
+# Reciprocity of the graph
+reciprocity(g)
+# Diameter of the graph
+diameter(g)
+# Reciprocity of the graph
+reciprocity(g)
+```
+
+Drill down a level, we can also look at statistics of each pair of nodes, such as ...
++ Connectivity between two nodes measure the distinct paths with no shared edges between two nodes. (ie: how much edges need to be removed to disconnect them)
++ Shortest path between two nodes
++ Trust between two nodes (a function of number of distinct path and distance of each path)
+
+```{r}
+# Create a random graph
+g <- erdos.renyi.game(9, 0.5)
+plot(g, layout=layout.fruchterman.reingold)
+# Compute the shortest path matrix
+shortest.paths(g)
+M <- matrix(rep(0, 81), nrow=9)
+for (i in 1:9) {
+  for (j in 1:9) {
+    if (i == j) {
+      M[i, j] <- -1
+    } else {
+      M[i, j] <- edge.connectivity(g, i, j)
+    }
+  }
+}
+M
+```
+
+Centrality Measures
+-------------------
+
+At the fine grain level, we can look at statistics of individual nodes.  Centrality score measure the social importance of a node in terms of how "central" it is based on a number of measures
++ Degree centrality gives a higher score to a node that has a high in/out-degree
++ Closeness centrality gives a higher score to a node that has short path distance to every other nodes
++ Betweenness centrality gives a higher score to a node that sits on many shortest path of other node pairs
++ Eigenvector centrality gives a higher score to a node if it connects to many high score nodes
++ Local cluster coefficient measures how my neighbors are inter-connected with each other, which means the node becomes less important.
+
+```{r}
+# Degree
+degree(g)
+# Closeness (inverse of average dist)
+closeness(g)
+# Betweenness
+betweenness(g)
+# Local cluster coefficient
+transitivity(g, type="local")
+# Eigenvector centrality
+evcent(g)$vector
+# Now rank them
+order(degree(g))
+order(closeness(g))
+order(betweenness(g))
+order(evcent(g)$vector)
+```
+
+From his studies, Drew Conway has found that people with low Eigenvector centrality but high Betweenness centrality are important gate keepers, while people with high Eigenvector centrality but low Betweenness centrality has direct contact to important persons.  So lets plot Eigenvector centrality against Betweenness centrality.
+
+```{r}
+# Create a graph
+g1 <- barabasi.game(100, directed=F)
+g2 <- barabasi.game(100, directed=F)
+g <- g1 %u% g2 # union of the two graphs, only edges which are included in at least one graph will be part of the new graph
+lay <- layout.fruchterman.reingold(g)
+# Plot the eigevector and betweenness centrality
+plot(evcent(g)$vector, betweenness(g))
+text(evcent(g)$vector, betweenness(g), 0:100, 
+       cex=0.6, pos=4)
+V(g)[12]$color <- 'red'
+V(g)[8]$color <- 'green'
+plot(g, layout=lay, vertex.size=8,vertex.label.cex=0.6)
+```
+
+More info
+---------
++ [https://sites.google.com/site/daishizuka/toolkits/sna/igraph-vs-statnet](https://sites.google.com/site/daishizuka/toolkits/sna/igraph-vs-statnet)

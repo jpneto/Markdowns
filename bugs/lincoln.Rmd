@@ -1,0 +1,343 @@
+---
+title: "Lincoln Index, Bayesian Style"
+author: "João Neto"
+date: "August 5, 2014"
+output: html_document
+cache: yes
+---
+
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+# opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+#                tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+#                fig.width = 5, fig.height = 5, fig.align='center')
+# options(width = 300, warning = FALSE, message=FALSE)
+```
+
+
+This webpage emulates the Bayesian solution for the Lincoln index [provided](http://allendowney.blogspot.pt/2014/07/last-year-my-occasional-correspondent.html) by Allen Downey.
+
+The problem is:
+
+> Suppose you have a tester who finds 20 bugs in your program. You want to estimate how many bugs are really in the program. You know there are at least 20 bugs, and if you have supreme confidence in your tester, you may suppose there are around 20 bugs. But maybe your tester isn't very good. Maybe there are hundreds of bugs. How can you have any idea how many bugs there are? There's no way to know with one tester. But if you have two testers, you can get a good idea, even if you don't know how skilled the testers are.
+
+I follow Downey's notation:
+
++ $k_i$ is the number of bugs found by tester i
++ $c$ is the number of common bugs
++ $p_i$ is the (unknown) probability of tester i finding a certain bug
++ $n$ is the (unknown) total number of bugs
+
+Downey provides the likelihood function for the data $\mathcal{D} = (k_1, k_2, c)$ given the parameters $\theta = (n, p_1, p_2)$:
+
+$$p(\mathcal{D} | \theta) = p(k_1, k_2, c | n, p_1, p_2) = p(k_1 | n, p_1, p_2) \times p(k_2, c | k_1, n, p_1, p_2) = {n \choose k_1} p_1^{k_1} (1-p_1)^{n-k_1} \times
+  {k_1 \choose c} {n-k_1 \choose k_2-c} p_2^{k_2} (1-p_2)^{n-k_2}$$
+  
+The prior for the parameters $p_1$ and $p_2$ is the uniform distribution between $0$ and $1$, while the prior for the total number of bugs is uniform that starts at $k_1+k_2-c$ (the minimum possible number of bugs) and ends at a large enough number, say 350.
+
+Herein I'll use BUGS to find a solution.
+
+First, my RBugs 'boilerplate' code:
+
+```{r}
+library(BRugs)
+
+run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.10, init.func, n.chains=1) {
+  
+  writeLines(model, con="model.txt")  # Write the modelString to a file
+  modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
+  if (length(data)>0)                 # If there's any data available...
+    modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
+  modelCompile()                      # BRugs command tells BUGS to compile the model
+  
+  if (missing(init.func)) {
+    modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain
+  } else {
+    for (chain in 1:n.chains) {       # otherwise use user's init data
+      modelInits(bugsInits(init.func))
+    }
+  }
+    
+  modelUpdate(chainLength*burnin)     # Burn-in period to be discarded
+  samplesSet(samples)                 # BRugs tells BUGS to keep a record of the sampled values
+  modelUpdate(chainLength)            # BRugs command tells BUGS to randomly initialize a chain
+}
+```
+
+So let's use BUGS to describe this model. I used the 'Zero's trick' since the likelihood function is not standard:
+
+```{r}
+modelString = "
+  model {
+
+      # Likelihood function 
+
+      phi <- -log(choose1 * binom1 * choose2 * choose3 * binom2) + CZERO
+      dummy <- 0
+      dummy ~ dpois( phi )
+      CZERO <- 1000000    # for the zero's trick
+
+      # compute binomial coefficients
+      # cf. http://stats.stackexchange.com/questions/62418/binomial-coefficient-in-jags
+      choose1 <- exp( loggam(n+1) - (loggam(k1+1) + loggam(n-k1+1)) )           # choose(n,k1)
+      binom1  <- pow(p1, k1) * pow(1-p1, n-k1)
+
+      choose2 <- exp( loggam(k1+1) - (loggam(c+1) + loggam(k1-c+1)) )           # choose(k1,c)
+      choose3 <- exp( loggam(n-k1+1) - (loggam(k2-c+1) + loggam(n-k1-k2+c+1)) ) # choose(n-k1,k2-c)
+      binom2  <- pow(p2, k2) * pow(1-p2, n-k2)
+
+      # Priors 
+
+      p1 ~ dunif(0,1)
+      p2 ~ dunif(0,1)
+      n  ~ dunif(m1,m2)         # uniform prior
+      #n ~ dexp(0.001)I(m1,m2)  # truncated exponential prior (another option for the prior of n)
+
+      # Some needed constants
+
+      m1 <- k1+k2-c    # the minimum possible number of errors
+      m2 <- 350        # we don't know the max, but let's allow some breathing space
+  }
+"
+```
+
+```{r, echo=FALSE, eval=FALSE}
+# This is a optimized, faster model
+modelString = "
+  model {
+
+      # Likelihood function 
+      phi <- -choose1 -log(binom1) -choose2 -choose3 -log(binom2) + CZERO
+      dummy <- 0
+      dummy ~ dpois( phi )
+      CZERO <- 1000000000        # for the zero's trick
+
+      # compute binomial coefficients
+      # cf. http://stats.stackexchange.com/questions/62418/binomial-coefficient-in-jags
+      choose1 <- logfact(n) - (logfact(k1) + logfact(n-k1))            # choose(n,k1)
+      binom1  <- pow(p1, k1) * pow(1-p1, n-k1)
+
+      choose2 <- logfact(k1) - (logfact(c) + logfact(k1-c))            # choose(k1,c)
+      choose3 <- logfact(n-k1) - (logfact(k2-c) + logfact(n-k1-k2+c))  # choose(n-k1,k2-c)
+      binom2  <- pow(p2, k2) * pow(1-p2, n-k2)
+
+      # Priors 
+      p1 ~ dunif(0,1)
+      p2 ~ dunif(0,1)
+      n  ~ dunif(m1,m2)         # uniform prior
+      #n ~ dexp(0.001)I(m1,m2)  # truncated exponential prior (another option for the prior of n)
+
+      # Some needed constants
+
+      m1 <- k1+k2-c    # the minimum possible number of errors
+      m2 <- 350        # we don't know the max, but let's allow some breathing space
+  }
+"
+```
+
+Let's say that tester 1 found 20 bugs, tester 2 found 15 bugs, and there are 3 bugs in common, ie, $k_1 = 20, k_2=15, c=3$.
+
+We need to include this data and define some other values for BUGS to run: 
+
+```{r}
+# data
+k1 <- 20 # the input from the problem
+k2 <- 15
+c  <- 3
+
+# initializations (with some more boilerplate)
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      p1 = 0.5,
+      p2 = 0.5,
+      n  = k1*k2/c # let's start with the Lincoln index estimate
+    ) 
+  }
+}
+
+# Everything is ready. Run the model!
+run.model(modelString, samples=c("n","p1","p2"), data=list(k1=k1,k2=k2,c=c), chainLength=2e5, init.func=genInitFactory())
+```
+
+```{r, echo=FALSE}
+# get.rounded.mode <- function(x, digts=0) { # round then find mode of vector
+#   ux <- unique(round(x,digts))
+#   ux[which.max(tabulate(match(round(x,digts), ux)))]
+# }
+# 
+# map.n.bugs <- get.rounded.mode(n.chain)
+```
+
+Let's vizualize some stats:
+
+```{r, fig.width=12, fig.height=8}
+# Get stats from the MCMC run
+stats <- samplesStats(c("n", "p1", "p2"))
+stats
+
+n.chain  <- samplesSample( "n" )    # Extract chain values for number of bugs
+# Show the posterior distribution for n
+hist(n.chain, breaks=80, prob=TRUE, xlab="Number of bugs", main="Posterior p(n|D)") 
+dst <- density(n.chain)
+map.n.bugs <- dst$x[which.max(dst$y)]    # get the MAP from the estimated density
+map.n.bugs
+lines(dst, col="red", lwd=2)
+
+# Now for the testers' abilities
+p1.chain <- samplesSample( "p1" )  
+dst.p1 <- density(p1.chain)
+p2.chain <- samplesSample( "p2" )   
+dst.p2 <- density(p2.chain)
+
+par(mfrow=c(1,2))
+hist(p1.chain, breaks=80, prob=TRUE, xlab="p1", main="Posterior p(p1|D)") 
+lines(dst.p1, col="red", lwd=2)
+hist(p2.chain, breaks=80, prob=TRUE, xlab="p2", main="Posterior p(p2|D)") 
+lines(dst.p2, col="red", lwd=2)
+map.p1 <- dst.p1$x[which.max(dst.p1$y)]
+map.p1
+map.p2 <- dst.p2$x[which.max(dst.p2$y)]
+map.p2
+```
+
+
+
+```{r, echo=FALSE, eval=FALSE}
+# The next code chunk estimates the expected value of the number of common bugs (using the mean values for p1 and p2 computed by BUGS) so we can check if it is reasonable:
+  
+set.seed(121)
+
+# So, let's assume these as the problem's unknown values
+# n.bugs <- round(stats[[1]][1])
+# p1     <- stats[[1]][2]
+# p2     <- stats[[1]][3]
+
+# or use MAP values
+n.bugs <- round(map.n.bugs) 
+p1     <- map.p1 
+p2     <- map.p2 
+
+size.test <- 1e5
+bugs.c <- rep(NA, size.test) # vector keeping the simulated number of common bugs
+for(i in 1:size.test) {
+  bugs.1 <- (1:n.bugs)[rbinom(n.bugs,1,p1)==1]
+  bugs.2 <- (1:n.bugs)[rbinom(n.bugs,1,p2)==1]
+  bugs.c[i] <- length(intersect(bugs.1, bugs.2))
+}
+mean(bugs.c)
+
+# Not that far from the initial value of $3$ common bugs, but something's missing... In fact, the correct answer for the MAP of number of total bugs is 72 (see analytic solution below), while here is `r map.n.bugs`.
+```
+
+
+
+Stan solution
+-------------
+
+Next is the same problem coded in Stan:
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+library(rstan)
+
+model <- '
+  functions {
+     real lincoln_log(vector D, real n, real p1, real p2) {
+
+        real k1; real k2; real c; 
+        real choose1; real binom1; real binom2; real choose2; real choose3;
+
+        k1 <- D[1]; k2 <- D[2]; c <- D[3];
+        choose1 <- exp( lgamma(n+1)    - (lgamma(k1+1)   + lgamma(n-k1+1)) );
+        binom1  <- pow(p1, k1) * pow(1-p1, n-k1);
+        choose2 <- exp( lgamma(k1+1)   - (lgamma(c+1)    + lgamma(k1-c+1)) );           
+        choose3 <- exp( lgamma(n-k1+1) - (lgamma(k2-c+1) + lgamma(n-k1-k2+c+1)) );
+        binom2  <- pow(p2, k2) * pow(1-p2, n-k2);
+
+        return log( choose1 * binom1 * choose2 * choose3 * binom2 );
+     }
+  }
+
+  data {
+    int<lower=0>  k1;   // bugs found by tester 1
+    int<lower=0>  k2;   // bugs found by tester 2
+    int<lower=0>  c;    // number of common bugs 
+  }
+
+  transformed data {
+    int<lower=0>  m1;   // lower bound for n
+    int<lower=0>  m2;   // upper bound for n
+    vector[3] D;
+
+    m1 <- k1+k2-c; 
+    m2 <- 350;
+    D[1] <- k1; D[2] <- k2; D[3] <- c;
+  }
+
+  parameters {
+    real<lower=m1, upper=m2> n;   // the number of total bugs
+    real<lower=0, upper=1>  p1;   // performance of tester 1
+    real<lower=0, upper=1>  p2;   // performance of tester 2
+  }
+
+  model {
+    n  ~ uniform(m1,m2);   // priors
+    p1 ~ uniform(0,1);
+    p2 ~ uniform(0,1);
+
+    D ~ lincoln(n,p1,p2);  // likelihood, equivalent to: increment_log_prob(lincoln_log(D,n,p1,p2));  
+  }
+'
+
+fit  <- stan(model_code = model, data = list(k1=20, k2=15, c=3), iter = 1000,  chains = 4, verbose = FALSE)
+fit2 <- stan(fit = fit,          data = list(k1=20, k2=15, c=3), iter = 50000, chains = 4, verbose = FALSE, seed=101, warmup=5000)
+```
+
+```{r}
+print(fit2)
+la <- extract(fit2, permuted = TRUE) 
+hist(as.vector(la$n), breaks=100, prob=TRUE, xlab="Number of bugs", main="Posterior p(n|D)")
+dst <- density(la$n)
+lines(dst, col="red", lwd=2)
+stan.n.bugs <- dst$x[which.max(dst$y)]    # get the MAP from the estimated density
+stan.n.bugs
+```
+
+Stan's MAP estimation matches BUGS estimation! Let check them against the analytic solution:
+
+Analytic Solution
+-------------------
+
+Assuming uniform priors the posterior for the marginal distribution of $n$ is proportional to
+
+$$p(n | \mathcal{D}) \propto \int_0^1 \int_0^1 {n \choose k_1} p_1^{k_1} (1-p_1)^{n-k_1} \times
+  {k_1 \choose c} {n-k_1 \choose k_2-c} p_2^{k_2} (1-p_2)^{n-k_2} ~ dp_1 dp_2$$
+  
+Using Mathematica to evaluate the next expression:
+
+`Integrate[Binomial[n, k1]*p1^k1*(1 - p1)^(n - k1)*Binomial[k1, c]*Binomial[n - k1, k2 - c]*p2^k2*(1 - p2)^(n - k2), {p1,0,1}, {p2,0,1}]`
+
+we get:
+
+$$p(n | \mathcal{D}) \propto \frac{ {k_1 \choose c} {n \choose k_1} {n-k_1 \choose k_2-c} \Gamma(k_1+1) \Gamma(k_2+1) \Gamma(n+1-k_1) \Gamma(n+1-k_2)}{\Gamma(n+2)^2}$$
+
+Replacing the data with our specific values, ie, $k_1=20, k_2=15, c=3$:
+
+$$p(n | \mathcal{D}) \propto \frac{ {n \choose 20} {n-20 \choose 12} \Gamma(n-19) \Gamma(n-14)}{\Gamma(n+2)^2}$$
+
+```{r}
+# pre: n>19
+# needed to exp.log it to prevent overflows
+f <- function (n) {
+  exp(log(choose(n,20)) + log(choose(n-20,12)) + lgamma(n-19) + lgamma(n-14) - 2*lgamma(n+2))
+}
+
+mode.f <- optimize(f, lower=32, upper=350, maximum=TRUE)$maximum
+mode.f
+
+n <- 32:350; plot(n,f(n),type="l", xlim=c(min(n),max(n)), yaxt="n", ylab="p(n|D)")
+segments(mode.f, 0, mode.f, f(mode.f), col="red", lty=2)
+```
+

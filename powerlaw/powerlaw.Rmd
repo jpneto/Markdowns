@@ -1,0 +1,357 @@
+```{r, message = FALSE, tidy = FALSE, echo = FALSE}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+               fig.width = 5, fig.height = 5, fig.align='center')
+```
+
+```{r set-options, echo=FALSE}
+options(width = 300)
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+Power Laws & Heavy Tail Distributions
+========================================================
+
+Refs:
++ [Zipf, Power-laws, and Pareto - a ranking tutorial](http://www.hpl.hp.com/research/idl/papers/ranking/ranking.html)
+
+A power law is a special kind of mathematical relationship between two quantities.
+When the frequency of an event varies as a power of some attribute of
+that event (e.g. its size), the frequency is said to follow a power law. For instance,
+the number of cities having a certain population size is found to vary as
+a power of the size of the population, and hence follows a power law. It is a ubiquitous
+form throughout mathematics and science like the ratio of surface area
+to volume, the inverse-square laws of Newtonian gravity, fractals, earthquake
+intensity, the sizes of wars, etc.
+
+The general power-law function is
+$$f(x) = a x^k$$
+
+The main property of power laws is their scale invariance, i.e., if we scale the argument $x$ by a constant factor $c$, it causes a proportional scaling of the function $f$,
+$$f(cx) = a(ck)^k = c^k f(x) \propto f(x)$$
+
+So, scaling by a constant $c$ multiplies the original relation by constant $c^k$. It follows that all power laws sharing parameter $k$ are mutually equivalent up to constant factors.
+
+If we apply the logarithm to the power-law function,
+$$log(f(x)) = log(c) + k \times log(x)$$
+so, in a log-log plot, a power law appears as a straight line with slope $k$. This is a signature of a power law, but only a necessary condition not a sufficient one (there are other ways to mimic this signature behavior).
+
+```{r}
+f = function (x,a,k) {return (a*x^k)}
+xs = seq(0.1,10,length=100)
+fxs = f(xs,2,-.4); gxs = f(xs,2,.4)
+
+par(mfrow=c(2,2))
+plot(gxs,type='l',xlab='linear',ylab='a = 2, k = 0.4')
+plot(gxs,type='l',log='xy',xlab='log-log',ylab='a = 2, k = 0.4')
+plot(fxs,type='l',xlab='linear',ylab='a = 2, k = -0.4')
+plot(fxs,type='l',log='xy',xlab='log-log',ylab='a = 2, k = -0.4')
+```
+
+Zipf Distribution
+---------------
+
+The Zipf discrete distribution derives from Zipf's law that states that given some corpus of natural language utterances, the frequency of any word is inversely proportional to its rank in the frequency table. Thus the most frequent word will occur approximately twice as often as the second most frequent word, three times as often as the third most frequent word, etc. 
+
+The same relationship occurs in many other rankings, unrelated to language, such as the population ranks of cities in various countries, corporation sizes, income rankings.
+
+Empirically a data set can be tested to see if Zipf's law applies by running the regression $\log R = a - b \log n$ where $R$ is the rank of the datum, $n$ is its value and $a$ and $b$ are constants. For Zipf's law applies when $b = 1$. When this regression is applied to cities a better fit has been found with $b = 1.07$.
+
+Let $X \sim \text{Zipf}(N,s)$. Its probability mass function:
+$$f(x) = \frac{1/x^s}{\sum_{n=1}^N (1/n^s)}$$
+where $N$ is the number of elements in the rank, $s$ the value of the exponent characterizing the distribution, and $x$ is a given rank.
+
+```{r, warning=FALSE}
+library(VGAM)
+
+N<-10; s<-1; x <- 1:N
+curve(dzipf(x,N,s), xlim=c(0,N), ylim=c(0,1), col='blue', lwd=2, main=paste('Zipf pmf & cdf, N=',N))
+curve(pzipf(x,N,s), add=T, col='red', lwd=2)
+```
+
+A comparison between different values of $s$:
+
+```{r}
+N<-10; s<-4; xs <- 1:N
+plot(xs, dzipf(xs,N,s), xlim=c(1,N), ylim=c(0.0001,1), log='xy', type='b', lwd=2, ylab='f(x)')
+par(new=TRUE)
+plot(xs, dzipf(xs,N,2), xlim=c(1,N), ylim=c(0.0001,1), log='xy', type='b', col='red', lwd=2, ylab='')
+par(new=TRUE)
+plot(xs, dzipf(xs,N,1), xlim=c(1,N), ylim=c(0.0001,1), log='xy', type='b', col='blue', lwd=2, ylab='')
+```
+
+This pmf can also be stated as
+$$f(x) =\frac{1}{k^s H_{N,s}}$$
+where $H_{N,s}$ is the generalized harmonic number,
+$$H_{n,m} =\sum_{k=1}^n \frac{1}{k^m}$$
+
+Notice that 
+$$\lim_{n \to +\infty} H_{n,m} = \zeta(m)$$
+where $\zeta$ is the Riemann zeta function. There is a zeta discrete distribution which is equivalent to Zipf distribution for infinite $N$.
+
+Expected Value:$$E(X) = \frac{H_{N,s-1}}{H_{N,s}}$$
+
+It has been argued that **Benford's law**
+$$P(n) = log_{10}(n+1) - log_{10}(n)$$
+is an approximation of Zipf's law.
+
+The quantity $P(n)$ is proportional to the space between $n$ and $n + 1$ on a logarithmic scale. Therefore, this is the distribution expected if the logarithms of the numbers (but not the numbers themselves) are uniformly and randomly distributed. This is a reasonable assumption for sets that grow exponentially such as incomes and stock prices (however, it can only be applied to data that are distributed across multiple orders of magnitude). Benford's law, also called the first-digit law, states that in lists of numbers from many (but not all) real-life sources of data, the leading digit is distributed in a specific, non-uniform way. According to this law, the first digit is 1 about $30\%$ of the time, and larger digits occur as the leading digit with lower and lower frequency, to the point where 9 as a first digit occurs less than $5\%$ of the time. This happens irrespective of the unit of measurement! This means that if one converts from feet to meters (multiplication by a constant), for example, the distribution must be unchanged -- it is scale invariant -- and the only continuous distribution that fits this is one whose logarithm is uniformly distributed.
+
+Pareto Distribution
+------------------
+
+The Pareto distribution is a power law continuous probability distribution that coincides with social, scientific, geophysical, actuarial, and many other types of observable phenomena.
+
+Let random variable $X \sim Pareto(\alpha, x_m)$, its pdf is
+$$P(X>x)=
+\left\{
+ \begin{array}{cl}
+   \Big(\frac{x_m}{x}\Big)^{\alpha} & if~~x \geq x_m \\
+   1 & if~~x < x_m
+ \end{array} \right.$$
+where $x_m>0$ is the minimum possible value of~$X$ and $\alpha>0$. The parameter $\alpha$ is called Pareto Index when the distribution models the distribution of wealth.
+
+This distribution asserts that $x$ must be greater than constant $x_m$ but not too much greater, where $\alpha$ controls what is "too much" .
+
+Expected Value:$$E(X) = \frac{\alpha x_m}{\alpha - 1}~~,~~\alpha > 1$$
+if $\alpha \leq 1$, E(X) does not exist (i.e., have infinite expected value).
+
+Variance:$$Var(X)=\frac{x_m^2 \alpha}{(\alpha-1)^2(\alpha-2)}~~,~~\alpha > 2$$
+if $\alpha \leq 2$, Var(X) does not exist.
+
+```{r}
+alpha=1;xm=3
+curve(dpareto(x,alpha,xm),xlim=c(1,5),ylim=c(0,4),lwd=2,
+      main='Pareto PDFs',ylab='f(x|alpha,xm)')
+curve(dpareto(x,alpha+1,xm),   add=T,col='red',lwd=2)
+curve(dpareto(x,alpha+.5,xm+2),add=T,col='blue',lwd=2)
+```
+
+Its cdf: 
+$$ F(x) = 
+\left\{
+ \begin{array}{cl}
+   1 - \Big(\frac{x_m}{x}\Big)^{\alpha} & if~~x \geq x_m \\
+   0 & if~~x < x_m
+ \end{array} \right.$$
+
+```{r}
+alpha=2;xm=1;
+curve(ppareto(x,alpha,xm),xlim=c(1,10),ylim=c(0,2),lwd=2,
+      ylab='pareto(alpha=2,xm)',main='Pareto CDFs')
+curve(ppareto(x,alpha, 2),col='red',lwd=2,add=T)
+curve(ppareto(x,alpha, 4),col='blue',lwd=2,add=T)
+
+legend(par('usr')[1], par('usr')[4], xjust=0,
+       c('xm=1', 'xm=2', 'xm=4'),
+       lwd=c(2,2,2), # line width
+       lty=c(1,1,1), # line trace
+       col=c('black', 'red', 'blue'))
+```
+
+This distribution was originally used to describe the allocation of wealth among individuals since it seemed to show rather well the way that a larger portion of the wealth of any society is owned by a smaller percentage of the people in that society. This distribution is not limited to describing wealth or income, but to many situations in which an equilibrium is found in the distribution of the "small" to the "large". E.g.s: sizes of human settlements, sizes of meteorites, areas brunt in forest fires, casualty losses in certain businesses.
+
+There's a relation with the exponential distribution:
+
+$$X \sim Pareto(\alpha,x_m) \Rightarrow Y=log\Big(\frac{X}{x_m}\Big) \sim exp(\alpha)$$
+
+There's a relation to the "Pareto principle", i.e., the "80-20 law", according to which $20\%$ of all people receive $80\%$ of all income, and $20\%$ of the most affluent $20\%$ receive $80\%$ of that $80\%$, and so on, holds precisely when the Pareto index is $a = log_45 \approx 1.161$.
+
+Pareto distributions are continuous probability distributions. Zipf's law may be thought of as a discrete counterpart of the Pareto distribution. The phrase "The $r^{th}$ largest city has $n$ inhabitants" is equivalent to saying "$r$ cities have $n$ or more inhabitants". This is exactly the definition of the Pareto distribution, except the $x$ and $y$ axes are flipped. Whereas for Zipf, $r$ is on the x-axis and $n$ is on the y-axis, for Pareto, $r$ is on the y-axis and $n$ is on the x-axis. Simply inverting the axes, we get that if the rank exponent is $b$, i.e. 
+$$n \sim r^{-b}$$
+then the Pareto parameter is $1/b$, so that
+$$r \sim n^{-\frac{1}{b}}$$
+
+Since the power-law distribution is a direct derivative of Pareto's Law, its exponent is given by $(1+1/b)$. This also implies that any process generating an exact Zipf rank distribution must have a strictly power-law probability density function.
+
+Fitting Power Laws
+-------------------
+
+Package `poweRlaw` has functions to fit datasets to a power law (check [here](http://cran.r-project.org/web/packages/poweRlaw/index.html)).
+
+```{r}
+library(poweRlaw)
+
+data(moby) # the frequency of unique words of Melville's "Moby Dick"
+head(moby, n=12)
+
+fit <- displ$new(moby)    # fit a discrete power-law
+est <- estimate_xmin(fit)
+fit$setXmin(est)
+fit$xmin
+fit$pars
+
+plot(fit)                    # plotting the word's frequencies
+lines(fit, col="red", lwd=2) # plot the fit
+```
+
+More egs [here](http://cran.r-project.org/web/packages/poweRlaw/vignettes/poweRlaw.pdf).
+
+Heavy-Tailed Distributions
+=================
+
+Heavy-tailed distributions are probability distributions whose tails are not exponentially bounded, i.e., they have heavier tails than the exponential distribution,
+$$\forall_{\lambda>0} \lim_{y \to +\infty} e^{\lambda x} P(Y>y) = +\infty$$
+
+In many applications it is the right tail of the distribution that is of interest, but a distribution may have a heavy left tail, or both tails may be heavy. E.g., the Pareto distribution and the log-normal are one-tailed white the T~distribution and the Cauchy distribution are two-tailed.
+
+A \textbf{fat-tail distribution} is a heavy-tail with the following property: Let $X \sim d$, $d$ has a fat tail iff
+$$\lim_{n \to +\infty} P(X>x) \sim x^{-\alpha}~~,~~\alpha > 0$$
+where $f \sim g \Leftrightarrow f-g \in o(g)$
+
+Its probability density function,
+$$\lim_{n \to +\infty} f(x) \sim x^{-(1+\alpha)}~~,~~\alpha > 0$$
+which descends slower than an exponential function. Fat tail distributions have power law decay.
+
+This means that z-scores greater than, say 4 or 5, are much more probable in these distributions than in a normal distribution. The next table show a comparison between the standard normal and a fat-tail distribution (the cauchy distribution) for the same values:
+
+```{r}
+options(digits=22)
+x=1:10
+cbind(pnorm(x),pcauchy(x))
+```
+
+As we see, a z-score of 8 at the normal(0,1) corresponds to a probability of $6\times 10^{-16}$, an almost impossible event, while in the fat-tail, the probability of the same z-score is just $4\%$, i.e., it will happen approximately every 25 events.
+
+If the data comes from a fat-tail distribution but is modeled by a normal distribution, then we are severely underestimating the true risk (e.g., a high likelihood of catastrophic or social high-impact events, which are also called \textit{Black Swans}). This may happen in such important situations like the world finance. One way to spot this problem is if the familiar 80-20 rule is found in the data (cf.~Pareto Distribution).
+
+Lognormal Distribution
+------------------
+
+A lognormal distribution (aka, the Galton distribution) is a probability distribution of a random variable whose logarithm is normally distributed. If $X \sim normal$ then $Y=exp(X) \sim lognormal$. Likewise if $Y \sim lognormal$ then $log(X) \sim normal$. The base of the logarithm is irrelevant.
+
+A variable might be modeled as log-normal if it can be thought of as the multiplicative product of many independent random variables each of which is positive. For example, in finance, the variable could represent the compound return from a sequence of many trades (each expressed as its return + 1); or a long-term discount factor can be derived from the product of short-term discount factors. It appears in Biology in measures of size of living tissue (length, height, skin area, weight) oi in certain physiological measurements, such as blood pressure of adult humans (after separation on male/female subpopulations). The distribution of city sizes is lognormal.
+
+%The log-normal distribution is the maximum entropy probability distribution for a random variate X for which the mean and variance of ln(X) is fixed.
+
+Its probability density function, for $x>0$,
+$$f(x|\mu,\sigma) = \frac{1}{x\sigma\sqrt(2\pi)e^{-\frac{(ln x - \mu)^2}{2\sigma^2}}}$$
+where $\mu$ is the distribution mean, and $\sigma$ its standard deviation. This follows by applying the change-of-variables rule on the density function of a normal distribution. On a non-logarithmized scale, $\mu$ and $\sigma$ can be called the location parameter and the scale parameter, respectively.
+
+Expected value: 
+$$E(X) = e^{\mu + (\sigma^2/2)}$$
+
+Variance:
+$$Var(X)= (e^{\sigma^2-1})e^{2\mu+\sigma^2}$$
+
+Its cdf is computed by applying argument $\frac{ln x - \mu}{\sigma}$ to the normal's cdf.
+
+If $X \sim lognormal(\mu,\sigma)$ then $aX \sim lognormal(\mu + ln a,\sigma)$
+
+If $X \sim lognormal(\mu,\sigma)$ then $1/X \sim lognormal(-\mu,\sigma)$
+
+If $X \sim lognormal(\mu,\sigma)$ then $X^a \sim lognormal(a\mu,a\sigma), a\neq 0$
+
+The Pareto distribution and log-normal distribution are alternative distributions for describing the same types of quantities. One of the connections between the two is that they are both the distributions of the exponential of random variables distributed according to other common distributions, respectively the exponential distribution and normal distribution.
+
+T Distribution
+--------------
+
+The t-distribution is a continuous probability distribution that arises when estimating the mean of a normally distributed population in situations where the sample size is small and population standard deviation is unknown. Also known as the t-student distribution.
+
+The t-distribution is symmetric and bell-shaped, like the normal distribution, but has heavier tails, meaning that it is more prone to producing values that fall far from its mean. This makes it useful for understanding the statistical behavior of certain types of ratios of random quantities, in which variation in the denominator is amplified and may produce outlying values when the denominator of the ratio falls close to zero. 
+
+Its probability density function, for $X \sim T(\nu)$
+$$f(x|\nu) = \frac{\Gamma(\frac{\nu+1}{2})}{\sqrt{\nu\pi}~\Gamma(\nu/2)}
+\Big( 1+\frac{x^2}{\nu}\Big)^{-\frac{\nu+1}{2}}$$
+where $\nu$ is the number of degrees of freedom. The degrees of freedom refers to the number of independent observations in a set of data which is equal to the sample size minus one. A T distribution having 15 degrees of freedom would be used with a sample of size 16.
+
+When $\nu=1$ the pdf becomes $$f(x) = \frac{1}{\pi(1+x^2)}$$
+
+Expected Value:
+$$E(X) =0,~~\nu>1, otherwise undefined$$
+
+Variance:
+$$Var(X) = \frac{\nu}{\nu+2}, \nu>2$$
+if $1<\nu \leq 2$ the variance is infinite, otherwise it is undefined. The variance approaches 1 when the degrees of freedom approaches infinity.
+
+The t distribution can be used with any statistic having a bell-shaped distribution (i.e., approximately normal). The central limit theorem states that the sampling distribution of a statistic will be normal or nearly normal, if any of the following conditions apply.
+
++ The population distribution is normal.
++ The sampling distribution is symmetric, unimodal, without outliers, and the sample size is 15 or less.
++ The sampling distribution is moderately skewed, unimodal, without outliers, and the sample size is between 16 and 40.
++ The sample size is greater than 40, without outliers.
+
+The t distribution should not be used with small samples from populations that are not approximately normal.
+
+The overall shape of the probability density function of the t-distribution resembles the bell shape of a normally distributed variable with mean 0 and variance 1, except that it is a bit lower and wider. As the number of degrees of freedom grows, the t-distribution approaches the normal distribution with mean 0 and variance 1.
+
+In the next script we see several T distributions. The black one ($\mu=+\infty$) is equal to normal(0,1), notice how its tails are lower, \textit{lighter}, than the remaining curves.
+
+```{r}
+curve(dt(x,df=1),xlim=c(-4,4),ylim=c(0,.4),lwd=2,ylab='dt(x)',col='red')
+curve(dt(x,df=2),  add=T,col='lightblue',lwd=2)
+curve(dt(x,df=4),  add=T,col='blue',lwd=2)
+curve(dt(x,df=Inf),add=T,col='black',lwd=2,lty=2)
+curve(dt(x,df=.5), add=T,col='lightgreen',lwd=2)
+curve(dt(x,df=.25),add=T,col='green',lwd=2)
+```
+
+**How the T-distribution arises**. Let $y_1,\ldots,y_n$ be a sample of  independent identically distributed (iid) observations from a normal distributed population with mean $\mu$. The sample mean and variance are
+$$\overline{y} = \frac{\sum_i y_i}{n}~~,~~s^2 = \frac{1}{n-1}\sum_i (y_i - \overline{y})^2$$
+
+The resulting \textbf{t-value} is
+$$t = \frac{\overline{x}-\mu}{s/\sqrt{n}}$$
+when $\mu$ is known, the t-value is also called a \textbf{t-statistic}. Then $$t \sim T(n-1)$$
+
+Statisticians use $t_{\alpha}$ to represent the t-value that has a cumulative probability of $(1 - \alpha)$. Since the distribution is symmetric $t_{\alpha} = -t_{1-\alpha}$.
+
+```{r}
+qt(.95,2)    # equals to t_0.05 (in Math notation) with 2 degrees of freedom
+qt(.05,2)
+```
+
+Chi-squared Distribution
+-----------------
+
+The chi-squared distribution (with $k$ degrees of freedom) is the distribution of a sum of the squares of $k$ independent standard normal random variables.
+
+If $X_1,\ldots,X_k$ are independent, standard normal random variable, then the sum of their squares follows the chi-squared distribution with k degrees of freedom,
+$$Q = \sum_i X_i^2 \sim \chi^2(k)$$
+
+Its pdf:
+$$f(q|k) = 
+\left\{
+ \begin{array}{cl}
+   \frac{1}{2^{k/2}\Gamma(k/2)}x^{k/2-1}e^{-x/2} & x \geq 0 \\
+   0 & x < 0
+ \end{array} \right. $$
+
+Its expected value is $k$ and its variance is $2k$. When the degrees of freedom are greater than or equal to 2, the maximum value (the mode) occurs at $\nu - 2$.
+
+Suppose we conduct the following statistical experiment. We select a random sample of size $n$ from a normal population, having a standard deviation equal to $\sigma$. We find that the standard deviation in our sample is equal to s. Given these data, we can define a statistic, called \textbf{chi-square}, using the following equation:
+$$X^2 = \frac{(n-1)s^2}{\sigma^2}$$
+if we repeated this experiment an infinite number of times, the resulting sampling distribution would be $\chi^2(n-1)$.
+
+By the central limit theorem, because the chi-squared distribution is the sum of $k$ independent random variables with finite mean and variance, it converges to a normal distribution for large $k$. For many practical purposes, for $k > 50$ the distribution is sufficiently close to a normal distribution for the difference to be ignored.
+
+```{r}
+curve(dchisq(x,df=1),xlim=c(0,100),ylim=c(0,.25),lwd=2,ylab='dchisq(x)',col='red')
+curve(dchisq(x,df=5),add=T,col='green',lwd=2)
+curve(dchisq(x,df=25),  add=T,col='lightblue',lwd=2)
+curve(dchisq(x,df=50),  add=T,col='blue',lwd=2)
+```
+
+The chi-squared distribution as an additive property. If $Q_i \sim \chi^2(k_i)$ then $$Y =\sum_i Q_i \sim \chi^2(\sum_i k_i)$$
+
+The chi-squared distribution is a special case of the gamma distribution, 
+$$X \sim \Gamma(\nu/2,2)\Leftrightarrow X \sim \chi^2(\nu)$$
+
+There is a (classical) chi-square test to verify if a random sample is random enough. If the p-value is low (e.g: below 0.05) there's evidence of bias
+
+```{r}
+sample = c(142,169,203,146,159,147,177,183,189,166,139,166) 
+chisq.test(as.table(sample), p = rep(1/length(sample), length(sample)))
+```

@@ -1,0 +1,38 @@
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="generator" content="R package animation 2.3">
+	<title>Simulation of Buffon's Needle</title>
+	<link rel="stylesheet" href="css/reset.css" />
+	<link rel="stylesheet" href="css/styles.css" />
+	<link rel="stylesheet" href="css/scianimator.css" />
+  <link rel="stylesheet" href="http://yandex.st/highlightjs/7.3/styles/github.min.css">
+
+	<script src="js/jquery-1.4.4.min.js"></script>
+	<script src="js/jquery.scianimator.min.js"></script>
+  <script type="text/javascript" src="http://yandex.st/highlightjs/7.3/highlight.min.js"></script>
+  <script type="text/javascript" src="http://yandex.st/highlightjs/7.3/languages/r.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+<body>
+
+	<div class="scianimator"><div id="buffon_needle" style="display: inline-block;"></div></div>
+	<div class="scianimator" style="width: 600px; text-align: left"><pre><code class="r">## There are three graphs made in each step: the top-left, one is a
+##   simulation of the scenario, the top-right one is to help us
+##   understand the connection between dropping needles and the
+##   mathematical method to estimate pi, and the bottom one is the result
+##   for each dropping.
+library(animation)
+par(mar = c(3, 2.5, 1, 0.2), pch = 20, mgp = c(1.5, 0.5, 
+    0))
+ani.options(nmax = ifelse(interactive(), 300, 10), interval = 0.1)
+buffon.needle(type = "S", redraw = FALSE)
+## R version 3.1.0 (2014-04-10)
+## Platform: i386-w64-mingw32/i386 (32-bit)
+## Other packages: animation 2.3</code></pre></div>
+	<script src="js/buffon.needle.js"></script>
+<!-- highlight R code -->
+
+</body>
+</html>

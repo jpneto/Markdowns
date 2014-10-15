@@ -1,0 +1,13 @@
+
+  model {
+    for( i in 1:N) {    
+      y[i] ~ dpois( lambda[i] )
+
+      # necessary to subtract the mean (ie, center x) to prevent MCMC convergence issues
+      log(lambda[i]) <- beta0 + beta1 * x[i]
+    }
+
+    beta0 ~ dnorm(0,0.0001)
+    beta1 ~ dnorm(0,0.0001)
+  }
+

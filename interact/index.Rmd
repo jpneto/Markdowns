@@ -1,0 +1,570 @@
+---
+title: "Interact"
+author: "jpn"
+date: "Tuesday, June 17, 2014"
+output: html_document
+runtime: shiny
+---
+
+Refs
+
++ [http://rmarkdown.rstudio.com/authoring_shiny.html](http://rmarkdown.rstudio.com/authoring_shiny.html)
+
++  http://rmarkdown.rstudio.com/authoring_embedded_shiny.html](http://rmarkdown.rstudio.com/authoring_embedded_shiny.html)
+
++ [http://shiny.rstudio.com/tutorial/](http://shiny.rstudio.com/tutorial/)
+
++ [http://shiny.rstudio.com/reference/shiny/latest/](http://shiny.rstudio.com/reference/shiny/latest/)
+
+This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately. 
+
+To learn more, see [Interative Documents](http://rmarkdown.rstudio.com/authoring_shiny.html).
+
+## Inputs and Outputs
+
+You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
+
+```{r}
+inputPanel(
+  selectInput("n_breaks", label = "Number of bins:",
+              choices = c(10, 20, 35, 50), selected = 20),
+  
+  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
+              min = 0.2, max = 2, value = 1, step = 0.2)
+)
+
+renderPlot({
+  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
+       xlab = "Duration (minutes)", main = "Geyser eruption duration")
+  
+  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
+  lines(dens, col = "blue")
+})
+```
+
+An eg with tables:
+
+```{r}
+numericInput("rows", "How many cars?", 5)
+
+renderTable({
+  head(cars, input$rows)
+})
+```
+
+Embedded Applications
+----------------
+
+It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
+
+```{r}
+shinyAppDir(
+  system.file("examples/06_tabsets", package="shiny"),
+  options=list(
+    width="100%", height=550
+  )
+)
+```
+
+Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
+
+In the directory `examples/06_tabsets` there are two `R` files, a `server.R` -- a server script -- and a `ui.R` -- a user-interface script.
+
+The user-interface (ui) script controls the layout and appearance of your app. In the previous case it was:
+
+```{r, eval=FALSE}
+library(shiny)
+
+# Define UI for random distribution application 
+shinyUI(fluidPage(
+    
+  # Application title
+  titlePanel("Tabsets"),
+  
+  # Sidebar with controls to select the random distribution type
+  # and number of observations to generate. Note the use of the
+  # br() element to introduce extra vertical spacing
+  sidebarLayout(
+    sidebarPanel(
+      radioButtons("dist", "Distribution type:",
+                   c("Normal" = "norm",
+                     "Uniform" = "unif",
+                     "Log-normal" = "lnorm",
+                     "Exponential" = "exp")),
+      br(),
+      
+      sliderInput("n", 
+                  "Number of observations:", 
+                   value = 500,
+                   min = 1, 
+                   max = 1000)
+    ),
+    
+    # Show a tabset that includes a plot, summary, and table view
+    # of the generated distribution
+    mainPanel(
+      tabsetPanel(type = "tabs", 
+        tabPanel("Plot", plotOutput("plot")), 
+        tabPanel("Summary", verbatimTextOutput("summary")), 
+        tabPanel("Table", tableOutput("table"))
+      )
+    )
+  )
+))
+```
+
+The server script contains the instructions that your computer needs to build your app. In this case:
+
+```{r, eval=FALSE}
+library(shiny)
+
+# Define server logic for random distribution application
+shinyServer(function(input, output) {
+  
+  # Reactive expression to generate the requested distribution.
+  # This is called whenever the inputs change. The output
+  # functions defined below then all use the value computed from
+  # this expression
+  data <- reactive({
+    dist <- switch(input$dist,
+                   norm = rnorm,
+                   unif = runif,
+                   lnorm = rlnorm,
+                   exp = rexp,
+                   rnorm)
+    
+    dist(input$n)
+  })
+  
+  # Generate a plot of the data. Also uses the inputs to build
+  # the plot label. Note that the dependencies on both the inputs
+  # and the data reactive expression are both tracked, and
+  # all expressions are called in the sequence implied by the
+  # dependency graph
+  output$plot <- renderPlot({
+    dist <- input$dist
+    n <- input$n
+    
+    hist(data(), 
+         main=paste('r', dist, '(', n, ')', sep=''))
+  })
+  
+  # Generate a summary of the data
+  output$summary <- renderPrint({
+    summary(data())
+  })
+  
+  # Generate an HTML table view of the data
+  output$table <- renderTable({
+    data.frame(x=data())
+  })
+  
+})
+```
+
+You can create a Shiny app by making a new directory and saving a ui.R and server.R file inside it. Each app will need its own unique directory.
+
+You can run a Shiny app by giving the name of its directory to the function runApp. For example if your Shiny app is in a directory called my_app, run it with the following code:
+
+```{r, eval=FALSE}
+library(shiny)
+runApp("my_app")
+```
+
+Since Shiny 0.10 it's possible to support single-file applications. Check [http://shiny.rstudio.com/articles/single-file.html](http://shiny.rstudio.com/articles/single-file.html)
+
+Inline Apps
+----------
+
+You can also use the `shinyApp` function to define an application inline rather then in an external directory.
+
+
+```{r}
+kmeans_cluster <- function(dataset) {
+
+  shinyApp(
+    
+    ui = fluidPage(responsive = FALSE,
+      fluidRow(style = "padding-bottom: 20px;",
+        column(4, selectInput('xcol', 'X Variable', names(dataset))),
+        column(4, selectInput('ycol', 'Y Variable', names(dataset),
+                              selected=names(dataset)[[2]])),
+        column(4, numericInput('clusters', 'Cluster count', 3,
+                               min = 1, max = 9))
+      ),
+      fluidRow(
+        plotOutput('kmeans', height = "400px")
+      )
+    ),
+
+    server = function(input, output, session) {
+
+      # Combine the selected variables into a new data frame
+      selectedData <- reactive({
+        dataset[, c(input$xcol, input$ycol)]
+      })
+
+      clusters <- reactive({
+        kmeans(selectedData(), input$clusters)
+      })
+
+      output$kmeans <- renderPlot(height = 400, {
+        par(mar = c(5.1, 4.1, 0, 1))
+        plot(selectedData(),
+             col = clusters()$cluster,
+             pch = 20, cex = 3)
+        points(clusters()$centers, pch = 4, cex = 4, lwd = 4)
+      })
+    },
+
+    options = list(height = 500)
+  )
+}
+
+kmeans_cluster(iris)
+```
+
+Another eg:
+
+```{r}
+test <- function() {
+
+  shinyApp(
+    ui = fluidPage(
+      # Application title
+      titlePanel("Hello Shiny!"),
+    
+      # Sidebar with a slider input for the number of bins
+      sidebarLayout(
+        sidebarPanel(
+          sliderInput("bins",
+                      "Number of bins:",
+                      min = 1,
+                      max = 50,
+                      value = 30)
+        ),
+    
+        # Show a plot of the generated distribution
+        mainPanel(
+          plotOutput("distPlot")
+        )
+      )
+    ),
+
+    server = function(input, output) {
+
+        # Expression that generates a histogram. The expression is
+        # wrapped in a call to renderPlot to indicate that:
+        #
+        #  1) It is "reactive" and therefore should re-execute automatically
+        #     when inputs change
+        #  2) Its output type is a plot
+      
+        output$distPlot <- renderPlot({
+          x    <- faithful[, 2]  # Old Faithful Geyser data
+          bins <- seq(min(x), max(x), length.out = input$bins + 1)
+      
+          # draw the histogram with the specified number of bins
+          hist(x, breaks = bins, col = 'darkgray', border = 'white')
+        })
+      },
+
+    options = list(height = 500)
+  ) # shinyApp
+} # function
+
+test()
+```
+
+Shiny ui.R scripts use the function fluidPage to create a display that automatically adjusts to the dimensions of your user's browser window. You lay out your app by placing elements in the fluidPage function.
+
+titlePanel and sidebarLayout are the two most popular elements to add to fluidPage. They create a basic Shiny app with a sidebar
+
+Text Elements
+------------
+
+Functions named ***Panel can receive HTML content (cf [here](http://shiny.rstudio.com/tutorial/lesson2/)). Some egs:
+
+```{r}
+test_text_elements <- function() {
+
+  shinyApp(
+    ui = fluidPage(
+        # Application title
+        titlePanel("title panel"),
+      
+        sidebarLayout(
+          position = "right",               # places sidebar at the right
+          
+          sidebarPanel( "sidebar panel"),
+          
+          mainPanel(
+            
+            h3("main panel"),     # header 3 (exists h1 to h6)
+            strong("bold text"),
+            img(src="https://www.dropbox.com/s/2qn32xanq8pbb11/slx-simpson.jpg", height = 204, width = 232),
+            p("* A new p() command starts a new paragraph. Supply a style attribute 
+              to change the format of the entire paragraph", 
+              style = "font-family: 'times'; font-si16pt"),
+            br(),               # horizontal line
+            code("code displays", em("your"), "text similar to computer code"),
+            div("div creates segments of text with a similar style. 
+                This division of text is all blue because I passed the 
+                argument 'style = color:blue' to div", style = "color:blue"),
+            p("span does the same thing as div, but it works with", 
+              span("groups of words", style = "color:blue"), 
+              "that appear inside a paragraph."),
+            p("For an introduction and live examples, visit the ", 
+              a("Shiny homepage.", href = "http://www.rstudio.com/shiny")),
+            HTML('<img src="https://www.dropbox.com/s/wnbyrat3ft780hb/simpson.png">')
+          )
+        )
+    ),
+
+    server = function(input, output) {
+        # do nothing
+    },
+
+    options = list(height = 500)
+  ) # shinyApp
+} # function
+
+test_text_elements()
+```
+
+Widgets
+------
+In this eg, the fluidPage is split into 3 rows (`fuildRow`), each with 3 columns (`column`)
+
+```{r}
+widget_elements <- function() {
+
+  shinyApp(
+    ui = fluidPage(
+        titlePanel("Basic widgets"),
+  
+        fluidRow(  # makes a row
+          
+          column(3,
+            h3("Buttons"),
+            actionButton("action", label = "Action"),
+            br(),
+            br(), 
+            submitButton("Submit")),
+          
+          column(3,
+            h3("Single checkbox"),
+            checkboxInput("checkbox", label = "Choice A", value = TRUE)),
+          
+          column(3, 
+            checkboxGroupInput("checkGroup", 
+              label = h3("Checkbox group"), 
+              choices = list("Choice 1" = 1, 
+                 "Choice 2" = 2, "Choice 3" = 3),
+              selected = 1)),
+          
+          column(3, 
+            dateInput("date", 
+              label = h3("Date input"), 
+              value = "2014-01-01"))   
+        ),
+        
+        fluidRow(
+          
+          column(3,
+            dateRangeInput("dates", label = h3("Date range"))),
+          
+          column(3,
+            fileInput("file", label = h3("File input"))),
+          
+          column(3, 
+            h3("Help text"),
+            helpText("Note: help text isn't a true widget,", 
+              "but it provides an easy way to add text to",
+              "accompany other widgets.")),
+          
+          column(3, 
+            numericInput("num", 
+              label = h3("Numeric input"), 
+              value = 1))   
+        ),
+          
+        fluidRow(
+          
+          column(3,
+            radioButtons("radio", label = h3("Radio buttons"),
+              choices = list("Choice 1" = 1, "Choice 2" = 2,
+                             "Choice 3" = 3),selected = 1)),
+          
+          column(3,
+            selectInput("select", label = h3("Select box"), 
+              choices = list("Choice 1" = 1, "Choice 2" = 2,
+                             "Choice 3" = 3), selected = 1)),
+          
+          column(3, 
+            sliderInput("slider1", label = h3("Sliders"),
+              min = 0, max = 100, value = 50, step=2),
+            sliderInput("slider2", "",
+              min = 0, max = 100, value = c(25, 75), ticks=TRUE)
+            ),
+          
+          column(3, 
+            textInput("text", label = h3("Text input"), 
+              value = "Enter text..."))   
+        )
+          ),
+
+    server = function(input, output) {
+        # do nothing
+    },
+
+    options = list(height = 750)
+  ) # shinyApp
+} # function
+
+widget_elements()
+```
+
+Display reactive output
+-------
+
+To have reactive output, it's needed to build oe or more R objects in `ui.R` and then place at `server.R`how to build that objects based on the values they have.
+
+Shiny provides a family of functions that turn R objects into output for your user-interface. Each function creates a specific type of output.
+
+Output function  creates
+
+htmlOutput	  raw HTML
+
+imageOutput	  image
+
+plotOutput	  plot
+
+tableOutput	  table
+
+textOutput	  text
+
+uiOutput	    raw HTML
+
+verbatimTextOutput	text
+
+You can add output to the user-interface in the same way that you added HTML elements and widgets. Place the output function inside sidebarPanel or mainPanel in the ui.R script.
+
+```{r}
+reactive.1 <- function() {
+
+    shinyApp(
+      ui = fluidPage(
+          titlePanel("Basic reactive eg"),
+    
+          sidebarPanel(
+              helpText("Change values here:"),
+              
+              selectInput("var", 
+                label = "Choose a value",
+                choices = c(1,2),
+                selected = 2),
+              
+              sliderInput("range", 
+                label = "Range of interest:",
+                min = 0, max = 10, step=.25, value = 5)
+            ),
+            
+            mainPanel(
+              
+              p("Showing value * range"),
+              textOutput("text1"),                   # we will make this variable in the server side
+              br(),
+              p("Showing N(value,sqrt(range)) pdf"),
+              plotOutput("plot1")                    # ibidem
+            )
+  
+          ),
+
+    server = function(input, output) {
+        
+        output$text1 <- renderText({
+          paste("Result", as.numeric(input$var) * input$range)            # convert to text
+        })
+        
+        output$plot1 <- renderPlot({
+          mu <- as.numeric(input$var)
+          std.dev <- sqrt(input$range)
+          xs <- seq(-2+mu,2+mu,.25)
+          plot(xs, dnorm(xs, mu, std.dev), lwd=2, col="red", type="l",
+               xlim=c(mu-2,mu+2), ylim=c(0,.3))
+        })
+
+    },
+
+    options = list(height = 500)
+  ) # shinyApp
+} # function
+
+reactive.1()
+```
+
+You do not need to arrange for the unnamed function to return output in its last line of code. R will automatically update output through reference class semantics.
+
+Each entry to output should contain the output of one of Shiny's render functions. These functions capture an R expression and do some light pre-processing on the expression. Use the render function that corrresponds to the type of reactive object you are making.
+
+There are the follwoing options:
+
+render function  creates
+
+renderImage	  images (saved as a link to a source file)
+
+renderPlot	  plots
+
+renderPrint	  any printed output
+
+renderTable	  data frame, matrix, other table like structures
+
+renderText	  character strings
+
+renderUI	    a Shiny tag object or HTML
+
+Each render function takes a single argument: an R expression surrounded by braces, {}. The expression can be one simple line of text, or it can involve many lines of code, as if it were a complicated function call.
+
+Think of this R expression as a set of instructions that you give Shiny to store for later. Shiny will run the instructions when you first launch your app, and then Shiny will re-run the instructions every time it needs to update your object.
+
+For this to work, your expression should return the object you have in mind (a piece of text, a plot, a data frame, etc). You will get an error if the expression does not return an object, or if it returns the wrong type of object.
+
+
+Deployment
+------------
+
+Check here for information: [http://shiny.rstudio.com/tutorial/lesson7/](http://shiny.rstudio.com/tutorial/lesson7/)
+
+A simple way to run a Shiny app from RStudio is to zip both ui.R and server.R (extra stuff into folder data) into a zip, put it on the web, and just run like this
+
+```{r, eval=FALSE}
+# library(shiny)
+# runUrl( "https://www.xyz.com/folder/shinyapp.zip" )
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
+# using https://www.shinyapps.io/ to publish onlines (login using GitHub account)
+
+# installing required shinyapps package (from github)
+# if (!require("devtools"))
+#     install.packages("devtools")
+# devtools::install_github("rstudio/shinyapps")
+# 
+# library(shinyapps)
+
+# authorize to deploy applications to your ShinyApps.io account.
+# shinyapps::setAccountInfo( name='jpneto', 
+#                            token='DCD87535310E1757A8D2EF64FDC33642', 
+#                            secret='yrXFwtrML0Q5YkcGSxguTJswSZWmTJvLxfbhiqpw')
+
+# check https://github.com/rstudio/shinyapps/blob/master/guide/guide.md
+# To deploy your application, go to the folder where the app is, open ui.R and then 
+# use the deployApp command from the shinyapps packages.
+#   > shinyapps::deployApp()
+
+# To terminate an application use 
+#   > shinyapps::terminateApp("app-name")
+```
+

@@ -1,0 +1,594 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+               fig.width = 12, fig.height = 5, fig.align='center')
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+Bayesian Networks
+========================================================
+
+refs:
++ [CRAN Task View: gRaphical Models in R](http://cran.r-project.org/web/views/gR.html)
++ Initial egs from Udacity's "Introduction to AI" course
+
+Probability Calculus
+--------------------
+
+Some useful rules derived from [Kolgomorov Axioms](http://en.wikipedia.org/wiki/Probability_axioms) for random variables:
+
++ Marginal Probability ($B_i \cap B_j = \emptyset, \sum_i B_i = \Omega$): $$P(A) = \sum_i P(A, B_i)$$
++ Conditional Probability $$P(A,B) = P(B|A) P(A) = P(A|B) P(B)$$
++ Chain Rule $$P(A_1, A_2 \ldots A_n) = P(A_1) P(A_2 | A_1) \ldots P(A_n|A_1, A_2 \ldots A_{n-1})$$
++ Bayes's rule $$P(A|B,C) = \frac{P(B|A,C) P(A|C)}{P(B|C)}$$
++ Total Probability $$P(A|C) = \sum_i P(A|C,B_i) P(B_i|C)$$
+
+Notation for Independence between two random variables:
+
+$$A \perp B \iff P(A,B) = P(A) P(B)$$
+
+We define conditional independence as:
+
+$$A \perp B | C \iff P(A,B|C) = P(A|C) P(B|C)$$
+
+The model
+---------
+
+A Bayesian network is a probabilistic graphical model (a type of statistical model) that represents a set of random variables and their conditional dependencies via a directed acyclic graph (DAG) [wikipedia](http://en.wikipedia.org/wiki/Bayesian_network).
+
+Eg:
+
+```{r, echo=FALSE}
+library(igraph)
+
+eg1.bnet <- graph.formula(A--+C, B--+C, C--+D, C--+E)
+V(eg1.bnet)$size <- 50
+V(eg1.bnet)$color <- "white"
+E(eg1.bnet)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(0, 10, # node A
+                   5,  5, # node C
+                  10, 10, # node B
+                   0,  0, # node D
+                  10,  0), ncol=2, byrow=TRUE) 
+plot(eg1.bnet, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+
+Instead of having to find the overall joint probability like:
+
+$$P(A,B,C,D,E) = P(A|B,C,D,E) P(B|C,D,E) P(C|D,E) P(D|E) P(E)$$
+
+The model represented by this graph assumes that the joint probability can be factored by:
+
+$$P(A,B,C,D,E) = P(A) P(B) P(C|A,B) P(D|C) P(E|C)$$
+
+which is much simpler ($2^5-1=31$ parameters (probability values) for the full join vs. 10 parameters for the distribution proposed by this bayes network).
+
+These models will help us to infer when new information is given.
+
+But first let's do some probability calculus around simple bayes networks.
+
+Cancer example
+--------------
+
+The classic cancer eg, where there are two different tests $T_1$ and $T_2$. We draw into the graph the causal relations that our model implies. In this case we assume that having cancer (random variable $C$) is a cause these tests to have a positive result, not the other way around.
+
+This code produces the next diagram. The majority of the following graph scripts will be hidden for presentation purposes.
+
+```{r}
+library(igraph)
+
+cancer.bnet <- graph.formula(C--+T1, C--+T2)
+V(cancer.bnet)$size <- 50
+V(cancer.bnet)$color <- "white"
+E(cancer.bnet)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(5, 5,
+                   0, 0,
+                   10,0), ncol=2, byrow=TRUE) 
+# this layout can be found by an interactive graphing screen that allows you to 
+# manually move around the vertices and arrange them as you want
+# use:
+#  tkplot(graph.obj)
+#  (& after the manipulation:) layout <- tkplot.getcoords(1)
+
+plot(cancer.bnet, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+
+Assume that the following probabilities are given:
+
++ $P(C) = 0.01$, $P(\neg C) = 0.99$
++ $P(T=+|C) = 0.9$, $P(T=-|C) = 0.1$ where + is a positive test (these values are the same for both tests)
++ $P(T=+|\neg C) = 0.2$, $P(T=-|\neg C) = 0.8$
+
+Let's compute some useful probabilities (to simplify $P(+)$ means $P(T=+)$):
+
++ $P(+) = P(+|C)P(C) + P(+|\neg C)P(\neg C) = 0.9 \times 0.01 + 0.2 \times 0.99 = 0.207$ (marginal probability)
++ $P(-) = 1- P(+) = 0.793$
+
++ $P(C,+) = P(C) P(+|C) = 0.01 \times 0.9 = 0.009$
++ $P(C,-) = P(C) P(-|C) = 0.01 \times 0.1 = 0.001$
++ $P(\neg C,+) = P(\neg C) P(+|\neg C) = 0.99 \times 0.2 = 0.198$
++ $P(\neg C,-) = P(\neg C) P(-|\neg C) = 0.99 \times 0.8 = 0.792$
+
+Notice that these last for joint probabilities cover all hypothesis, so they must sum to 1 (which they do). 
+
+Also $P(+) = P(+,C) + P(+,\neg C)$ which the results also hold.
+
+Let's apply Bayes' rule to find $P(C|+)$ and $P(C|-)$:
+
+$$P(C|+) = \frac{P(+|C) P(C)}{P(+)} = \frac{0.9 \times 0.01}{0.207} \approx 0.0435$$
+$$P(C|-) = \frac{P(-|C) P(C)}{P(-)} = \frac{0.1 \times 0.01}{0.792} \approx 0.00127$$
+
+Bayes rule can be interpreted as a learning/inference mechanism, i.e., what is the new probability of having cancer _after_ we have known the evidence, ie, that the test as been positive. In this interpretation, the probabilities are named as follows:
+
++ $P(C)$, the **prior probability** (what we know before the evidence)
++ $P(+|C)$, the **likelihood** of the data given the hypothesis
++ $P(+)$, the **evidence** (the marginal probability of the test is positive)
++ $P(C|+)$, the **posterior probability**, the new belief after the evidence is processed
+
+We can also infer if we have the information about the two tests (herein $+_1+_2$ means $T_1=+ \land T_2=+$), namely $P(C|+_1,+_2)$
+
+$$P(C|+_1+_2) = \frac{P(+_1+_2|C)P(C)}{P(+_1+_2)} \propto P(+_1+_2|C)P(C) = P(+_1|C)P(+_2|C)P(C) = 0.0081$$
+
+Here we defer the computation of $P(+_1+_2)$ which is a constant (that's why it is proportional to the right expressions). 
+
+If we do the same thing for $$P(\neg C|+_1+_2) \propto 0.0396$$
+
+Since $P(C|+_1+_2) + P(\neg C|+_1+_2) = 1$, it's enough to normalize both results to obtain the true probabilities:
+
++ $P(C|+_1+_2) = \frac{0.0081}{0.0081+0.0396} \approx 0.1698$
++ $P(\neg C|+_1+_2) = \frac{0.0396}{0.0081+0.0396} \approx 0.8302$
+
+Using the same ideas, eg:
+
++ $P(C|+_1-_2) = 0.0056$
+
+Notice that given the cancer result, the two tests do not depend on each other, they are conditionally independent given $C$, i.e., $T_1 \perp T_2|C$ which means $P(+_1|C,+_2) = P(+_1|C)$.
+
+So, $P(+_1|C,+_2) = P(+_1|C) = 0.9$
+
+When a variable is known, the respective node in the bayes net is shaded:
+
+```{r}
+V(cancer.bnet)[1]$color <- "grey"
+plot(cancer.bnet, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+
+But if $C$ is not known, then $P(+_1|+_2)$ is a different event and has a different probability (the first step is the application of the total probability rule):
+
+$$P(+_1|+_2) = P(+_1|+_2,C) P(C|+_2) + P(+_1|+_2,\neg C) P(\neg C|+_2) = \ldots = 0.2304$$
+
+Happy example
+-------------
+
+This new situation models the event of someone being happy, $H$, with two possible causes: it is sunny, $S$ or that someone got a raise, $R$. All random variables only have boolean values (as before).
+
+Our model is:
+
+```{r, echo=FALSE}
+happy.bnet <- graph.formula(S--+H, R--+H)
+V(happy.bnet)$size <- 50
+V(happy.bnet)$color <- "white"
+E(happy.bnet)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(0,  5,
+                   5,  0,
+                  10,  5), ncol=2, byrow=TRUE) 
+plot(happy.bnet, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+Our initial data:
++ $P(S) = 0.7$
++ $P(R) = 0.01$
++ $P(H|S,R) = 1$
++ $P(H|\neg S,R) = 0.9$
++ $P(H|S,\neg R) = 0.7$
++ $P(H|\neg S,\neg R) = 0.1$
+
+What value is $P(R|S)$? Without extra information, $R \perp S$, so $P(R|S) = P(R) = 0.01$.
+
+From these we can compute:
+
++ $P(H|S) = P(H|S,R) P(R|S) + P(H|S,\neg R) P(\neg R|S) = P(H|S,R) P(R) + P(H|S,\neg R) P(\neg R) = 0.703$
++ $P(H|R) = P(H|R,S) P(S|R) + P(H|R, \neg S) P(\neg S|R) = P(H|R,S) P(S) + P(H|R,\neg S) P(\neg S) = 0.97$
++ $P(H) = P(H|S)P(S) + P(H|\neg S)P(\neg S) = \ldots \approx 0.5245$
+
+Let's next compute $P(R|H)$:
+
+$$P(R|H) = \frac{P(H|R) P(R)}{P(H)} = \frac{0.97 \times 0.01}{0.5245} \approx 0.185$$
+
+And what about $P(R|H,S)$? Herein there's extra information (we know she is happy).
+
+$$P(R|H,S) = \frac{P(H|R,S) P(R|S)}{P(H|S)} = \frac{1 \times 0.01}{0.703} \approx 0.0142$$
+
+Notice how strongly the hypothesis $R$, i.e, she is happy, _fell_ after we knew $S$, i.e., that it was sunny (a 10-fold decrease). This is what is called to a cause to **explain away** another cause.
+
+The effect also happens in reverse. If we know $\neg S$ then
+
++ $P(R|H,\neg S) \approx 0.084$
+
+so, the raise hypothesis got stronger (a 8-fold increase) to explain the fact that she is happy.
+
+In terms of dependence we shown that, even knowing that $R \perp S$, when we know $H$ a dependence occurs:
+
+$$R \cancel{\perp} S | H$$
+
+D-Separation
+-----------
+
+Given a bayes net $BN$ and a set of known nodes, we can infer if two nodes of $BN$ are conditional dependent.
+
+Patterns of dependence (called active triplets):
+
+```{r, echo=FALSE}
+ds1 <- graph.formula(A--+B, B--+C, D--+E, D--+F, G--+I, H--+I)
+V(ds1)$size <- 50
+V(ds1)$color <- "white"
+E(ds1)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(0, 24,
+                   5, 24,
+                  10, 24,
+
+                   5, 17,
+                   0, 12,
+                  10, 12,
+                   
+                   0,  5,
+                   5,  0,
+                  10,  5), ncol=2, byrow=TRUE) 
+V(ds1)[8]$color <- "grey"
+plot(ds1, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+Here the following dependences occur:
+
++ $A \cancel{\perp} C$
++ $E \cancel{\perp} F$
++ $G \cancel{\perp} H | I$
+
+The next graph shows another dependende pattern, namely $A \cancel{\perp} B | D$:
+
+```{r, echo=FALSE}
+ds1a <- graph.formula(A--+C, B--+C, C--+E, E--+D)
+V(ds1a)$size <- 50
+V(ds1a)$color <- "white"
+E(ds1a)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(0, 21,
+                   5, 17,
+                  10, 21,
+
+                   5, 9,
+                   5, 0), ncol=2, byrow=TRUE) 
+
+V(ds1a)[4]$label.cex <- 2
+V(ds1a)[4]$name <- "..."
+V(ds1a)[5]$color <- "grey"
+V(ds1a)$shape <- c("black", "black", "black", "none", "black")
+plot(ds1a, 
+     layout=layout, 
+     edge.arrow.size=0.5, 
+     vertex.label.color=1, 
+     vertex.shape=c("circle", "circle", "circle", "none", "circle"))
+```
+
+Patterns of independence (called inactive triplets):
+
+```{r, echo=FALSE}
+ds2 <- graph.formula(A--+B, B--+C, D--+E, D--+F, G--+I, H--+I)
+V(ds2)$size <- 50
+V(ds2)$color <- "white"
+E(ds2)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(0, 24,
+                   5, 24,
+                  10, 24,
+
+                   5, 17,
+                   0, 12,
+                  10, 12,
+                   
+                   0,  5,
+                   5,  0,
+                  10,  5), ncol=2, byrow=TRUE) 
+V(ds2)[2]$color <- "grey"
+V(ds2)[4]$color <- "grey"
+plot(ds2, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+Here the following independences occur:
+
++ $A \perp C|B$
++ $E \perp F|D$
++ $G \perp H$
+
+Package `gRain`
+----------
+
+refs:
++ [http://www.jstatsoft.org/v46/i10/paper](http://www.jstatsoft.org/v46/i10/paper)
++ [http://cran.r-project.org/web/packages/gRain/index.html](http://cran.r-project.org/web/packages/gRain/index.html)
+ 
+`gRain` is a R package for probability propagation in Bayes Networks. Let see how to use it going thru several examples.
+
+Let's first use the cancer bayes net above:
+
+```{r, echo=FALSE}
+cancer.bnet <- graph.formula(C--+T1, C--+T2)
+V(cancer.bnet)$size <- 50
+V(cancer.bnet)$color <- "white"
+E(cancer.bnet)$color <- "black"
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(5, 5,
+                   0, 0,
+                   10,0), ncol=2, byrow=TRUE) 
+plot(cancer.bnet, layout=layout, edge.arrow.size=1, vertex.label.color=1)
+```
+assuming the previous conditional probability tables (CPTs):
+
++ $P(C) = 0.01$
++ $P(\neg C) = 0.99$
++ $P(T=+|C) = 0.9$
++ $P(T=-|C) = 0.1$ 
++ $P(T=+|\neg C) = 0.2$
++ $P(T=-|\neg C) = 0.8$
+
+```{r}
+library(gRain)
+# if there's a problem with RBGL package do
+#  source("http://bioconductor.org/biocLite.R")
+#  biocLite("RBGL")
+
+# the possible values (all nodes are boolean vars)
+yn <- c("yes","no")
+
+# specify the CPTs
+node.C <- cptable(~ C, values=c(1, 99), levels=yn)
+node.T1 <- cptable(~ T1 + C, values=c(9,1,2,8), levels=yn)
+node.T2 <- cptable(~ T2 + C, values=c(9,1,2,8), levels=yn)
+
+# create an intermediate representation of the CPTs
+plist <- compileCPT(list(node.C, node.T1, node.T2))
+plist
+plist$C
+plist$T1
+# create network
+bn.cancer <- grain(plist)
+summary(bn.cancer)
+```
+
+This object can be queried:
+
+```{r}
+# The marginal probability for each variable:
+querygrain(bn.cancer, nodes=c("C", "T1", "T2"), type="marginal")
+# The joint probability P(C,T1):
+querygrain(bn.cancer, nodes=c("C","T1"), type="joint")
+# P(T1=+ | T2=+):
+#  1. add evidence to the net
+bn.cancer.1 <- setFinding(bn.cancer, nodes=c("T2"), states=c("yes")) 
+#  2. query the new net
+querygrain(bn.cancer.1, nodes=c("T1"))
+# The probability of this evidence:
+# print(getFinding(bn.cancer.1))
+# The conditional P(not C | not T1)
+bn.cancer.2 <- setFinding(bn.cancer, nodes=c("T1"), states=c("no")) 
+querygrain(bn.cancer.2, nodes=c("C"))
+```
+
+Another way to use this package is to build the CPTs from a given dataset
+
+```{r}
+data("cad1")
+head(cad1)
+
+# create the DAG
+dag.cad <- dag(~ CAD:Smoker:Inherit:Hyperchol + 
+                 AngPec:CAD + 
+                 Heartfail:CAD + 
+                 QWave:CAD)
+
+library(Rgraphviz) # if not installed, execute at R's command line:
+# source("http://bioconductor.org/biocLite.R")
+# biocLite("Rgraphviz")
+plot(dag.cad)
+# smooth is a small positive number to avoid zero entries in the CPTs
+# (cf. Additive smoothing, http://en.wikipedia.org/wiki/Additive_smoothing)
+bn.cad <- grain(dag.cad, data = cad1, smooth = 0.1)
+# Let's ask some questions...
+querygrain(bn.cad, nodes=c("CAD", "Smoker"), type="conditional") 
+querygrain(bn.cad, nodes=c("CAD"), type="marginal") 
+# ...and add some evidence
+bn.cad.1 <- setFinding(bn.cad, nodes=c("Smoker"), states=c("Yes"))
+querygrain(bn.cad.1, nodes=c("CAD"), type="marginal") 
+```
+
+For the next section we will use an example presented in this [paper](http://www.csee.wvu.edu/~xinl/library/papers/math/statistics/Lauritzen_Spiegelhalter1988.pdf)
+
+```{r}
+yn <- c("yes", "no")
+a <- cptable(~ asia, values = c(1, 99), levels = yn)
+t.a <- cptable(~ tub + asia, values = c(5, 95, 1, 99), levels = yn)
+s <- cptable(~ smoke, values = c(5,5), levels = yn)
+l.s <- cptable(~ lung + smoke, values = c(1, 9, 1, 99), levels = yn)
+b.s <- cptable(~ bronc + smoke, values = c(6, 4, 3, 7), levels = yn)
+x.e <- cptable(~ xray + either, values = c(98, 2, 5, 95), levels = yn)
+d.be <- cptable(~ dysp + bronc + either, values = c(9, 1, 7, 3, 8, 2, 1, 9), levels = yn)
+e.lt <- ortable(~ either + lung + tub, levels = yn)
+
+bn.gin <- grain(compileCPT(list(a, t.a, s, l.s, b.s, e.lt, x.e, d.be)))
+plot(bn.gin)
+```
+
+If the network is too big (not in this case, of course), finding the joint probabilities can take too long. One alternative is using simulation.
+
+In this network the process would produce random values for 'asia' and 'smoke' and propagate those values into its children, until a new observation is created (i.e., a set of values for all the attributes in the joint probability). The process is then repeat $N$ times. If $N$ is large, the dataset should contain a good approximation of the true joint probability.
+
+Let's see an example with the previous net:
+
+```{r}
+sim.gin <- simulate(bn.gin, nsim=5000)
+head(sim.gin, n=10)
+# say we want to know P(Lung,Bronc):
+xtabs(~ lung+bronc, data=sim.gin) / nrow(sim.gin)
+# we can also compute the true P(Lung,Bronc) from the bayes net, since we know their true CPTs:
+querygrain(bn.gin, nodes = c("lung", "bronc"), type = "joint")
+```
+
+We can also use the package to predict a set of responses from a set of explanatory variables:
+
+```{r}
+new.observation <- data.frame(dysp = "yes",
+                              either = "yes",
+                              tub="no",
+                              asia="no",
+                              xray="yes",
+                              smoke="yes")
+
+predict(bn.gin, 
+        newdata = new.observation,
+        predictors=c("smoke", "asia", "tub" , "dysp", "xray"), 
+        response = c("lung", "bronc"),
+        type = "dist")
+# This gives the most probable value for each variable, it does not imply that the jointly configuration with these two values is the most probable
+# $pFinding is the probability of the explanatory variables
+```
+
+Hidden Markov Models
+----------------------
+
+The `gRain`package provides a service to produce repeated patterns which are useful to model Hidden Markov Models (HMM) with hidden states and observed states.
+
+Let's make a HMM with 
+
+$$p(x,y) = p(x_0) \prod_{t=1}^5 p(x_t | x_{t-1}) p(y_t|x_t)$$
+
+where $x_t$ are the unobserved states, and $y_t$ the observed ones (both boolean values).
+
+The transition probabilities are:
+
+```{r, echo=FALSE}
+library(igraph)
+
+hmm.eg <- graph(c(1,1, 1,2, 2,1, 2,2, 1,3, 1,4, 2,3, 2,4), directed=TRUE)
+V(hmm.eg)$name <- c("Rainy","Sunny","Happy","Grumpy")
+V(hmm.eg)$size <- 50
+V(hmm.eg)$color <- "white"
+E(hmm.eg)$color <- "black"
+E(hmm.eg)$weight <- c(.6,.4,.2,.8,.4,.6,.9,.1)
+  
+# each pair defines the (x,y) of each node
+layout <- matrix(c(0, 16, # node X
+                  12,  8, # node notX
+                   0,  0, # node Y
+                  10,  0  # node notY
+                  ), ncol=2, byrow=TRUE) 
+
+plot(hmm.eg, edge.arrow.size=1, vertex.label.color=1,
+     edge.label=E(hmm.eg)$weight,
+     layout=layout,
+     edge.curved=c(-.35,-.35,rep(FALSE,6)))
+```
+
+```{r}
+library(gRain)
+yn <- c("yes", "no")
+# Rainy at day i = TRUE is x_i = TRUE
+x.x <- cptable(~ x[i] | x[i-1], values = c(60, 40, 20, 80), levels = yn)
+# Happy at day i = TRUE is y_i = TRUE
+y.x <- cptable(~ y[i] | x[i], values = c(40, 60, 90, 10), levels = yn)
+
+inst <- repeatPattern(list(x.x, y.x), instances = 1:5)
+x.0 <- cptable(~ x0, values = c(1, 0), levels = yn) # prior distribution P(Sunny_0)=1
+hmm <- grain(compileCPT(c(list(x.0), inst)))
+
+plot(hmm)
+
+hmm.1 <- setFinding(hmm, nodes=c("y1"), states=c("yes")) # happy at dia 1
+querygrain(hmm.1, nodes=c("x1"), type="marginal") 
+```
+
+So, $p(\text{Rainy at day 1} | \text{Happy at day 1}) = P(x_1|y_1) = 0.4$
+
+We can check this by doing the computations by hand:
+
++ $P(y_1|x_1) = 0.4$ as defined
++ $P(x_1) = P(x_1|x_0) P(x_0) = 0.6 \times 1 = 0.6$
++ $P(y_1) = P(y_1|x_1) \times P(x_1) + P(y_1|\neg x_1) \times P(\neg x_1) = 0.6$
+
+So,
+
+$$P(x_1|y_1) = \frac{P(y_1|x_1) P(x_1)}{p(y_1)} = 0.4$$
+Finding the structure of a Bayes Net
+--------------------------
+
+R package `bnlearn` provides the capability of infering the bayes Net structure given only a dataset.
+
+refs:
++ [http://www.jstatsoft.org/v35/i03/paper](http://www.jstatsoft.org/v35/i03/paper)
++ [http://cran.r-project.org/web/packages/bnlearn/index.html](http://cran.r-project.org/web/packages/bnlearn/index.html)
++ Nagarajan - Bayesian Networks in R (2013)
+
+In the next code sample, dataset `alarm` has 20k observations made by this bayes network:
+
+```{r, echo=FALSE}
+library(bnlearn)
+
+dag.alarm <- empty.graph(names(alarm))
+modelstring(dag.alarm) <- paste("[HIST|LVF][CVP|LVV][PCWP|LVV][HYP][LVV|HYP:LVF]",
+"[LVF][STKV|HYP:LVF][ERLO][HRBP|ERLO:HR][HREK|ERCA:HR][ERCA][HRSA|ERCA:HR]",
+"[ANES][APL][TPR|APL][ECO2|ACO2:VLNG][KINK][MINV|INT:VLNG][FIO2]",
+"[PVS|FIO2:VALV][SAO2|PVS:SHNT][PAP|PMB][PMB][SHNT|INT:PMB][INT]",
+"[PRSS|INT:KINK:VTUB][DISC][MVS][VMCH|MVS][VTUB|DISC:VMCH]",
+"[VLNG|INT:KINK:VTUB][VALV|INT:VLNG][ACO2|VALV][CCHL|ACO2:ANES:SAO2:TPR]",
+"[HR|CCHL][CO|HR:STKV][BP|CO:TPR]", sep = "")
+graphviz.plot(dag.alarm)
+
+# plot dataset 'marks' DAG
+# dag.marks <- empty.graph(names(marks))
+# modelstring(dag.marks) <- "[STAT][ANL|STAT][ALG|ANL:STAT][VECT|ALG][MECH|VECT:ALG]"
+# graphviz.plot(dag.marks)
+
+# other functions:
+#  add.arc() adds a arc, eg: bn <- set.arc(bn, "A", "E")
+#  drop.arc() removes a arc
+#  rev.arc() reverses a arc
+#  nbr(bn, v) returns the neighborhood of a vertice, eg: nbr(bn, "A")
+#  mb(bn, v) markov blanket
+#  children(bn, v) its children
+#  parents(bn, v) its parents
+```
+
+But let's assume we only know the dataset:
+
+```{r}
+library(bnlearn)
+
+data(alarm)
+head(alarm, n=1) 
+alarm.struct <- iamb(alarm, test = "x2")
+```
+
+The next diagram presents in red the edges of the true model that were found by the algorithm:
+
+```{r}
+graphviz.plot(dag.alarm, highlight = list(arcs = arcs(alarm.struct)))
+```

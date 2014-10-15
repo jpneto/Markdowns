@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>Optimization</title>
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 12px;
+   margin: 8px;
+}
+
+tt, code, pre {
+   font-family: 'Courier New', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 { 
+   font-size:2.2em; 
+}
+
+h2 { 
+   font-size:1.8em; 
+}
+
+h3 { 
+   font-size:1.4em; 
+}
+
+h4 { 
+   font-size:1.0em; 
+}
+
+h5 { 
+   font-size:0.9em; 
+}
+
+h6 { 
+   font-size:0.8em; 
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre {	
+   margin-top: 0;
+   max-width: 95%;
+   border: 1px solid #ccc;
+   white-space: pre-wrap;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code.r, code.cpp {
+   background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * { 
+      background: transparent !important; 
+      color: black !important; 
+      filter:none !important; 
+      -ms-filter: none !important; 
+   }
+
+   body { 
+      font-size:12pt; 
+      max-width:100%; 
+   }
+       
+   a, a:visited { 
+      text-decoration: underline; 
+   }
+
+   hr { 
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote { 
+      padding-right: 1em; 
+      page-break-inside: avoid; 
+   }
+
+   tr, img { 
+      page-break-inside: avoid; 
+   }
+
+   img { 
+      max-width: 100% !important; 
+   }
+
+   @page :left { 
+      margin: 15mm 20mm 15mm 10mm; 
+   }
+     
+   @page :right { 
+      margin: 15mm 10mm 15mm 20mm; 
+   }
+
+   p, h2, h3 { 
+      orphans: 3; widows: 3; 
+   }
+
+   h2, h3 { 
+      page-break-after: avoid; 
+   }
+}
+
+</style>
+
+<!-- Styles for R syntax highlighter -->
+<style type="text/css">
+   pre .operator,
+   pre .paren {
+     color: rgb(104, 118, 135)
+   }
+
+   pre .literal {
+     color: rgb(88, 72, 246)
+   }
+
+   pre .number {
+     color: rgb(0, 0, 205);
+   }
+
+   pre .comment {
+     color: rgb(76, 136, 107);
+   }
+
+   pre .keyword {
+     color: rgb(0, 0, 255);
+   }
+
+   pre .identifier {
+     color: rgb(0, 0, 0);
+   }
+
+   pre .string {
+     color: rgb(3, 106, 7);
+   }
+</style>
+
+<!-- R syntax highlighter -->
+<script type="text/javascript">
+var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/</gm,"&lt;")}function f(r,q,p){return RegExp(q,"m"+(r.cI?"i":"")+(p?"g":""))}function b(r){for(var p=0;p<r.childNodes.length;p++){var q=r.childNodes[p];if(q.nodeName=="CODE"){return q}if(!(q.nodeType==3&&q.nodeValue.match(/\s+/))){break}}}function h(t,s){var p="";for(var r=0;r<t.childNodes.length;r++){if(t.childNodes[r].nodeType==3){var q=t.childNodes[r].nodeValue;if(s){q=q.replace(/\n/g,"")}p+=q}else{if(t.childNodes[r].nodeName=="BR"){p+="\n"}else{p+=h(t.childNodes[r])}}}if(/MSIE [678]/.test(navigator.userAgent)){p=p.replace(/\r/g,"\n")}return p}function a(s){var r=s.className.split(/\s+/);r=r.concat(s.parentNode.className.split(/\s+/));for(var q=0;q<r.length;q++){var p=r[q].replace(/^language-/,"");if(e[p]){return p}}}function c(q){var p=[];(function(s,t){for(var r=0;r<s.childNodes.length;r++){if(s.childNodes[r].nodeType==3){t+=s.childNodes[r].nodeValue.length}else{if(s.childNodes[r].nodeName=="BR"){t+=1}else{if(s.childNodes[r].nodeType==1){p.push({event:"start",offset:t,node:s.childNodes[r]});t=arguments.callee(s.childNodes[r],t);p.push({event:"stop",offset:t,node:s.childNodes[r]})}}}}return t})(q,0);return p}function k(y,w,x){var q=0;var z="";var s=[];function u(){if(y.length&&w.length){if(y[0].offset!=w[0].offset){return(y[0].offset<w[0].offset)?y:w}else{return w[0].event=="start"?y:w}}else{return y.length?y:w}}function t(D){var A="<"+D.nodeName.toLowerCase();for(var B=0;B<D.attributes.length;B++){var C=D.attributes[B];A+=" "+C.nodeName.toLowerCase();if(C.value!==undefined&&C.value!==false&&C.value!==null){A+='="'+m(C.value)+'"'}}return A+">"}while(y.length||w.length){var v=u().splice(0,1)[0];z+=m(x.substr(q,v.offset-q));q=v.offset;if(v.event=="start"){z+=t(v.node);s.push(v.node)}else{if(v.event=="stop"){var p,r=s.length;do{r--;p=s[r];z+=("</"+p.nodeName.toLowerCase()+">")}while(p!=v.node);s.splice(r,1);while(r<s.length){z+=t(s[r]);r++}}}}return z+m(x.substr(q))}function j(){function q(x,y,v){if(x.compiled){return}var u;var s=[];if(x.k){x.lR=f(y,x.l||hljs.IR,true);for(var w in x.k){if(!x.k.hasOwnProperty(w)){continue}if(x.k[w] instanceof Object){u=x.k[w]}else{u=x.k;w="keyword"}for(var r in u){if(!u.hasOwnProperty(r)){continue}x.k[r]=[w,u[r]];s.push(r)}}}if(!v){if(x.bWK){x.b="\\b("+s.join("|")+")\\s"}x.bR=f(y,x.b?x.b:"\\B|\\b");if(!x.e&&!x.eW){x.e="\\B|\\b"}if(x.e){x.eR=f(y,x.e)}}if(x.i){x.iR=f(y,x.i)}if(x.r===undefined){x.r=1}if(!x.c){x.c=[]}x.compiled=true;for(var t=0;t<x.c.length;t++){if(x.c[t]=="self"){x.c[t]=x}q(x.c[t],y,false)}if(x.starts){q(x.starts,y,false)}}for(var p in e){if(!e.hasOwnProperty(p)){continue}q(e[p].dM,e[p],true)}}function d(B,C){if(!j.called){j();j.called=true}function q(r,M){for(var L=0;L<M.c.length;L++){if((M.c[L].bR.exec(r)||[null])[0]==r){return M.c[L]}}}function v(L,r){if(D[L].e&&D[L].eR.test(r)){return 1}if(D[L].eW){var M=v(L-1,r);return M?M+1:0}return 0}function w(r,L){return L.i&&L.iR.test(r)}function K(N,O){var M=[];for(var L=0;L<N.c.length;L++){M.push(N.c[L].b)}var r=D.length-1;do{if(D[r].e){M.push(D[r].e)}r--}while(D[r+1].eW);if(N.i){M.push(N.i)}return f(O,M.join("|"),true)}function p(M,L){var N=D[D.length-1];if(!N.t){N.t=K(N,E)}N.t.lastIndex=L;var r=N.t.exec(M);return r?[M.substr(L,r.index-L),r[0],false]:[M.substr(L),"",true]}function z(N,r){var L=E.cI?r[0].toLowerCase():r[0];var M=N.k[L];if(M&&M instanceof Array){return M}return false}function F(L,P){L=m(L);if(!P.k){return L}var r="";var O=0;P.lR.lastIndex=0;var M=P.lR.exec(L);while(M){r+=L.substr(O,M.index-O);var N=z(P,M);if(N){x+=N[1];r+='<span class="'+N[0]+'">'+M[0]+"</span>"}else{r+=M[0]}O=P.lR.lastIndex;M=P.lR.exec(L)}return r+L.substr(O,L.length-O)}function J(L,M){if(M.sL&&e[M.sL]){var r=d(M.sL,L);x+=r.keyword_count;return r.value}else{return F(L,M)}}function I(M,r){var L=M.cN?'<span class="'+M.cN+'">':"";if(M.rB){y+=L;M.buffer=""}else{if(M.eB){y+=m(r)+L;M.buffer=""}else{y+=L;M.buffer=r}}D.push(M);A+=M.r}function G(N,M,Q){var R=D[D.length-1];if(Q){y+=J(R.buffer+N,R);return false}var P=q(M,R);if(P){y+=J(R.buffer+N,R);I(P,M);return P.rB}var L=v(D.length-1,M);if(L){var O=R.cN?"</span>":"";if(R.rE){y+=J(R.buffer+N,R)+O}else{if(R.eE){y+=J(R.buffer+N,R)+O+m(M)}else{y+=J(R.buffer+N+M,R)+O}}while(L>1){O=D[D.length-2].cN?"</span>":"";y+=O;L--;D.length--}var r=D[D.length-1];D.length--;D[D.length-1].buffer="";if(r.starts){I(r.starts,"")}return R.rE}if(w(M,R)){throw"Illegal"}}var E=e[B];var D=[E.dM];var A=0;var x=0;var y="";try{var s,u=0;E.dM.buffer="";do{s=p(C,u);var t=G(s[0],s[1],s[2]);u+=s[0].length;if(!t){u+=s[1].length}}while(!s[2]);if(D.length>1){throw"Illegal"}return{r:A,keyword_count:x,value:y}}catch(H){if(H=="Illegal"){return{r:0,keyword_count:0,value:m(C)}}else{throw H}}}function g(t){var p={keyword_count:0,r:0,value:m(t)};var r=p;for(var q in e){if(!e.hasOwnProperty(q)){continue}var s=d(q,t);s.language=q;if(s.keyword_count+s.r>r.keyword_count+r.r){r=s}if(s.keyword_count+s.r>p.keyword_count+p.r){r=p;p=s}}if(r.language){p.second_best=r}return p}function i(r,q,p){if(q){r=r.replace(/^((<[^>]+>|\t)+)/gm,function(t,w,v,u){return w.replace(/\t/g,q)})}if(p){r=r.replace(/\n/g,"<br>")}return r}function n(t,w,r){var x=h(t,r);var v=a(t);var y,s;if(v){y=d(v,x)}else{return}var q=c(t);if(q.length){s=document.createElement("pre");s.innerHTML=y.value;y.value=k(q,c(s),x)}y.value=i(y.value,w,r);var u=t.className;if(!u.match("(\\s|^)(language-)?"+v+"(\\s|$)")){u=u?(u+" "+v):v}if(/MSIE [678]/.test(navigator.userAgent)&&t.tagName=="CODE"&&t.parentNode.tagName=="PRE"){s=t.parentNode;var p=document.createElement("div");p.innerHTML="<pre><code>"+y.value+"</code></pre>";t=p.firstChild.firstChild;p.firstChild.cN=s.cN;s.parentNode.replaceChild(p.firstChild,s)}else{t.innerHTML=y.value}t.className=u;t.result={language:v,kw:y.keyword_count,re:y.r};if(y.second_best){t.second_best={language:y.second_best.language,kw:y.second_best.keyword_count,re:y.second_best.r}}}function o(){if(o.called){return}o.called=true;var r=document.getElementsByTagName("pre");for(var p=0;p<r.length;p++){var q=b(r[p]);if(q){n(q,hljs.tabReplace)}}}function l(){if(window.addEventListener){window.addEventListener("DOMContentLoaded",o,false);window.addEventListener("load",o,false)}else{if(window.attachEvent){window.attachEvent("onload",o)}else{window.onload=o}}}var e={};this.LANGUAGES=e;this.highlight=d;this.highlightAuto=g;this.fixMarkup=i;this.highlightBlock=n;this.initHighlighting=o;this.initHighlightingOnLoad=l;this.IR="[a-zA-Z][a-zA-Z0-9_]*";this.UIR="[a-zA-Z_][a-zA-Z0-9_]*";this.NR="\\b\\d+(\\.\\d+)?";this.CNR="\\b(0[xX][a-fA-F0-9]+|(\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";this.BNR="\\b(0b[01]+)";this.RSR="!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|\\.|-|-=|/|/=|:|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";this.ER="(?![\\s\\S])";this.BE={b:"\\\\.",r:0};this.ASM={cN:"string",b:"'",e:"'",i:"\\n",c:[this.BE],r:0};this.QSM={cN:"string",b:'"',e:'"',i:"\\n",c:[this.BE],r:0};this.CLCM={cN:"comment",b:"//",e:"$"};this.CBLCLM={cN:"comment",b:"/\\*",e:"\\*/"};this.HCM={cN:"comment",b:"#",e:"$"};this.NM={cN:"number",b:this.NR,r:0};this.CNM={cN:"number",b:this.CNR,r:0};this.BNM={cN:"number",b:this.BNR,r:0};this.inherit=function(r,s){var p={};for(var q in r){p[q]=r[q]}if(s){for(var q in s){p[q]=s[q]}}return p}}();hljs.LANGUAGES.cpp=function(){var a={keyword:{"false":1,"int":1,"float":1,"while":1,"private":1,"char":1,"catch":1,"export":1,virtual:1,operator:2,sizeof:2,dynamic_cast:2,typedef:2,const_cast:2,"const":1,struct:1,"for":1,static_cast:2,union:1,namespace:1,unsigned:1,"long":1,"throw":1,"volatile":2,"static":1,"protected":1,bool:1,template:1,mutable:1,"if":1,"public":1,friend:2,"do":1,"return":1,"goto":1,auto:1,"void":2,"enum":1,"else":1,"break":1,"new":1,extern:1,using:1,"true":1,"class":1,asm:1,"case":1,typeid:1,"short":1,reinterpret_cast:2,"default":1,"double":1,register:1,explicit:1,signed:1,typename:1,"try":1,"this":1,"switch":1,"continue":1,wchar_t:1,inline:1,"delete":1,alignof:1,char16_t:1,char32_t:1,constexpr:1,decltype:1,noexcept:1,nullptr:1,static_assert:1,thread_local:1,restrict:1,_Bool:1,complex:1},built_in:{std:1,string:1,cin:1,cout:1,cerr:1,clog:1,stringstream:1,istringstream:1,ostringstream:1,auto_ptr:1,deque:1,list:1,queue:1,stack:1,vector:1,map:1,set:1,bitset:1,multiset:1,multimap:1,unordered_set:1,unordered_map:1,unordered_multiset:1,unordered_multimap:1,array:1,shared_ptr:1}};return{dM:{k:a,i:"</",c:[hljs.CLCM,hljs.CBLCLM,hljs.QSM,{cN:"string",b:"'\\\\?.",e:"'",i:"."},{cN:"number",b:"\\b(\\d+(\\.\\d*)?|\\.\\d+)(u|U|l|L|ul|UL|f|F)"},hljs.CNM,{cN:"preprocessor",b:"#",e:"$"},{cN:"stl_container",b:"\\b(deque|list|queue|stack|vector|map|set|bitset|multiset|multimap|unordered_map|unordered_set|unordered_multiset|unordered_multimap|array)\\s*<",e:">",k:a,r:10,c:["self"]}]}}}();hljs.LANGUAGES.r={dM:{c:[hljs.HCM,{cN:"number",b:"\\b0[xX][0-9a-fA-F]+[Li]?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+(?:[eE][+\\-]?\\d*)?L\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+\\.(?!\\d)(?:i\\b)?",e:hljs.IMMEDIATE_RE,r:1},{cN:"number",b:"\\b\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\.\\d+(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"keyword",b:"(?:tryCatch|library|setGeneric|setGroupGeneric)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\.",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\d+(?![\\w.])",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\b(?:function)",e:hljs.IMMEDIATE_RE,r:2},{cN:"keyword",b:"(?:if|in|break|next|repeat|else|for|return|switch|while|try|stop|warning|require|attach|detach|source|setMethod|setClass)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"literal",b:"(?:NA|NA_integer_|NA_real_|NA_character_|NA_complex_)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"literal",b:"(?:NULL|TRUE|FALSE|T|F|Inf|NaN)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"identifier",b:"[a-zA-Z.][a-zA-Z0-9._]*\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"<\\-(?!\\s*\\d)",e:hljs.IMMEDIATE_RE,r:2},{cN:"operator",b:"\\->|<\\-",e:hljs.IMMEDIATE_RE,r:1},{cN:"operator",b:"%%|~",e:hljs.IMMEDIATE_RE},{cN:"operator",b:">=|<=|==|!=|\\|\\||&&|=|\\+|\\-|\\*|/|\\^|>|<|!|&|\\||\\$|:",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"%",e:"%",i:"\\n",r:1},{cN:"identifier",b:"`",e:"`",r:0},{cN:"string",b:'"',e:'"',c:[hljs.BE],r:0},{cN:"string",b:"'",e:"'",c:[hljs.BE],r:0},{cN:"paren",b:"[[({\\])}]",e:hljs.IMMEDIATE_RE,r:0}]}};
+hljs.initHighlightingOnLoad();
+</script>
+
+
+<!-- MathJax scripts -->
+<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+
+</head>
+
+<body>
+<h1>Optimization</h1>
+
+<p>ref:</p>
+
+<ul>
+<li><a href="http://horicky.blogspot.pt/2013/01/optimization-in-r.html">http://horicky.blogspot.pt/2013/01/optimization-in-r.html</a></li>
+</ul>
+
+<p>Check <a href="CRAN%20Task%20View:%20Optimization%20and%20Mathematical%20Programming">http://cran.r-project.org/web/views/Optimization.html</a> for a more complete information about optimization functions available in R.</p>
+
+<p>Optimization refers to the case where we have variables \( x_1, \ldots, x_n \) that we can assign values and we want to minimize or maximize a certain objective function \( f(x_1, \ldots, x_n) \)</p>
+
+<h2>Unconstrained optimization</h2>
+
+<p>In this case there is no restriction for the values of \( x_i \).</p>
+
+<p>A typical solution is to compute the gradient vector of the objective function [\( \delta f/\delta x_1, \ldots, \delta f/\delta x_n \)] and set it to [\( 0, \ldots, 0 \)].  Solve this equation and output the result \( x_1, \ldots, x_n \) which will give the local maximum.</p>
+
+<p>Eg in R to find the minimum of function \( f(x_1,x_2) = (x_1-5)^2 + (x_2-6)^2 \):</p>
+
+<pre><code class="r">f &lt;- function(x) { (x[1] - 5)^2 + (x[2] - 6)^2 }
+initial_x &lt;- c(10, 11)
+x_optimal &lt;- optim(initial_x, f, method=&quot;CG&quot;) # performs minimization
+x_min &lt;- x_optimal$par
+x_min
+</code></pre>
+
+<pre><code>[1] 5 6
+</code></pre>
+
+<p>Using simulated annealing to find the minimum of a wild function with a global minimum at about -15.81515:</p>
+
+<pre><code class="r">fw &lt;- function (x) { 10*sin(0.3*x)*sin(1.3*x^2) + 0.00001*x^4 + 0.2*x+80 }
+plot(fw, -50, 50, n = 1000, main = &quot;optim() minimising &#39;wild function&#39;&quot;)
+abline(v=-15.81515,lty=3,col=&quot;red&quot;)
+</code></pre>
+
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtAAAAFoCAMAAABJ+DwrAAAAilBMVEX9/v0AAAAAADkAAGUAOTkAOY8AZo8AZrU5AAA5ADk5AGU5OWU5OY85ZmU5j485j9plAABlADllAGVlOQBlZjllZmVltbVltdpltf2POQCPOTmPtY+P29qP2/21ZgC1tWW1/rW1/tq1/v3ajzna24/a/rXa/tra/v39tWX924/9/rX9/tr9/v3/AABA2zFgAAAALnRSTlP//////////////////////////////////////////////////////////wD/PKlhqgAAAAlwSFlzAAALEgAACxIB0t1+/AAAFU1JREFUeJztnQ1jpDaShrdmMmsnm1t75i45O3vuzdp3O+625v//veNLovQBCBBCFO8zSdtupELA06Kkpum/KAAE8Ze9GwBASiA0EAWEBqKA0EAUEBqIAkIDUUBoIAoIDUQBoYEoIDQQBYQGooDQQBQQGogCQgNRQGggCggNRAGhgSggNBAFhAaigNBAFBAaiAJCA1FAaCAKCA1EAaGBKCD0AJcndXv8/Go/+fbp5Xr/4Be2SrrV+N9+SBOanpw6puzt8cv35pfrPX16mdtmP7hoIHSYS0iB2+NdtWRIyXX4zvlCBxvVM7wYQp+NNyKqet6P58//JPr8+vFc/X1XG/VOf32unqiWP3VevFPbRfMldUldV7nVGjGrzlUvMwWr1dHnPztb3+i/n6vn3qrolcD/p3vouiW/t0WaRn3593MT5st3K4zVZm9zIPTZuFDNXetMY00vtKZWpj7h6/6SL2k97YK41dr0oYn73SrY/PLTfRfu00ut3aV6vnrJ6JRDNygotNXoz//qhXY2564Ovuv+zQiEVnVuWh3w2+Onl8qAuoNsxHrqzPz8WvWuT/XSVuWP5zYTsJc07j1UT7bSuguvnbZWwet903l2+UTdjErk36p+va3T1uNF6kZ9MKFZmAtrs7057/0KzgCEVrWbVW5cn5dbWevTfi/0XWdhPR5shW67O75E/2xMc6uZHtqkHF3BZrUmQW5S9OvP//j55aJ79TaOnUMzoU2YbpjK29xtTlck/y7dDQitIoRu9em62QsXul3SpcavjtD9wiaHJqegK3Q13vxnlVP//ninooTmYfRiR+iuSO4duiMQWk2kHK7Qdg8dK3TNpU5B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" alt="plot of chunk unnamed-chunk-3"/> </p>
+
+<pre><code class="r">res &lt;- optim(50, fw, method = &quot;SANN&quot;, control = list(maxit = 20000, temp = 20, parscale = 20))
+res$par
+</code></pre>
+
+<pre><code>[1] -15.81
+</code></pre>
+
+<p>Function <code>optim()</code> has lots of options. Check its help file.</p>
+
+<h2>Equality constraint optimization</h2>
+
+<p>Now \( x_1, \ldots, x_n \) are not independent in some particular way: </p>
+
+<ul>
+<li>\( g_1(x_1, \ldots, x_n) = 0 \)</li>
+<li>\( \ldots \)</li>
+<li>\( g_k(x_1, \ldots, x_n) = 0 \)</li>
+</ul>
+
+<p>This can be solved by Linear Programming (check below)</p>
+
+<p>Another way is to transform the objective function into
+\[ f^*(x_1, \ldots, x_n, \lambda_1, \ldots, \lambda_k) = f(x_1, \ldots, x_n) + \lambda_1 g_1(x_1, \ldots, x_n) + \ldots + \lambda_k g_k(x_1, \ldots, x_n) \]</p>
+
+<p>making it an unconstrained optimization problem using <a href="http://www.slimy.com/%7Esteuard/teaching/tutorials/Lagrange.html">Lagrange multipliers</a> and to solve it for</p>
+
+<p>\[ [\delta f/\delta x_1, \ldots, \delta f/\delta x_n, \delta f/\delta \lambda_1, \ldots, \delta f/\delta \lambda_k] = [0, \ldots, 0] \]</p>
+
+<h2>Inequality constraint optimization</h2>
+
+<p>We cannot use the Lagrange multiplier technique because it requires equality constraint.  There is no general solution for arbitrary inequality constraints.</p>
+
+<p>However, we can put some restriction in the form of constraint.  In the following, if we restrict the constraints <em>and</em> the objective function to be linear functions of the variables then the problem can be solved again by Linear Programming</p>
+
+<h2>Linear Programming</h2>
+
+<p>Linear Programming (LP) works when the objective function is a linear function. The constraint functions are also linear combination of variables.</p>
+
+<p>The first part of the next code sets this problem:</p>
+
+<p>\[ 
+\left\{
+ \begin{array}{rl}
+   6c_1 + 2c_2 + 4c_3 & \leq 150 \\
+    c_1 +  c_2 + 6c_3 & \geq 0 \\
+   4c_1 + 5c_2 + 4c_3 & = 40 
+ \end{array} \right. 
+ \] </p>
+
+<p>with the following objective function:</p>
+
+<p>\[ minimize: -3c_1 -4c_2 -3c_3 \]</p>
+
+<p>The result should be the following:</p>
+
+<p>\[ c_1 = 0 \wedge c_2 = 8 \wedge c_3 = 0 \]</p>
+
+<pre><code class="r">library(lpSolveAPI)
+
+lps.model &lt;- make.lp(0, 3) # define 3 variables, the constraints are added below
+add.constraint(lps.model, c(6,2,4), &quot;&lt;=&quot;, 150)
+add.constraint(lps.model, c(1,1,6), &quot;&gt;=&quot;,   0)
+add.constraint(lps.model, c(4,5,4), &quot;=&quot; ,  40)
+# set objective function (default: find minimum)
+set.objfn(lps.model, c(-3,-4,-3))  
+# write model to a file
+write.lp(lps.model,&#39;model.lp&#39;,type=&#39;lp&#39;)
+
+# these commands defines the model 
+# /* Objective function */
+#   min: -3 C1 -4 C2 -3 C3;
+# 
+# /* Constraints */
+# +6 C1 +2 C2 +4 C3 &lt;= 150;
+# +  C1 +  C2 +6 C3 &gt;=   0;
+# +4 C1 +5 C2 +4 C3  =  40;
+#
+# writing it in the text file named &#39;model.lp&#39;
+solve(lps.model)
+</code></pre>
+
+<pre><code>[1] 0
+</code></pre>
+
+<pre><code class="r"># Retrieve the var values from a solved linear program model 
+get.variables(lps.model)  # check with the solution above!
+</code></pre>
+
+<pre><code>[1] 0 8 0
+</code></pre>
+
+<pre><code class="r"># another eg
+lps.model2 &lt;- make.lp(0, 3)
+add.constraint(lps.model2, c(1, 2, 3), &quot;&lt;=&quot;, 14)
+add.constraint(lps.model2, c(3,-1,-6), &quot;&gt;=&quot;,  0)
+add.constraint(lps.model2, c(1,-1, 0), &quot;&lt;=&quot;,  2)
+set.objfn(lps.model2, c(3,4), indices = c(1,2)) # does not use C3
+lp.control(lps.model2,sense=&#39;max&#39;)     # changes to max: 3 C1 + 4 C2 
+</code></pre>
+
+<pre><code>$anti.degen
+[1] &quot;fixedvars&quot; &quot;stalling&quot; 
+
+$basis.crash
+[1] &quot;none&quot;
+
+$bb.depthlimit
+[1] -50
+
+$bb.floorfirst
+[1] &quot;automatic&quot;
+
+$bb.rule
+[1] &quot;pseudononint&quot; &quot;greedy&quot;       &quot;dynamic&quot;      &quot;rcostfixing&quot; 
+
+$break.at.first
+[1] FALSE
+
+$break.at.value
+[1] 1e+30
+
+$epsilon
+      epsb       epsd      epsel     epsint epsperturb   epspivot 
+     1e-10      1e-09      1e-12      1e-07      1e-05      2e-07 
+
+$improve
+[1] &quot;dualfeas&quot; &quot;thetagap&quot;
+
+$infinite
+[1] 1e+30
+
+$maxpivot
+[1] 250
+
+$mip.gap
+absolute relative 
+   1e-11    1e-11 
+
+$negrange
+[1] -1e+06
+
+$obj.in.basis
+[1] TRUE
+
+$pivoting
+[1] &quot;devex&quot;    &quot;adaptive&quot;
+
+$presolve
+[1] &quot;none&quot;
+
+$scalelimit
+[1] 5
+
+$scaling
+[1] &quot;geometric&quot;   &quot;equilibrate&quot; &quot;integers&quot;   
+
+$sense
+[1] &quot;maximize&quot;
+
+$simplextype
+NULL
+
+$timeout
+[1] 0
+
+$verbose
+[1] &quot;neutral&quot;
+</code></pre>
+
+<pre><code class="r">write.lp(lps.model2,&#39;model2.lp&#39;,type=&#39;lp&#39;)
+solve(lps.model2)
+</code></pre>
+
+<pre><code>[1] 0
+</code></pre>
+
+<pre><code class="r">get.variables(lps.model2)
+</code></pre>
+
+<pre><code>[1] 6 4 0
+</code></pre>
+
+<h2>Quadratic Programming</h2>
+
+<p>Quadratic Programming (QP) works when the objective function is a quadratic function, ie, contains up to two ter products. Here the constraint functions are still linear combination of variables.</p>
+
+<p>We can express the problem in matrix form.</p>
+
+<p>Minize objective: \[ \frac{1}{2} X^T D X - d^T X \] where \( X \) is the vector \( [x_1,\ldots,x_n]^T \), \( D \) is the matrix of weights of each par \( x_ix_j \) and \( d \) are the weights for each \( x_i \). The \( \frac{1}{2} \) comes from the fact that \( D \) is simmetric and so, each \( x_ix_j \) is counted twice.</p>
+
+<p>with constraints: \[ A^T X [ = | \geq ]~b \], where the first \( k \) operators are equality, the others are \( \geq \) and \( b \) the values the constraints should be equal to.</p>
+
+<p>An eg of a QP objective function:
+\[ f(x_1, x_2, x_3) = 2.x_1^2  - x_1x_2 - + 2 x_2^2 + x_2x_3 + 2x_3^2 - 5.x_2 + 3.x_3 \]
+Subject to constraints:</p>
+
+<ul>
+<li>\( -4x_1 + -3x_2 = -8 \)</li>
+<li>\( 2x_1 + x_2 = 2 \)</li>
+<li>\( -2x_2 + x_3 \geq 0 \)</li>
+</ul>
+
+<p>In R:</p>
+
+<pre><code class="r">library(quadprog)
+Dmat       &lt;- matrix(c( 2,-1, 0,
+                       -1, 2,-1,
+                        0,-1, 2),3,3)
+dvec       &lt;- c(0,-5,3)
+Amat       &lt;- matrix(c(-4,-3,0,
+                        2, 1,0,
+                        0,-2,1),3,3)
+bvec       &lt;- c(-8,2,0)
+n.eqs      &lt;- 2 # the first two constraints are equalities
+sol &lt;- solve.QP(Dmat,dvec,Amat,bvec=bvec,meq=2)
+sol$solution
+</code></pre>
+
+<pre><code>[1] -1  4  8
+</code></pre>
+
+<pre><code class="r">sol$value
+</code></pre>
+
+<pre><code>[1] 49
+</code></pre>
+
+<p>So, the solution is \( x_1=-1 \), \( x_2=4 \) and \( x_3=8 \) with a minimum of \( 49 \).</p>
+
+<p>In QP if \( D \) is a definitive positive matrix (ie, \( X^T D X \gt 0 \), for all non-zero \( X \)) the problem is solved in polinomial time. if not QP is NP-Hard. If \( D \) has only one negative eigenvalue, the problem is NP-hard. </p>
+
+<p>Function <code>solve.QP()</code> expects a definitive positive matrix \( D \).</p>
+
+<h2>General Non-linear Optimization</h2>
+
+<p>Package Rsolnp provides function <code>solnp()</code> which solves the general nonlinear programming problem:</p>
+
+<p>\[ min f(x) \]</p>
+
+<p>such that</p>
+
+<p>\[ g(x)=0 \]
+\[ l_h \leq h(x) \leq u_h \]
+\[ l_x \leq x \leq u_x \]</p>
+
+<p>where \( f(x), g(x), h(x) \) are smooth functions.</p>
+
+<p>Let&#39;s see some example of use (egs from <a href="http://tutorial.math.lamar.edu/Classes/CalcIII/LagrangeMultipliers.aspx">here</a> and <a href="www.stanford.edu/%7Eyyye/matlab/manual.ps">here</a>).</p>
+
+<ul>
+<li>Example 1: minimize \( f(x,y)=5x-3y \), constrained by \( x^2+y^2=136 \) which has solution (-10,6).</li>
+</ul>
+
+<pre><code class="r">library(&quot;Rsolnp&quot;)
+
+fn &lt;- function(x) { # f(x,y) = 5x-3y
+
+  5*x[1] - 3*x[2]
+}
+
+# constraint z1: x^2+y^2=136
+
+eqn &lt;- function(x) { 
+
+  z1=x[1]^2 + x[2]^2
+
+  return(c(z1))
+}
+constraints = c(136)
+
+x0 &lt;- c(1, 1) # setup init values
+sol1 &lt;- solnp(x0, fun = fn, eqfun = eqn, eqB = constraints)
+</code></pre>
+
+<pre><code>
+Iter: 1 fn: 37.4378  Pars:  30.55472 38.44528
+Iter: 2 fn: -147.9181    Pars:  -6.57051 38.35517
+Iter: 3 fn: -154.7345    Pars:  -20.10545  18.06907
+Iter: 4 fn: -96.4033     Pars:  -14.71366   7.61165
+Iter: 5 fn: -72.4915     Pars:  -10.49919   6.66517
+Iter: 6 fn: -68.1680     Pars:  -10.04485   5.98124
+Iter: 7 fn: -68.0006     Pars:  -9.99999  6.00022
+Iter: 8 fn: -68.0000     Pars:  -10.00000   6.00000
+Iter: 9 fn: -68.0000     Pars:  -10.00000   6.00000
+solnp--&gt; Completed in 9 iterations
+</code></pre>
+
+<pre><code class="r">sol1$pars
+</code></pre>
+
+<pre><code>[1] -10   6
+</code></pre>
+
+<ul>
+<li>Example 2: minimize \( f(x,y) = 4x^2 + 10y^2 \) with \( x^2+y^2 \leq 4 \) (notice the inequality) which has a minimumm at the origin.</li>
+</ul>
+
+<pre><code class="r">fn &lt;- function(x) {  # f(x,y) = 4x^2 + 10y^2
+
+  4*x[1]^2 + 10*x[2]^2
+}
+
+# constraint z1: x^2+y^2 &lt;= 4
+
+ineq &lt;- function(x) { 
+
+  z1=x[1]^2 + x[2]^2
+
+  return(c(z1))
+}
+
+lh &lt;- c(0)
+uh &lt;- c(4)
+
+x0 = c(1, 1) # setup init values
+sol1 &lt;- solnp(x0, fun = fn, ineqfun = ineq, ineqLB = lh, ineqUB=uh)
+</code></pre>
+
+<pre><code>
+Iter: 1 fn: 2.8697   Pars:  0.68437 0.31563
+Iter: 2 fn: 0.6456   Pars:  0.39701 0.03895
+Iter: 3 fn: 0.1604   Pars:  0.200217 0.002001
+Iter: 4 fn: 0.04009  Pars:  0.10011818 0.00005323
+Iter: 5 fn: 0.01002  Pars:  0.0500591342 0.0000006785
+Iter: 6 fn: 0.002506     Pars:   0.02502959503 -0.00000004495
+Iter: 7 fn: 0.0006265    Pars:   0.01251488111 -0.00000004998
+Iter: 8 fn: 0.0001566    Pars:   0.00625751 -0.00000005
+Iter: 9 fn: 0.00003916   Pars:   0.00312878 -0.00000005
+Iter: 10 fn: 0.000009791     Pars:   0.00156452 -0.00000005
+Iter: 11 fn: 0.000002448     Pars:   0.00078235 -0.00000005
+Iter: 12 fn: 0.0000006137    Pars:   0.00039171 -0.00000005
+Iter: 13 fn: 0.0000001564    Pars:   0.00019772 -0.00000005
+Iter: 14 fn: 0.00000004006   Pars:   0.00010007 -0.00000005
+Iter: 15 fn: 0.00000001307   Pars:   0.00005716 -0.00000005
+Iter: 16 fn: 0.000000006833  Pars:   0.00004133 -0.00000005
+solnp--&gt; Completed in 16 iterations
+</code></pre>
+
+<pre><code class="r">sol1$pars
+</code></pre>
+
+<pre><code>[1]  4.133e-05 -5.000e-08
+</code></pre>
+
+<p>The result is quite close to \( (0,0) \).</p>
+
+<p>We can give some extra controls tot he procedure, like <code>TOL</code> which defines the tolerance for optimality (which impacts on the convergence steps) or <code>trace=0</code> is switches off the printing of the major iterations. Eg:</p>
+
+<pre><code class="r">ctrl &lt;- list(TOL=1e-15, trace=0)
+sol2 &lt;- solnp(x0, fun = fn, ineqfun = ineq, ineqLB = lh, ineqUB=uh, control=ctrl)
+sol2$pars
+</code></pre>
+
+<pre><code>[1] -1.957e-08 -5.000e-08
+</code></pre>
+
+<ul>
+<li>Example 3: minimize \( f(X) = -x_1 x_2 x_3 \) such that \( 4x_1x_2+2x_2x_3+2x_3x_1 = 100 \) and \( 1 \leq x_i \leq 10, i = 1,2,3 \)</li>
+</ul>
+
+<pre><code class="r">fn &lt;- function(x,...){
+  -x[1]*x[2]*x[3]
+}
+
+eqn &lt;- function(x,...){
+    4*x[1]*x[2]+2*x[2]*x[3]+2*x[3]*x[1]
+}
+constraints = c(100)
+
+lx &lt;- rep(1,3)
+ux &lt;- rep(10,3)
+
+pars &lt;- c(1.1,1.1,9) # tricky setup
+ctrl &lt;- list(TOL=1e-6, trace=0)
+sol3 &lt;- solnp(pars, fun=fn, eqfun=eqn, eqB = constraints, LB=lx, UB=ux, control=ctrl)
+sol3$pars
+</code></pre>
+
+<pre><code>[1] 2.887 2.887 5.774
+</code></pre>
+
+<p>The initial parameters can be sensible if the objective function is not smooth or there are many local minima. Check function <code>gosolnp()</code> that generates initial parameters (see <a href="http://cran.r-project.org/web/packages/Rsolnp/index.html">manual</a> for more info).</p>
+
+<ul>
+<li>Example 4: minimize \( f(x,y,z) = 4y-2z \) subject to \( 2x-y-z=2 \) and \( x^2+y^2=1 \).</li>
+</ul>
+
+<pre><code class="r">fn &lt;- function(x)  # f(x,y,z) = 4y-2z
+{
+  4*x[2] - 2*x[3]
+}
+
+# constraint z1: 2x-y-z  = 2 
+# constraint z2: x^2+y^2 = 1
+eqn &lt;- function(x){ 
+  z1=2*x[1] - x[2] - x[3]
+  z2=x[1]^2 + x[2]^2
+
+  return(c(z1,z2))
+}
+constraints &lt;- c(2,1)
+
+x0 &lt;- c(1, 1, 1)
+ctrl &lt;- list(trace=0)
+sol4 &lt;- solnp(x0, fun = fn, eqfun = eqn, eqB = constraints, control=ctrl)
+sol4$pars
+</code></pre>
+
+<pre><code>[1]  0.55470 -0.83205 -0.05855
+</code></pre>
+
+</body>
+
+</html>
+

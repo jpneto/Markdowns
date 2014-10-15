@@ -1,0 +1,241 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = FALSE, echo = T,
+               fig.width = 10, fig.height = 5)
+```
+
+Naive Bayes
+========================================================
+
+Refs: 
++ [http://www-users.cs.york.ac.uk/~jc/teaching/arin](http://www-users.cs.york.ac.uk/~jc/teaching/arin/R_practical/)
++ [wikipedia](http://en.wikipedia.org/wiki/Naive_Bayes_classifier)
+
+Explaining Naive Bayes
+--------------------
+
+Given features $F_1, F_2, \ldots F_n$ and a class $C$, we wish to know
+
+$$p(C|F_1, F_2, \ldots F_n)$$
+
+By Bayes' Theorem:
+
+$$p(C|F_1, F_2, \ldots F_n) = \frac{p(C)p(F_1, F_2, \ldots F_n|C)}{p(F_1, F_2, \ldots F_n)} \propto p(C)p(F_1, F_2, \ldots F_n|C)$$
+
+The numerator $p(C)p(F_1, F_2, \ldots F_n|C)$ is equal to the joint probability $p(C,F_1, F_2, \ldots F_n)$ which by the chain rule:
+
+$$
+\begin{array}{lcl}
+p(C,F_1, F_2, \ldots F_n) & \propto & p(C) p(F_1, F_2, \ldots F_n|C) \\
+                          & \propto & p(C) p(F_1|C) p(F_2, \ldots F_n|C,F_1) \\
+                          & \propto & p(C) p(F_1|C) p(F_2|C,F_1) p(F_3, \ldots F_n|C,F_1,F_2)\\
+                          & \propto & \ldots \\
+                          & \propto & p(C) p(F_1|C) p(F_2|C,F_1) \ldots p(F_n|C,F_1\ldots F_{n-1})
+\end{array}
+$$
+
+Naive Bayes 'naively' assumes that every feature $F_i$ is conditionally independent of every other $F_j$ ($i \neq j$) given $C$, ie:
+
+$$p(F_i|C,F_j) = p(F_i|C), i \neq j$$
+
+This greatly simplifies the previous chain rule:
+
+$$p(C) p(F_1|C) p(F_2|C,F_1) \ldots p(F_n|C,F_1\ldots F_{n-1}) = P(C)p(F_1|C)p(F_2|C)\ldots = p(C) \prod_i P(F_i|C)$$
+
+And so:
+
+$$p(C|F_1, F_2, \ldots F_n) \propto p(C) \prod_i P(F_i|C)$$
+
+An eg: here's an aggregate data on applicants to graduate school at Berkeley for the six largest departments in 1973 classified by admission and sex.
+
+```{r}
+data(UCBAdmissions)
+margin.table(UCBAdmissions,1)
+df <- as.data.frame(UCBAdmissions)
+df[df$Dept=="A",] # just look at Dept. A
+```
+
+The estimated probabilities of being admitted to dept. A being a male or female are:
+$$\hat{p}(admitted | male, dept.A) = 512 / (512+313) \approx 0.62 $$
+$$\hat{p}(admitted | female, dept.A) = 89 / (89+19) \approx 0.82 $$
+
+Let A = admitted; G = gender and D = departement.
+
+Naive Bayes assumes that $$p(A|G,D) \propto p(A)p(G|A)p(D|A)$$
+
+Knowing the gender, G=g, and the department, D=d, we wish to predict the value A (ie, was he/she admitted?) that maximizes p(A|g,d):
+
+$$\operatorname*{arg\,max}_A ~ p(A|g,d) = \operatorname*{arg\,max}_A ~ p(a) p(g|A) p(d|A))$$
+
+To achieve this, we get the data $p(A)$, $p(G|A)$ and $p(D|A)$ for each possible value $A$ and perform the calculations.
+
+Let's say that G='female', and D='department A' and we which to know either A is ' admitted' or 'rejected'. 
+
+We need to query the table for some numbers:
+
+```{r}
+sum (df$Freq) # total number of submitions (admitted+rejected)
+sum (df[df$Gender=="Female",]$Freq) # number of females
+sum (df[df$Admit=="Admitted",]$Freq) # number of admitted on all depts
+sum (df[df$Admit=="Rejected",]$Freq) # number of rejected on all depts
+sum (df[df$Admit=="Admitted" & df$Gender=="Female",]$Freq) # number of admitted females
+sum (df[df$Admit=="Rejected" & df$Gender=="Female",]$Freq) # number of rejected females
+sum (df[df$Admit=="Admitted" & df$Dept=="A",]$Freq) # number of admitted in dept 'A'
+sum (df[df$Admit=="Rejected" & df$Dept=="A",]$Freq) # number of rejected in dept 'A'
+```
+
+Then:
+
++ $p(admitted) = 1755/4526 \approx 0.39$
++ $p(female|admitted) = p(female,admitted) / p(admitted) = (557/4526)/0.39 \approx 0.32$
++ $p(dept A|admitted) = p(dept A,admitted) / p(admitted) = (601/4526)/0.39 \approx 0.34$
+
+And:
+
++ $p(rejected) = 2772/4526 \approx 0.61$
++ $p(female|rejected) = 1278/2772 \approx 0.46$
++ $p(dept A|rejected) = 332/2772 \approx 0.12$
+
+This means that $p(admitted|female,'A') \propto 0.39 \times 0.32 \times 0.34 = 0.042432$
+
+Which is larger than $p(rejected|female,'A') \propto 0.61 \times 0.2 \times 0.12 = 0.033672$
+
+Our prediction is that a female will be admitted in Dept. A. The odds ratio is $1.26:1$ in favor of admittance (ie, 56% chances of admittance).
+
+Using the R funtions
+---------------------
+
++ `naiveBayes()` creates a classifier given observation data and the class for each observation
++ `predict()` receives the classifier, some observations, and returns a vector with their predicted classes
+
+```{r}
+library(e1071) 
+# creates a classifier using Gender and Dept as data, and Admittance as the observation class
+classifier <- naiveBayes(Admit ~ Gender + Dept, data = UCBAdmissions)
+test <- unique(df[,c(-1,-4)])                # get the pairs gender+department
+test$Prediction <- predict(classifier, test) # apply the prediction for those pairs (and add to a new column to data frame 'test')
+test                                         # check results
+```
+
+It is possible to access the conditional probabilities from the $tables attribute:
+
+```{r}
+classifier$tables$Gender["Admitted","Female"]  # p(female|admitted)
+classifier$tables$Dept["Admitted","A"]         # p(dept.A|admitted)
+classifier$tables$Gender["Rejected","Female"]  # p(female|rejected)
+classifier$tables$Dept["Rejected","A"]         # p(dept.A|rejected)
+```
+
+And also the apriori distribution:
+
+```{r}
+classifier$apriori / sum(classifier$apriori)
+```
+
+Continuous attributes
+--------------
+
+If attribute $F_i$ is continuous, a typical approach is to assume that $p(F_i|C=c) \sim N(mean(F_i|C=c), sd(F_i|C=c))$
+
+TODO: egs at http://en.wikipedia.org/wiki/Naive_Bayes_classifier
+
+
+Standard dataset iris includes continuous attributes:
+
+```{r, fig.height = 10}
+data(iris) # load iris dataset
+pairs(iris[1:4], main="Iris Data (red=setosa,green=versicolor,blue=virginica)", 
+      pch=21, bg=c("red","green3","blue")[unclass(iris$Species)])
+head(iris,n=12)
+summary(iris)
+library(e1071) 
+# create a classifier using naive bayes using the first 4 columns as the data, an the last column as the class for each observation (naiveBayes is a supervised learning algorithm)
+classifier<-naiveBayes(iris[,1:4], iris[,5]) 
+```
+
+Use `predict()` that receives the classifier object plus some observations (iris[,-5] is the original data without its class) and returns a sugested class for each observation. 
+
+```{r}
+predicted.classes <- predict(classifier, iris[,-5])
+head(predicted.classes,n=12)
+```
+
+Then the method `table()` presents a confusion matrix between the sugested classe vector with the real class vector. In this case the classification was very good, but this is a biased result since we are using the same data in the training and in the test sets
+
+```{r}
+table(predicted.classes, iris[,5], dnn=list('predicted','actual'))
+classifier$apriori / sum(classifier$apriori) # the prior distribution for the classes
+```
+
+Since the predictor variables here are all continuous, the naive Bayes classifier generates three Gaussian (Normal) distributions for each predictor variable: one for each value of the class variable Species. The first column is the mean, the 2nd column is the standard deviation.
+
+```{r}
+classifier$tables$Petal.Length
+```
+
+Let's plot these ones:
+
+```{r}
+plot(0:3, xlim=c(0.5,7), col="red", ylab="density",type="n", xlab="Petal Length",main="Petal length distribution for each species")
+curve(dnorm(x, classifier$tables$Petal.Length[1,1], classifier$tables$Petal.Length[1,2]), add=TRUE, col="red")
+curve(dnorm(x, classifier$tables$Petal.Length[2,1], classifier$tables$Petal.Length[2,2]), add=TRUE, col="blue")
+curve(dnorm(x, classifier$tables$Petal.Length[3,1], classifier$tables$Petal.Length[3,2]), add=TRUE, col ="green")
+legend("topright", c("setosa", "versicolor", "virginica"), col = c("red","blue","green"), lwd=1)
+```
+
+These values could also be accessed directly in the dataset. Say for `Petal.Length`:
+
+```{r}
+mean(iris[iris$Species=="setosa",]$Petal.Length)
+sd(iris[iris$Species=="setosa",]$Petal.Length)
+```
+
+So, let's say we want to find, without using the R function, all three possible values of $p(C|observation)$:
+
+```{r}
+observation <- data.frame(Sepal.Length = 5.0, 
+                          Sepal.Width  = 3.2, 
+                          Petal.Length = 1.5, 
+                          Petal.Width  = 0.3)  # this observation lies within Setosa cluster
+```
+For setosa class:$$p(C=setosa|observation) \propto p(C=setosa) p(Sepal.Length=5.0 | C=setosa) p(Sepal.Width=3.2 | C=setosa) p(Petal.Length=1.5 | C=setosa) p(Petal.Width=0.3 | C=setosa)$$
+
+A similar computation is needed for the other two classes. Let's implement them:
+
+```{r}
+iris.classes <- c("setosa","versicolor","virginica")
+iris.attributes <- names(iris)[-5]
+
+means     <- rep(0,length(iris.attributes))
+sds       <- rep(0,length(iris.attributes))
+densities <- rep(0,length(iris.attributes))
+
+p.Cs <- c(0,0,0)              # p(C=class)
+p.Cs_observation <- c(0,0,0)  # p(C=class | observation)
+
+for (c in 1:length(iris.classes)) {
+  p.Cs[c] <- nrow(iris[iris$Species==iris.classes[c],]) / nrow(iris) 
+
+  for(i in 1:length(iris.attributes)) {
+    means[i] <- sapply(iris[iris$Species==iris.classes[c],][i], mean)
+    sds[i]   <- sapply(iris[iris$Species==iris.classes[c],][i], sd)
+    densities[i] <- dnorm(as.numeric(observation[i]), means[i], sds[i])
+  }
+  
+  p.Cs_observation[c] <- p.Cs[c] * prod(densities) # the final value for each class
+}
+
+names(p.Cs_observation) <- c("setosa","versicolor","virginica")
+p.Cs_observation
+p.Cs_observation / sum(p.Cs_observation) # normalize
+```
+
+This means that our naive bayes would predict 'setosa' with __VERY__ high likelihood.
+
+With the use of naiveBayes() we get the same prediction:
+
+```{r}
+# type="raw" shows the probabilities
+predict(classifier, observation, type="raw")
+```

@@ -1,0 +1,557 @@
+---
+title: "Expectation-Maximization"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Refs:
+
++ [Data Mining Algorithms In R/Clustering/Expectation Maximization (EM)](http://en.wikibooks.org/wiki/Data_Mining_Algorithms_In_R/Clustering/Expectation_Maximization_(EM))
+
++ Bishop, **Pattern Matching and ML**, chapter 9.
+
+The EM algorithm is a methodology for algorithm construction, it is not a specific algorithm. Each problem is different, only the structure of the Expectation and Maximization steps are common. How exactly they are programmed is problem dependent.
+
+# The (Meta-)Algorithm
+
+We observed data $X$ and have a (possibly made up) set of latent variables $Z$. The set of model parameters is $\theta$.
+
+The goal of the EM algorithm is to find a maximum to the likelihood function $p(X|\theta)$ wrt parameter $\theta$, when this expression or its log cannot be discovered by typical MLE methods.
+
+Suppose for each observation $x^i\in X$ we get the corresponding value $z^i \in Z$. $\{X,Z\}$ is called the complete dataset. The likelihood for the complete set is $p(X,Z|\theta)$. However we do not know the complete set, only $X$. To proceed we need to construct the posterior $p(Z|X,\theta)$. Usually this is the part that requires some imagination/luck/experience. 
+
+With $p(Z|X,\theta)$ we can compute the likelihood for the complete set:
+
+$$p(X,Z|\theta) = p(Z|X,\theta) p(X|\theta)$$
+
+Assume also that we know an estimate $\theta_i$ for $\theta$. This allows us to compute the posterior $p(Z|X,\theta_i)$. Initially $\theta_i=\theta_0$ is randomly assigned. 
+
+The log-likelihood is 
+
+$$\log p(X|\theta) = \log \{ \sum_z p(X,Z=z|\theta) \} = \log \{ \sum_z p(X|Z=z,\theta) p(Z=z|\theta) \}$$ 
+
+as given by the marginal rule of probability. For continuous latent variables, the sum is replaced by an integral. The EM algorithm will maximize $\log p(X|\theta)$, but since $\log$ is a strict monotonous  function, it will also maximize $p(X|\theta)$.
+
+<!--
+Also by the conditional probability definition:
+
+$$p(X|\theta) = \frac{p(X,Z|\theta)}{p(Z|X,\theta)}$$
+
+log it and we get:
+
+$$\log p(X|\theta) = \log p(X,Z|\theta) - \log p(Z|X,\theta)$$
+-->
+
+With these equations let's see what EM should do. 
+
+Given a current estimate $\theta_i$ we wish to find an update $\theta$ such that $p(X|\theta) > p(X|\theta_i)$ (remember, if that cannot be done, the algorithm found a maximum and we are over). If possible we want to maximize the difference between $p(X|\theta)$ and $p(X|\theta_i)$:
+
+$$
+\begin{array}{lclr}
+       &  & \log p(X|\theta) - \log p(X|\theta_i) & \\
+       & = & \log \left\{ \sum_z p(X|Z=z,\theta) p(Z=z|\theta) \right\} - \log p(X|\theta_i) & \color{blue}{\text{marginal rule}} \\
+       & = & \log \left\{ \sum_z p(X|Z=z,\theta) p(Z=z|\theta) \frac{p(Z=z|X,\theta_i)}{p(Z=z|X,\theta_i)} \right\} - \log p(X|\theta_i) & \\
+       & = & \log \left\{ \sum_z p(Z=z|X,\theta_i) \frac{p(X|Z=z,\theta) p(Z=z|\theta)}{p(Z=z|X,\theta_i)} \right\} - \log p(X|\theta_i) & \\
+       & \geq & \sum_z p(Z=z|X,\theta_i) \log \left\{ \frac{p(X|Z=z,\theta) p(Z=z|\theta)}{p(Z=z|X,\theta_i)} \right\} - \log \color{red}{p(X|\theta_i)} & \color{blue}{\log \sum_i a_ix_i \geq \sum_i a_i\log x_i, \text{Jensen Ineq.}}\\             
+       & = & \sum_z p(Z=z|X,\theta_i) \log \left\{ \frac{p(X|Z=z,\theta) p(Z=z|\theta)}{p(Z=z|X,\theta_i)\color{red}{p(X|\theta_i)}} \right\} & \color{blue}{\text{multiply} \sum_z p(Z=z|X,\theta_i)=1 \text{ by } p(X|\theta_i)} \\
+       & \equiv & \Delta(\theta|X,\theta_i) & \color{blue}{\equiv\text{: by definition}}\\
+\end{array}
+$$
+
+So, $$\log p(X|\theta) \geq \log p(X|\theta_i) + \Delta(\theta|X,\theta_i) \equiv Q(\theta|\theta_i)$$
+
+This new function $Q(\theta|\theta_i)$ is bounded above by the likelihood $\log p(X|\theta)$. They are equal at $\theta=\theta_i$. 
+
+The goal of the EM algoritm is to choose $\theta_{i+1}$ as the value of $\theta$ such that $Q(\theta|\theta_i)$ is a maximum. Since $\log p(X|\theta_{i+1}) \geq Q(\theta_{i+1}|\theta_i)$ we ensure that the likelihood also rises as much as possible. 
+
+$$
+\begin{array}{lclr}
+ \theta_{i+1} 
+     & = & \arg \max_{\theta} Q(\theta|\theta_i) & \\
+     & = & \arg \max_{\theta} \left\{ \log p(X|\theta_i) + \sum_z p(Z=z|X,\theta_i) \log \frac{p(X|Z=z,\theta) p(Z=z|\theta)}{p(Z=z|X,\theta_i)p(X|\theta_i)} \right\} & \\
+     & = & \arg \max_{\theta} \left\{ \sum_z p(Z=z|X,\theta_i) \log p(X|Z=z,\theta) p(Z=z|\theta) \right\} & \color{blue}{\text{remove constants wrt } \theta} \\
+     & = & \arg \max_{\theta} \left\{ \sum_z p(Z=z|X,\theta_i) \log \frac{p(X,Z=z,\theta) p(Z=z,\theta)}{p(Z=z,\theta)p(\theta)} \right\} & \color{blue}{p(X|Y) = \frac{p(X,Y)}{p(Y)}} \\
+     & = & \arg \max_{\theta} \left\{ \sum_z p(Z=z|X,\theta_i) \log p(X,Z=z|\theta) \right\} & \\
+     & = & \arg \max_{\theta} \left\{ E_{Z|X,\theta_i} [ \log p(X,Z|\theta) ] \right\} & \color{blue}{E_Z [ g(Z) ] = \sum_z f(Z)g(Z)} \\
+\end{array}
+$$
+
+So, the EM algorithm is:
+
+0. Have $X$ and $p(Z|X,\theta)$.
+
+1. $\theta_i \leftarrow \theta_0$, where $\theta_0$ is a random assignment of values.
+
+2. **E-step**: Compute $Q(\theta|X,\theta_i) = E_{Z|X,\theta_i} [ \log p(X,Z|\theta) ]$ 
+
+3. **M-step**: Compute $\theta_{i+1} \leftarrow \arg\!\max_{\theta} Q(\theta|X,\theta_i)$
+
+4. If $\theta_i$ and $\theta_{i+1}$ are not close enough, $\theta_i \leftarrow \theta_{i+1}$ and goto 2.
+
+There is a [convergence proof](http://seanborman.com/publications/EM_algorithm.ps.gz) that states $\Delta(\theta_{i+1}|X,\theta_i) \geq 0$, which means the EM algorithm stops eventually. However, there is no garantee that a global maximum is achieved. That's why it is sometimes needed to run the algorithm with different values for $\theta_0$. The assigment of $\theta_0$ is th eonly random element in the entire EM algorithm, which is why it is called an deterministic optimization technique.
+
+An eg using EM with mixture of Gaussians can be found [here](http://www.di.fc.ul.pt/~jpn/r/EM/GaussianMix.html).
+
+# EM for clustering
+
+The EM algorithm can be seen an unsupervised clustering method based on [mixture models](http://en.wikipedia.org/wiki/Mixture_model). It follows an iterative approach, sub-optimal, which tries to find the parameters of the probability distribution that has the [maximum likelihood](http://en.wikipedia.org/wiki/Maximum_likelihood) of its attributes in the presence of missing/latent data.
+
+The algorithm's input are the data set $X$, the total number of clusters/models $K$, the accepted error to converge $\epsilon$ and the maximum number of iterations. 
+
+For each iteration, first it is executed what's called the Expectation Step (E-step), that estimates the probability of each point belonging to each model, followed by the Maximization step (M-step), that re-estimates the parameter vector of the probability distribution of each model. The algorithm finishes when the distribution parameters converges or reach the maximum number of iterations. Convergence is assured since the algorithm increases the likelihood at each iteration until it reaches the (eventually local) maximum.
+
+## Eg: EM with mix of two linear models
+
++ Ref: [http://www.cs.huji.ac.il/~yweiss/emTutorial.pdf](http://www.cs.huji.ac.il/~yweiss/emTutorial.pdf)
+
+Let's have a dataset generated by either one of two linear processes $C_1$ and $C_2$:
+
+```{r}
+set.seed(101)
+
+slope1 <- -.3; intercept1 <- 1.5    # generating data from C_1
+xs1 <- sample(seq(-2,2,len=201), 40)
+ys1 <- intercept1 + slope1*xs1 + rnorm(length(xs1),0,.15) # add some noise
+
+slope2 <- 1.2; intercept2 <- -.4    # generating data from C_2
+xs2 <- sample(seq(-2,2,len=201), 40)
+ys2 <- intercept2 + slope2*xs2 + rnorm(length(xs1),0,.15)
+
+mydata <- rbind( cbind(xs1,ys1), cbind(xs2,ys2) ) 
+plot(mydata, pch=19, xlab="X", ylab="Y")
+```
+
+We need to achieve two things:
+
++ The parameters, slope and intersect, of the two models
+
++ The assigment of each datapoint $x^i$ to the modelled process that generated it
+
+If we know one the other should be easy to find. If we know the parameters, we could apply a maximum likelihood estimation to find which model is more probable to have generated $x^i$, i.e., compute $p(x^i | C_j)$. If we know the classifications we could just perform two linear regressions in order to find the parameters.
+
+This is the basic structure of the EM algorithm:
+
+1. Init-step: Assign random values to the model's parameters
+
+2. E-step: assign points to the model that fits each one best (these assignments are continuous, not binary)
+
+3. M-step: update the parameters using the points assigned in the previous step
+
+4. Iterate until parameter values converge
+
+**Init Step**
+
+```{r}
+i1 <- s1 <- i2 <- s2 <- 0 # model parameters for slope and intersect
+init_params <- function() {
+  i1 <<- 2*runif(1)
+  s1 <<- 2*runif(1)
+  i2 <<- 2*runif(1)
+  s2 <<- 2*runif(1)
+  c(i1,s1,i2,s2)
+}
+
+params <- init_params()
+```
+
+**E-step:**
+
+For each point $x^i$ compute two weights (probabilities) $w_1^i$ and $w_2^i$ for the soft assigments of model 1 and 2.
+
+We calculate the residuals $r^i$ of the two models for each $x^i$:
+
+$$r_j^i = | \text{intersect}_j + \text{slope}_j x^i  - y^i |$$
+
+So,
+
+$$w_j^i = \frac{p(r_j^i | x^i \in C_j)}{p(r_1^i | x^i \in C_1) + p(r_2^i | x^i \in C_2)}$$
+
+If we assign normal distributions to these probabilities
+
+$$r_j^i | x^i\in C_j \sim \mathcal{N}(0,\sigma^2)$$
+
+which means
+
+$$p(r_j^i | x^i \in C_j) = \frac{1}{\sqrt{2\pi}\sigma} \exp\{-\frac{(r_j^i)^2}{2\sigma^2}\}$$
+
+plugging the distributions into the $w_j^i$ formula:
+
+$$w_j^i = \frac{\exp\{-\frac{(r_j^i)^2}{2\sigma^2}\}}
+               {\exp\{-\frac{(r_1^i)^2}{2\sigma^2}\} + \exp\{-\frac{(r_2^i)^2}{2\sigma^2}\}}$$
+               
+The $\sigma$ is a free parameter. This corresponds to the expected noise level in the sample. Herein we'll assume $\sigma=0.5$. Values too small might produce underflows in R, especially in the first iterations of the EM algorithm.
+
+```{r}
+# params is [s1,i1,s2,i2]
+e.step <- function(mydata, params, sigma=0.5) {
+  w1 <- rep(NA, nrow(mydata))
+  w2 <- rep(NA, nrow(mydata))
+  
+  for (i in 1:nrow(mydata)) {
+    r1 <- abs(params[1] + params[2] * mydata[i,1] - mydata[i,2]) # residual for model 1
+    r2 <- abs(params[3] + params[4] * mydata[i,1] - mydata[i,2]) # residual for model 2
+    
+    exp1 <- exp(-r1^2/sigma^2)
+    exp2 <- exp(-r2^2/sigma^2)
+    
+    w1[i] <- exp1 / (exp1+exp2)
+    w2[i] <- exp2 / (exp1+exp2)
+  }
+  
+  cbind(w1,w2)  
+}
+
+ws <- e.step(mydata, params)
+head(ws)
+```
+
+**M-step:**
+
+Here we assume the weights are given for each data point $x^i$.
+
+To estimate the parameters of each process we use [weighted least squares](https://onlinecourses.science.psu.edu/stat501/node/213). 
+
+In classic least squares, the parameters $p_i$ for the $i^{\text{th}}$ model would be given by:
+
+$$\hat{p_i} = (X_i^T X_i)^{-1} X_i^T Y$$
+
+To add weights $w_i$ we make a diagonal matrix $W_i$ with these values and compute:
+
+$$\hat{p_i} = (X_i^T W_i X_i)^{-1} X_i^T W_i Y$$
+
+<!--
+This is done by solving the following matrix for $w^i=w_1^i$ and $w^i=w_2^i$:
+
+$$
+\left[ \begin{array}{cc}
+\sum_i (x^i)^2 & \sum_i x^i \\
+\sum_i x^i & \sum_i \end{array} \right] 
+.
+\left[ \begin{array}{c}
+a \\
+b \end{array} \right] 
+= 
+\left[ \begin{array}{c}
+\sum_i w^ix^iy^i \\
+\sum_i w^iy^i \end{array} \right]
+$$
+-->
+
+```{r}
+# wls - weighted least squares
+wls <- function(X,Y,W) {
+  solve(t(X) %*% W %*% X) %*% t(X) %*% W %*% Y
+}
+
+m.step <- function(mydata, ws) {
+  X <- cbind(rep(1, nrow(mydata)), mydata[,1])
+  Y <- as.matrix(mydata[,2], ncol=1)
+  p_1 <- wls(X,Y,diag(ws[,1]))
+  p_2 <- wls(X,Y,diag(ws[,2]))
+
+  c(p_1, p_2)
+}
+
+params <- m.step(mydata, ws)
+```
+
+Let's put everything together for this problem:
+
+```{r}
+em.2lines <- function(mydata, tol=1e-2, max.step=1e3) {
+  step <- 0
+  
+  s1 <- i1 <- s2 <- i2 <- 0 # model parameters for slope and intersect
+  params <- init_params()
+  
+  repeat {
+    ws         <- e.step(mydata, params)
+    old.params <- params
+    params     <- m.step(mydata, ws)
+    
+    if (norm(as.matrix(old.params-params), type="F") < tol) # convergence achieved
+      break
+    
+    step <- step +1
+    if (step > max.step)
+      break
+  } 
+  
+  list(params=params,    # the estimated parameters
+       weights=ws,       # the weighs for each datapoint x^i
+       class=apply(ws, 1, function(v) if (v[1]>v[2]) 1 else 2))  # the class for each datapoint
+}
+
+report <- em.2lines(mydata)
+report$params
+```
+
+Let's plot the results:
+
+```{r}
+plot(mydata, pch=19, col=report$class, xlab="X", ylab="Y")
+abline(a=report$params[1], b=report$params[2], col=1, lty=2) # draw 1st model with found parameters
+abline(a=report$params[3], b=report$params[4], col=2, lty=2) # draw 2nd model with found parameters
+```
+
+## Using R's mclust for classification
+
+Using `Mclust` from package `mclust` to find the optimal model for a given dataset and number of clusters based on EM:
+
+```{r}
+library(MASS)
+library(mclust)
+
+mc <- Mclust(iris[,1:4], G=3) # 3 clusters
+plot(mc, what=c("classification"), dimens=c(1,3)) # using 1st and 3rd column of the iris dataset
+# make dataset with points from two different multivariate normal densities
+mydata <- rbind(mvrnorm(50, c(1,1), matrix(c(.5^2,.20,.20,.5^2), ncol=2)),
+                mvrnorm(50, c(4,4), matrix(c(1,0,0,1), ncol=2)))
+plot(mydata, pch=19)
+mixclust <- Mclust(mydata)  # if G is not given, it will test between 1 to 9
+plot(mixclust, what=c("classification"))  # plot the distinct clusters found 
+```
+
+# Using R's Alice for missing value imputation
+
+> Amelia assumes that the data follow a multivariate normal distribution, 
+so all information about the relations in the data can be summarized by 
+just means and covariances. When data are incomplete, Amelia uses the 
+well-known EM algorithm to find corrected estimates of the means and covariances.
+
+> In their original form the EM estimates cannot be used to create multiple imputations, 
+as the estimates do not reflect the fact that they have been estimated from a 
+finite sample. In order to solve this, Amelia first takes m bootstrap samples, 
+and applies the EM-algorithm to each of these bootstrap samples. 
+The m estimates of means and variances will now be different. The first set of 
+estimates is used to draw the first set of imputed values by a form of regression 
+analysis, the second set is used to calculate the second set of imputed values, 
+and so on.
+
+> As Amelia assumes a multivariate normal distribution, it will work best when your 
+data are approximately normally distributed (possibly after a transformation), and 
+when the statistics you calculate from the data in your complete-data analysis are 
+near the center of the distribution, like means, modes or regression weights. [Ref](http://stats.stackexchange.com/questions/47247/multiple-imputation-with-the-amelia-package)
+
+The following code was taken from the package's [vignette](# cf. http://cran.r-project.org/web/packages/Amelia/vignettes/amelia.pdf)
+
+```{r}
+library(Amelia)
+
+data(freetrade)
+
+summary(freetrade)
+head(freetrade,12)
+
+a.out <- amelia(freetrade, m = 5, idvars=2) # idvars informs the columns that are identification variables
+head(a.out$imputations[[1]], 12)
+hist(a.out$imputations[[1]]$tariff, col="grey", border="white")
+
+########
+
+a.out <- amelia(freetrade, m = 1, idvars=2, 
+                ords = "polity", noms='signed') # define 'polity' as nominal, and signed' as ordinal
+# nominal var with p categories is translated to p-1 variables
+
+head(a.out$imputations[[1]], 12)
+
+##########
+# if a column indicates a time sequence, use parameter ts
+# Amelia will add covariates to the model that correspond to time
+# and its polynomials. These covariates will help better predict the missing values.
+a.out <- amelia(freetrade, m = 5, idvars=2, ts="year",
+                ords = "polity", noms='signed')
+
+head(a.out$imputations[[1]], 12)
+
+############
+# If cross-sectional units are specified these polynomials can be interacted with the
+# cross-section unit to allow the patterns over time to vary between cross-sectional
+# units. Unless you strongly believe all units have the same patterns over time in all
+# variables (including the same constant term), this is a reasonable setting
+
+# if a column indicates a time sequence, use parameter ts
+# Amelia will add covariates to the model that correspond to time
+# and its polynomials. These covariates will help better predict the missing values.
+a.out <- amelia(freetrade, m = 5, ts="year", cs="country",
+                ords = "polity", noms='signed')
+
+head(a.out$imputations[[1]], 12)
+
+##########
+
+a.out <- amelia(freetrade, m = 5, ts = "year", cs = "country")
+
+# intercs is a logical variable indicating if the time effects of polytime should vary across the cross-section.
+# polytime is what power of polynomial should be included in the imputation model to account for the effects of time.
+a.out.time <- amelia(freetrade, m = 5, ts="year", cs="country", intercs=T, polytime = 2)
+
+head(a.out.time$imputations[[1]], 12)
+
+# we have a much better prediction about the missing values when incorporating time
+# than when we omit it:
+
+tscsPlot(a.out, cs = "Malaysia", main = "Malaysia (no time settings)",
+         var = "tariff", ylim = c(-10, 60))
+
+tscsPlot(a.out.time, cs = "Malaysia", main = "Malaysia (with time settings)",
+         var = "tariff", ylim = c(-10, 60))
+
+#################
+# The incorporation of priors follows basic Bayesian analysis where the imputation
+# turns out to be a weighted average of the model-based imputation and the prior
+# mean, where the weights are functions of the relative strength of the data and prior
+
+# For instance, suppose that we had some expert prior information about tariff
+# rates in Thailand.
+
+freetrade[freetrade$country == "Thailand", c("year","country","tariff")]
+
+# that tariff rates were roughly 40% in
+# Thailand between 1986 and 1988 with about a 6% margin of error with 95% confidence. This corresponds
+# to a standard deviation of about 3 (the interval of 2-sigma is 6). 
+# In order to include this information, we must form the priors matrix:
+
+pr <- matrix(c(158, 3, 40, 3,
+               159, 3, 40, 3,
+               160, 3, 40, 3), ncol=4, byrow=T)
+
+# The first column of this matrix corresponds to the row numbers of Thailand in
+# these three years, the second column refers to the column number of tariff in the
+# data and the last two columns refer to the actual prior.
+
+a.out.pr <- amelia(freetrade, ts = "year", cs = "country", priors = pr)
+
+a.out.pr$imputations[[1]][a.out.pr$imputations[[1]]$country == "Thailand", c("year","country","tariff")]
+
+# Another way is to present a confidence interval:
+
+pr <- matrix(c(158, 3, 34, 46, 0.95, # [34,46] with 95% confidence
+               159, 3, 34, 46, 0.95,
+               160, 3, 34, 46, 0.95), ncol=5, byrow=T)
+
+a.out.pr <- amelia(freetrade, ts = "year", cs = "country", priors = pr)
+
+a.out.pr$imputations[[1]][a.out.pr$imputations[[1]]$country == "Thailand", c("year","country","tariff")]
+
+# If a prior has the value 0 in the first column, this prior will be applied to all
+# missing values in this variable, except for explicitly set priors. T
+
+pr <- matrix(c(158, 3, 34, 46, 0.95, # [34,46] with 95% confidence
+               159, 3, 34, 46, 0.95,
+               160, 3, 34, 46, 0.95,
+                0 , 3, 30, 50, 0.90), ncol=5, byrow=T)
+
+#########
+# it's possible to define bounds to the imputations
+
+bds <- matrix(c(3, 30, 40), nrow = 1, ncol = 3) # 3rd column can only have values between [30,40]
+
+a.out.bds <- amelia(freetrade, ts = "year", cs = "country", bounds = bds, max.resample = 1000)
+
+tscsPlot(a.out, cs = "Malaysia", main = "No logical bounds", var =
+           "tariff", ylim = c(-10,60))
+tscsPlot(a.out.bds, cs = "Malaysia", main = "Bounded between 30 and 40", var =
+             "tariff", ylim = c(-10,60))
+
+# Analysts should be extremely cautious when using these bounds as they
+# can seriously affect the inferences from the imputation model, as shown in this
+# example. Even when logical bounds exist, we recommend simply imputing variables
+# normally, as the violation of the logical bounds represents part of the true uncertainty
+# of imputation.
+```
+
+## Diagnostics
+
+```{r}
+# comparing densities 
+
+# plot the density of the mean imputation over the m datasets. 
+# That is, for each cell that is missing in the variable, the diagnostic will find
+# the mean of that cell across each of the m datasets and use that value for the density
+# plot (in red). The black distributions are the those of the observed data. When variables
+# are completely observed, their densities are plotted in blue
+plot(a.out, which.vars = 3:6)
+par(mfrow=c(1,1))
+    
+# Imputations with strange distributions or those that are far from the
+# observed data may indicate that imputation model needs at least some investigation
+# and possibly some improvement.
+
+compare.density(a.out, var = "signed") # to plot just one variable
+
+# overimputing
+
+# Overimputing involves sequentially treating each of the observed values as if
+# they had actually been missing. For each observed value in turn we then generate
+# several hundred imputed values of that observed value, as if it had been missing.
+# While m = 5 imputations are sufficient for most analysis models, this large number
+# of imputations allows us to construct a confidence interval of what the imputed
+# value would have been, had any of the observed data been missing. We can then
+# graphically inspect whether our observed data tends to fall within the region where
+# it would have been imputed had it been missing
+
+# On this graph, a y = x
+# line indicates the line of perfect agreement; that is, if the imputation model was a
+# perfect predictor of the true value, all the imputations would fall on this line. For
+# each observation, Amelia also plots 90% confidence intervals that allows the user to
+# visually inspect the behavior of the imputation model.
+
+# As the amount of missing information
+# in a particular pattern of missingness increases, we expect the width of the 
+# confidence interval to increase. The color of the confidence interval reflects the percent
+# of covariates observed in that pattern of missingness, as reflected in the legend at
+# the bottom.
+
+overimpute(a.out, var = "tariff") 
+
+# Because the EM algorithm is deterministic,
+# the point in the parameter space where you start it can impact where it ends, though
+# this is irrelevant when the likelihood has only one mode. However, if the starting
+# values of an EM chain are close to a local maximum, the algorithm may find this
+# maximum, unaware that there is a global maximum farther away. To make sure that
+# our imputations do not depend on our starting values, a good test is to run the EM
+# algorithm from multiple, dispersed starting values and check their convergence.
+
+# Amelia includes a diagnostic to run the EM chain from multiple starting values
+# that are overdispersed from the estimated maximum. The overdispersion diagnostic
+# will display a graph of the paths of each chain. Since these chains move through
+# spaces that are in an extremely high number of dimensions and can not be graphically
+# displayed, the diagnostic reduces the dimensionality of the EM paths by showing
+# the paths relative to the largest principle components of the final mode(s) that are
+# reached.
+
+disperse(a.out, dims = 1, m = 10)
+
+# One useful tool for exploring the missingness in a dataset is a missingness map. This
+# is a map that visualizes the dataset a grid and colors the grid by missingness status.
+# The column of the grid are the variables and the rows are the observations.
+
+# The missmap function arrange the columns so that the
+# variables are in decreasing order of missingness from left to right. If the cs argument
+# was set in the amelia function, the labels for the rows will indicate where each of
+# the cross-sections begin.
+
+missmap(a.out)
+```
+
+## Analysis Models
+
+```{r}
+library(Zelig)
+
+z.out <- zelig(tariff ~ polity + pop + gdp.pc + year +country, data = freetrade, model = "ls")
+summary(z.out)
+
+# applying the model considering all imputations
+z.out.imp <- zelig(tariff ~ polity + pop + gdp.pc + year +country, data = a.out$imputations, model = "ls")
+summary(z.out.imp)
+```
+

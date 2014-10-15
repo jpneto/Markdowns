@@ -1,0 +1,28 @@
+CREATE TABLE players (
+  SCHOOL_FULL_NAME varchar(30), 
+  SCHOOL_NAME varchar(30), 
+  NAME varchar(30),
+  POSITION varchar(2),
+  HEIGHT integer,
+  WEIGHT integer,
+  YEAR varchar(2),
+  HOME_TOWN varchar(30),
+  STATE varchar(2),
+  ID integer PRIMARY KEY
+);
+
+\COPY players FROM 'C:\Users\jpn\Downloads\rosters.csv' DELIMITER ',' CSV HEADER;
+
+
+
+CREATE TABLE teams (
+  DIVISION varchar(30), 
+  CONFERENCE varchar(30), 
+  SCHOOL_NAME varchar(30),
+  ROSTER_URL varchar(100),
+  ID integer PRIMARY KEY
+);
+
+\COPY teams FROM 'C:\Users\jpn\Downloads\teams.csv' DELIMITER ',' CSV HEADER;
+
+

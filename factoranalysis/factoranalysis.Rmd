@@ -1,0 +1,290 @@
+```{r, message = FALSE, tidy = FALSE, echo = F}
+## knitr configuration: http://yihui.name/knitr/options#chunk_options
+opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
+               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
+               fig.width = 7.5, fig.height = 5, fig.align='center')
+```
+
+<!-- Includes \cancel latex command -->
+<script type="text/x-mathjax-config">
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
+    cancel: ["Extension","cancel"],
+    bcancel: ["Extension","cancel"],
+    xcancel: ["Extension","cancel"],
+    cancelto: ["Extension","cancel"]
+  });
+});
+</script>
+
+Factor Analysis
+========================================================
+
+refs:
++ [http://www.statmethods.net/advstats/factor.html](http://www.statmethods.net/advstats/factor.html)
++ [http://www.r-bloggers.com/r-tutorial-series-exploratory-factor-analysis/](http://www.r-bloggers.com/r-tutorial-series-exploratory-factor-analysis/)
++ [http://www.yorku.ca/ptryfos/f1400.pdf](http://www.yorku.ca/ptryfos/f1400.pdf)
+
+Introduction
+-------------
+
+Factor analysis is a statistical method used to describe variability among observed, correlated variables in terms of a potentially lower number of unobserved variables called factors. [...] Factor analysis searches for such joint variations in response to unobserved latent(*) variables. The observed variables are modelled as linear combinations of the potential factors, plus "error" terms. The information gained about the interdependencies between observed variables can be used later to reduce the set of variables in a dataset. [wikipedia](http://en.wikipedia.org/wiki/Factor_analysis).
+
+(*) latent variables (as opposed to observable variables), are variables that are not directly observed but are rather inferred (through a mathematical model) from other variables that are observed (directly measured) [wikipedia](http://en.wikipedia.org/wiki/Latent_variable) Since factor are latent we cannot use methods like regression.
+
+So, we want to investigate if observable variables $X_1, X_2\ldots X_N$ are linearly related to a small number of unobservable (latent) factors $F_1, F_2\ldots F_K$, with $K << N$. 
+
+$$
+\begin{array}{l}
+X_1 = w_{10} + w_{11} F_1 + \ldots w_{1K} F_K + e_1 \\
+X_2 = w_{20} + w_{21} F_1 + \ldots w_{2K} F_K + e_2 \\
+\ldots \\
+X_N = w_{N0} + w_{N1} F_1 + \ldots w_{NK} F_K + e_N \\
+\end{array}
+$$
+
+where $e_i$ are error terms, so the relation hypothesis are not exact.
+
+The parameters $w_{ij}$ are called **loadings**.
+
+There are the following assumptions:
+
++ (A1) The error terms $e_i$ are independent from each other, $E(e_i)=0$ and $var(e_i) = \sigma_i^2$
++ (A2) The unobservable factors $F_i$ independent from each other, $E(F_j)=0$ and $var(F_j) = 1$
+
+(A2) is stating that these latent variables do not influence one another, which might be too strong a condition. There are more advanced models where this is relaxed (there's an eg below).
+
+With the loadings it is possible to compute the covariance of any two observed variables:
+
+$$Cov(X_i, X_j) = \sum_{k=1}^K w_{ik}w_{jk} $$
+
+and the variance of each $X_i$:
+
+$$Var(X_i) = \sum_{k=1}^K w_{ik} + \sigma_i^2$$
+
+where the sum is the _communality_ of the variable, the variance explained by the common factors $F_k$. The remaining variance is called _specific variance_.
+
+With all these values (if we had the loadings, which we do not), we could build a _theoretical variace covariance matrix_ $\Omega$. What we have is the data, and we can use it to compute the _observable variace covariance matrix_ $S$. If the model assumptions hold, then it is possible to estimate the loadings $w_{ij}$ of $\Omega$ given $S$. The standard way is to use principal components that uses eigenvalues and eigenvectors to bring the estimate of the total communality as close as possible to the total of the observed variances (check example 2).
+
+Just one extra note. The values of the loadings are not unique (in fact they are infinite). This means that if the algorithm finds one solution that does not reveal the hypothesized structure of the problem, it is possible to apply a 'rotation' to find another set of loadings that might provide a better interpretation or more consistent with prior expectations about the dataset. 
+
+There are a number of rotations in the literature´. Some egs:
+
++ Varimax: a rotation that seeks to maximize the variance of the squared loading for each factor (ie, make them as large as possible to capture as most signal as possible)
++ Quartimax : seeks to maximize the variance of the squared loadings for each variable, and tends to produce factors with high loadings for all variables.
+
+Rotation methods can be described as _orthogonal_, which do not allow the resulting factors to be correlated, and _oblique_, which do allow the resulting factors to be correlated. 
+
+
+Factor Analysis vs. PCA
+-------------------
+
+Both methods have the aim of reducing the dimensionality of a vector of random variables. Also both methods assume that the modelling subspace is linear (Kernel PCA is a more recent techniques that try dimensionality reduction in non-linear spaces).
+
+But while Factor Analysis assumes a model (that may fit the data or not), PCA is just a data transformation and for this reason it always exists. Furthermore while Factor Analysis aims at explaining (covariances) or correlations, PCA concentrates on variances. [http://www2.stat.unibo.it/montanari/Didattica/Multivariate/CA.pdf](http://www2.stat.unibo.it/montanari/Didattica/Multivariate/CA.pdf)
+
+Example
+-------
+
+Our sample dataset contains a hypothetical sample of 300 responses on 6 items from a survey of college students' favorite subject matter. The items range in value from 1 to 5, which represent a scale from Strongly Dislike to Strongly Like. Our 6 items asked students to rate their liking of different college subject matter areas, including biology (BIO), geology (GEO), chemistry (CHEM), algebra (ALG), calculus (CALC), and statistics (STAT). 
+
+```{r}
+my.data <- read.csv("dataset_EFA.csv")
+# if data as NAs, it is better to omit them:
+# my.data <- na.omit(my.data)
+head(my.data)
+```
+
+Package [`stats`](http://stat.ethz.ch/R-manual/R-patched/library/stats/html/factanal.html) has a function `factanal()` can be used to perform factor analysis:
+
+```{r }
+n.factors <- 2   
+
+fit <- factanal(my.data, 
+                n.factors,                # number of factors to extract
+                scores=c("regression"),
+                rotation="none")
+
+print(fit, digits=2, cutoff=.3, sort=TRUE)
+head(fit$scores)
+# plot factor 1 by factor 2 
+load <- fit$loadings[,1:2] 
+plot(load,type="n") # set up plot 
+text(load,labels=names(my.data),cex=.7) # add variable names
+```
+
+The output maximizes variance for the 1st and subsequent factors, while all are orthogonal to each other. 
+
+Rotation serves to make the output more understandable, by seeking so-called "Simple Structure": A pattern of loadings where items load most strongly on one factor, and much more weakly on the other factors. Eg, `varimax` rotation is an orthogonal rotation of the factor axes to maximize the variance of the squared loadings of a factor (column) on all the variables (rows) in a factor matrix, which has the effect of differentiating the original variables by extracted factor. Each factor will tend to have either large or small loadings of any particular variable. A varimax solution yields results which make it as easy as possible to identify each variable with a single factor. This is the most common rotation option. [wikipedia](http://en.wikipedia.org/wiki/Factor_analysis#Rotation_methods).
+
+
+
+```{r}
+fit <- factanal(my.data, 
+                n.factors,              # number of factors to extract
+                rotation="varimax")     # 'varimax' is an ortho rotation
+
+load <- fit$loadings[,1:2] 
+load
+plot(load,type="n") # set up plot 
+text(load,labels=names(my.data),cex=.7) # add variable names
+```
+
+Looking at both plots we see that the courses og Geology, Biology and Chemistry all have high factor loadings around 0.8 on the first factor (PA1) while Calculus, Algebra and Statistics load highly on the second factor (PA2). We could rename PA1 as Science, and PA2 as Math.
+
+Note that STAT has a much lower loading on PA2 than ALG or CALC and that it has a slight loading on factor PA1. This suggests that statistics is less related to the concept of Math than Algebra and Calculus. Just below the loadings table, we can see that each factor accounted for around 30% of the variance in responses, leading to a factor solution that accounted for 66% of the total variance in students' subject matter preference. 
+
+We could also try an oblique rotation (Stats might share some with the Science factor). Since the previous command does not implement an oblique rotation, we'll use package `psych`:
+
+```{r}
+# install.packages("psych")
+# install.packages("GPArotation")
+library(psych)
+solution <- fa(r = cor(my.data), nfactors = 2, rotate = "oblimin", fm = "pa")
+plot(solution,labels=names(my.data),cex=.7, ylim=c(-.1,1)) 
+solution
+```
+Notice that our factors are correlated at 0.21. The choice of an oblique rotation allowed for the recognition of this relationship. 
+
+
+Determining the Number of Factors to Extract
+---------------------
+
+A crucial decision in exploratory factor analysis is how many factors to extract.
+
+This next plot is the **Cattell scree plot**. It plots the components/factors as the X axis and the corresponding eigenvalues as the Y-axis. As one moves to the right, toward later components, the eigenvalues drop. When the drop ceases and the curve makes an elbow toward less steep decline, Cattell's scree test says to drop all further components after the one starting the elbow. [wikipedia](http://en.wikipedia.org/wiki/Factor_analysis#Criteria_for_determining_the_number_of_factors)
+
+```{r}
+# install.packages("psy")
+library(psy)
+scree.plot(fit$correlation)
+```
+
+Another package, `nFactors`, also offers a suite of functions to aid in this decision. The Kaiser-Guttman rule says that we should choose all factors with eigenvalue greater than $1$. More methods can be found  [here](http://www.er.uqam.ca/nobel/r17165/RECHERCHE/COMMUNICATIONS/2006/IMPS/IMPS_2006.ppt#1).
+
+```{r}
+# Determine Number of Factors to Extract
+# install.packages("nFactors")
+library(nFactors)
+ev <- eigen(cor(my.data)) # get eigenvalues
+ap <- parallel(subject=nrow(my.data),var=ncol(my.data), rep=100, cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS)
+```
+
+Example 2: using principal components
+---------
+
+From [http://www2.stat.unibo.it/montanari/Didattica/Multivariate/FA_lab.pdf](http://www2.stat.unibo.it/montanari/Didattica/Multivariate/FA_lab.pdf)
+
+The next file shows correlation coefficients between subject scores for a sample of 220 boys. 
+
+```{r}
+sub_marks<-read.csv("sub_marks.csv",header=TRUE,sep=";") 
+sub_marks 
+```
+
+Each subject score is positively correlated with each of the scores in the other subjects, indicating that there is a general tendency for those who do well in one subject to do well in others. The highest correlations are between the three mathematical subjects and to a slightly lesser extent, between the three humanities subjects, suggesting that there is more in common within each of these two groups than between them. 
+
+In order to reduce the dimension of the problem and to explain the observed correlations through some related latent factors we fit a factor model using the principal factor method. 
+
+First of all we need to compute an initial estimate of the communalities by calculating the multiple correlation coefficient of each variable with the remaining ones. We obtain it as a function of the diagonal elements of the inverse correlation matrix.
+
+```{r}
+R <- as.matrix(sub_marks[,-1])
+icm <- solve(R)
+```
+
+and then estimate the communalities
+
+```{r}
+h2.zero <- round(1 -1/(diag(icm)), 2)
+h2.zero 
+```
+
+Now we can compute the reduced correlation matrix by substituting the estimated communalities into the diagonal elements (the 1's) of the original correlation matrix.
+
+```{r}
+R.psi <- R 
+for (i in 1:nrow(R.psi)){ 
+  R.psi[i,i] <- h2.zero[i] 
+} 
+R.psi 
+```
+
+R.psi is still squared and symmetric, but it is not positive definite. Its decomposition through the spectral theorem shows that only two eigenvalues are positive. This means that two factors might be enough in order to explain the observed correlations. 
+
+```{r}
+eigen(R.psi)
+```
+
+The estimate of the factor loading matrix will then be obtained as $L = \Gamma L_1^{1/2}$, where $\Gamma$ has in columns the first two eigenvectors and $L_1$ has on the diagonal the first two eigenvalues.
+
+```{r}
+L1 <- diag(eigen(R.psi)$values[1:2])
+L1
+Gamma <- eigen(R.psi)$vectors[,1:2]
+Gamma
+```
+
+We can now compute the estimated factor loadings
+
+```{r}
+L <- Gamma %*% sqrt(L1) 
+rownames(L) <- names(sub_marks)[-1] # just name the rows of easier reading
+L
+```
+
+The first factor seems to measure overall ability in the six subjects, while the second contrasts humanities and mathematics subjects. 
+
+Communalities are, for each variable, the part of its variance that is explained by the common factors. To estimate the communalities we need to sum the square of the factor loadings for each subject:
+
+```{r}
+communality <- diag(L%*%t(L)) 
+communality
+```
+
+These shows, for example, that the 40% of variance in Gaelic scores is explained by the two common factors. Of course, the larger the communality the better does the variable serve as an indicator of the  associated factors. 
+
+To evaluate the goodness of fit of this model we can compute the residual correlation matrix $R - L L^T$
+
+```{r}
+R - L%*%t(L)
+```
+
+Since the elements out of the diagonal are fairly small and close to zero we can conclude that the model fits adequately the data. 
+
+Example 3
+----------
+
+The following correlation matrix are from 10 different intelligence tests between scores of 75 students.
+
+```{r}
+cor.m <- as.matrix(read.csv("qi_test.csv",header=FALSE,sep=";"))
+cor.m
+```
+
+By looking at the correlation matrix one can see a strong correlation between the 10 tests: all the correlation values are positive and mostly varies between 0.4-0.6
+
+Let's factor analysis according to a maximum likelihood approach: 
+
+
+```{r}
+res <- factanal(covmat=cor.m, factors=2, n.obs=75, rotation="none") 
+res 
+```
+
+Record the percentage of variability in each variable that is explained by the model (communalities): 
+
+```{r}
+round( apply(res$loadings^2, 1, sum), 3)  # sum each row squared
+```
+
+Rotate the factors with VARIMAX. Such a rotation works on the factor loadings increasing the differences between lower weights, letting them converge to zero, and the higher weights, letting them converge to one. 
+
+```{r}
+res.rot<-factanal(covmat=cor.m, factors=2, n.obs=75, rotation="varimax") 
+res.rot 
+```
+
+

@@ -1,0 +1,207 @@
+---
+title: "Solving Differential Equations"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+`deSolve` is a package to solve initial value problems of several types of differential equations.
+
+Refs:
+
++ [http://cran.r-project.org/web/packages/deSolve/index.html](http://cran.r-project.org/web/packages/deSolve/index.html)
++ [http://desolve.r-forge.r-project.org/slides/tutorial.pdf](http://desolve.r-forge.r-project.org/slides/tutorial.pdf)
++ [http://www.jstatsoft.org/v33/i09/paper](http://www.jstatsoft.org/v33/i09/paper)
+
+```{r, warning=FALSE, message=FALSE}
+library(deSolve)
+```
+
+## Ordinary Differential Equations (ODE)
+
+An ordinary differential equation is an equation containing a function of one independent variable and its derivatives.
+
+An eg solving the Lorentz system:
+
+$$\frac{dX}{dt} = aX+Y+Z$$
+$$\frac{dY}{dt} = b(Y-Z)$$
+$$\frac{dZ}{dt} = -XY+cY-Z$$
+
+with parameters $a=-8/3, b=-10, c=28$ and initial position at $X(0)=Y(0)=Z(0)=1$.
+
+First we make the model specification, ie, the parameter values, initial position and a function that implement the model equations regarding their rate of change:
+
+```{r}
+parameters    <- c(a = -8/3, b = -10, c =  28)
+initial.state <- c(X = 1, Y = 1, Z = 1)
+
+Lorenz<-function(t, state, parameters) {
+  with(as.list(c(state, parameters)),{
+    # rate of change
+    dX <- a*X + Y*Z
+    dY <- b * (Y-Z)
+    dZ <- -X*Y + c*Y - Z
+    
+    list(c(dX, dY, dZ)) # return the rate of change
+  })
+}
+```
+
+Then we apply the model. For that we need to know what are the timestamps used:
+
+```{r}
+times <- seq(0, 100, by = 0.01)
+```
+
+Finally we apply all into the ODE solver:
+
+```{r}
+out <- ode(y = initial.state, times = times, func = Lorenz, parms = parameters)
+```
+
+Visualizing the results:
+
+```{r}
+head(out)
+summary(out)
+par(oma = c(0, 0, 3, 0))
+plot(out, xlab = "time", ylab = "-")
+plot(out[, "X"], out[, "Z"], pch = ".")
+mtext(outer = TRUE, side = 3, "Lorenz model", cex = 1.5)
+```
+
+Plotting in 3D:
+
+```{r, fig.height=12, fig.width=12, warning=FALSE, message=FALSE}
+library(plot3D)
+
+points3D(out[, "X"], out[, "Y"], out[, "Z"], pch='.', colkey=F, colvar=out[, "Y"]) # color using Y values
+# zooming
+out.zoom <- subset(out, select=c("X","Y","Z"), subset = Y < 8 & X > 10 & X < 30)
+points3D(out.zoom[, "X"], out.zoom[, "Y"], out.zoom[, "Z"], 
+         pch='.', colkey=F, colvar=out.zoom[, "Y"]) # color using Y values
+```
+
+### Second-Order ODE
+
+This 2nd order ODE
+
+$$y'' - \mu(1-y^2)y' + y=0$$
+
+can be transformed into the following system of first order ODEs:
+
+$$y_1' = y_2$$
+$$y_2'= \mu(1-y_1^2)y_2-y_1$$
+
+```{r}
+vdpol <- function (t, y, mu) {
+  list(c(y[2],
+         mu * (1 - y[1]^2) * y[2] - y[1])
+      )
+}
+
+y.init <- c(y1 = 2, y2 = 0)
+out <- ode(y = y.init, func = vdpol, times = seq(0, 30, 0.01), parms = 1)
+head(out)
+plot(out, xlab = "time", ylab = "-")
+plot(out[, "y1"], out[, "y2"], pch = ".")
+```
+
+
+## Partial Differential Equations (PDE)
+
+A partial differential equation is a differential equation that contains unknown multivariable functions and their partial derivatives. 
+
+The functions to use are `ode.1D`, `ode.2D`, and `ode.3D` for problems in these respective dimensions.
+
+A 1-D eg describing a model where aphids (a pest insect) slowly diffuse and grow on a row of plants:
+
+$$\frac{\partial N}{\partial t} = - \frac{\partial Flux}{\partial x} + rN$$
+
+$$Flux = -D \frac{\partial N}{\partial x}$$
+
+with boundaries $N_{x=0} = N_{x=60} = 0$ and initial state $N_{30}=1$ and everything else at zero (ie, there's one aphid at the 30th plant box).
+
+The package uses the [method of lines](http://www.scholarpedia.org/article/Method_of_lines) approach to split the spatial domain into a number of boxes and discretize $dN/dt$.
+
+```{r}
+parameters = list(D=0.3,       # diffusion rate; m^2/day
+                  r=0.01,      # net growth rate; day^-1
+                  numboxes=60, # number of boxes
+                  delx=1)      # thickness of each box; m
+  
+Aphid <- function(t, N, parameters) {
+  with(parameters,{
+
+    deltax  <- c(0.5, rep(1, numboxes - 1), 0.5)
+    Flux    <- -D * diff(c(0, N, 0)) / deltax
+    dN      <- -diff(Flux) / delx + N * r
+     
+    list(dN)
+  })
+}
+
+# initial condition
+N <- rep(0, times =  parameters$numboxes)
+N[30:31] <- 1
+state <- c(N = N) # initialise state variables
+
+# let's run for 300 days
+times <- seq(0, 300, by = 1)
+out <- ode.1D(state, times, Aphid, parms = parameters, nspec = 1, names = "Aphid")
+
+head(out[,1:5])
+summary(out)
+image(out, method = "filled.contour", 
+      grid = seq(from = 0.5, by = parameters$delx, length.out = parameters$numboxes),
+      xlab = "time, days", ylab = "Distance on plant, meters",
+      main = "Aphid density on a row of plants")
+```
+
+
+## Differential algebraic equations (DAE)
+
+A differential-algebraic equation is an equation involving an unknown function and its derivatives.
+
+Eg:
+
+$$\frac{dy_1}{dt} = y_2 - y_1$$
+$$y_1y_2 = t$$
+
+To solve it, first rewrite the equation in their residual form:
+
+$$\frac{dy_1}{dt} + y_1 - y_2 = 0$$
+$$y_1y_2 - t = 0$$
+
+```{r}
+f <- function(t, y, dy, parameters) {
+  res1 <- dy[1] + y[1] - y[2]
+  res2 <- y[2] * y[1] - t
+
+  list(c(res1, res2))
+}
+
+yini  <- c(2, 0) # initial conditions
+dyini <- c(1, 0)
+
+times <- seq(0, 20, 0.1)
+
+out <- daspk(y = yini, dy = dyini, times = times, res = f, parms = 0)
+matplot(out[,1], out[,2:3], type = "l", lwd = 2, col=c("red","blue"), lty=1, 
+        main = "DAE", xlab = "time", ylab = "ys")
+legend("bottomright",legend=c("y1","y2"), col=c("red","blue"), lty=1, lwd=2)
+```
+
+<!--
+
+## Delay Differential Equations
+
+cf.slide 69
+
+-->

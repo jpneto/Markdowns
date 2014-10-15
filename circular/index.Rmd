@@ -1,0 +1,67 @@
+---
+title: "Circular Statistics"
+author: "João Neto"
+date: October 2014
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Refs: 
+
++ [http://www.rpubs.com/mattbagg/circular](http://www.rpubs.com/mattbagg/circular)
+
+```{r, message=FALSE, warning=FALSE}
+library(lubridate)  # deal with date values
+library(circular)   # for circular statistics
+```
+
+Generate some circular data:
+
+```{r}
+N <- 500
+events <- as.POSIXct("2011-01-01", tz="GMT") + 
+              days(floor(365*runif(N)))      + 
+              hours(floor(24*rnorm(N)))      +  
+              minutes(floor(60*runif(N))   ) +
+              seconds(floor(60*runif(N)))
+head(events)
+
+df <- data.frame(datetime = events, eventhour = hour(events))
+df$work <- df$eventhour %in% seq(9, 17) # determine if event is in business hours (9am to 17pm)
+head(df)
+```
+
+
+```{r}
+# make our data into circular class from package circular
+df$eventhour <- circular(df$eventhour%%24, # convert to 24 hrs
+                         units="hours", 
+                         template="clock24")
+sapply(df,class)
+```
+
+The package includes a rose diagram plots:
+
+```{r}
+rose.diag(df$eventhour, bins = 24, col = "lightblue", main = "Events by Hour (sqrt scale)",
+          radii.scale = "sqrt", prop=3)
+
+rose.diag(df$eventhour, bin = 24, col = "lightblue", main = "Events by Hour (linear scale)", 
+    prop = 12, radii.scale = "linear", shrink = 1.25, cex = 0.8, ticks=TRUE)
+```
+
+And a circular density function:
+
+```{r}
+# bw.nrd0 implements a bandwidth of a Gaussian kernel density estimator
+bw <- 10 * bw.nrd0(df$eventhour) # test other values
+dens <- density.circular(df$eventhour, bw=bw)
+plot(dens, plot.type = "l", join = TRUE, main = "Probability of Event by Hour",  xlab = "Hour", col="red")
+```
+
+
