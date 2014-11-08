@@ -1,32 +1,29 @@
 
-  model {
+# BUGS model specification begins ...
 
-      # Likelihood function 
+model {
 
-      phi <- -log(choose1 * binom1 * choose2 * choose3 * binom2) + CZERO
-      dummy <- 0
-      dummy ~ dpois( phi )
-      CZERO <- 1000000    # for the zero's trick
+  for( i in 1 : N ) {
+     y[i]   ~  dnorm(mu[i], tau[i])  # likelihood
+     mu[i]  <- lambda[G[i]]          # prior for mean
+     tau[i] <- lambdaTau[G[i]]       # prior for precision
+     G[i]   ~  dcat(P[])             # the cluster attributions for each y_i
+  }   
 
-      # compute binomial coefficients
-      # cf. http://stats.stackexchange.com/questions/62418/binomial-coefficient-in-jags
-      choose1 <- exp( loggam(n+1) - (loggam(k1+1) + loggam(n-k1+1)) )           # choose(n,k1)
-      binom1  <- pow(p1, k1) * pow(1-p1, n-k1)
+  P[1:2] ~ ddirch(alpha[])           # dirichlet distribution (in this case just for 2 clusters)
+  alpha[1] <- 0.5                    # It generalizes the beta (with K=2 we could have used the beta), and
+  alpha[2] <- 0.5                    # is the conjugate for the categorical distribution
 
-      choose2 <- exp( loggam(k1+1) - (loggam(c+1) + loggam(k1-c+1)) )           # choose(k1,c)
-      choose3 <- exp( loggam(n-k1+1) - (loggam(k2-c+1) + loggam(n-k1-k2+c+1)) ) # choose(n-k1,k2-c)
-      binom2  <- pow(p2, k2) * pow(1-p2, n-k2)
+  lambda[1] ~ dnorm(0.0, 1.0E-6)     # hyperparameters for mean
+  lambda[2] <- lambda[1] + theta
+  theta ~ dnorm(0.0, 1.0E-6)I(0.0, )
 
-      # Priors 
+  lambdaTau[1] ~ dgamma(0.01,0.01)   # hyperparameters for precision/standard deviation
+  lambdaTau[2] ~ dgamma(0.01,0.01)
 
-      p1 ~ dunif(0,1)
-      p2 ~ dunif(0,1)
-      n  ~ dunif(m1,m2)         # uniform prior
-      #n ~ dexp(0.001)I(m1,m2)  # truncated exponential prior (another option for the prior of n)
+  sigma[1] <- 1 / sqrt(lambdaTau[1])
+  sigma[2] <- 1 / sqrt(lambdaTau[2])
+}
 
-      # Some needed constants
-
-      m1 <- k1+k2-c    # the minimum possible number of errors
-      m2 <- 350        # we don't know the max, but let's allow some breathing space
-  }
+# ... BUGS model specification ends.
 

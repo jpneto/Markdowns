@@ -1,28 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = FALSE}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
-               fig.width = 5, fig.height = 5, fig.align='center')
-```
-
-```{r set-options, echo=FALSE, cache=FALSE}
-options(width = 300)
-```
-
-<!-- Includes \cancel latex command -->
-<script type="text/x-mathjax-config">
-MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
-  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
-    cancel: ["Extension","cancel"],
-    bcancel: ["Extension","cancel"],
-    xcancel: ["Extension","cancel"],
-    cancelto: ["Extension","cancel"]
-  });
-});
-</script>
-
-BUGS tutorial (by example)
-=============
+---
+title: "BUGS tutorial (by example)"
+author: "João Neto"
+date: "July 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
 
 Current version of [OpenBUGS](http://www.openbugs.info/w/Downloads) needed.
 
@@ -157,7 +144,7 @@ To avoid repeating the initial steps, let's make a function for them:
 
 ```{r}
 run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.10, 
-                      init.func, n.chains=1) {
+                      init.func, n.chains=1, thin=1) {
   
   writeLines(model, con="model.txt")  # Write the modelString to a file
   modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
@@ -172,9 +159,10 @@ run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.1
       modelInits(bugsInits(init.func))
     }
   }
-    
+  
   modelUpdate(chainLength*burnin)     # Burn-in period to be discarded
   samplesSet(samples)                 # BRugs tells BUGS to keep a record of the sampled values
+  samplesSetThin(thin)                # Set thinning
   modelUpdate(chainLength)            # BRugs command tells BUGS to randomly initialize a chain
 }
 ```
@@ -671,13 +659,13 @@ This eg was adapted from [Probabilistic Programming and Bayesian Methods for Hac
 This is the data:
 
 ```{r, fig.width=12}
-msg.data <- read.csv("txtdata.csv")
-names(msg.data) <- c("msgs")
-length(msg.data$msgs)
+msg.data <- read.csv("txtdata.csv")[,1]
+msg.data <- as.numeric(levels(msg.data)[msg.data])  # because it read the values as factors
+length(msg.data)
 head(msg.data)
 space <- 0.2
 width <- 1
-barplot(msg.data$msgs, names.arg=1:73, space=space, width=width, xlab="days", ylab="#messages")
+barplot(msg.data, names.arg=1:73, space=space, width=width, xlab="days", ylab="#messages")
 ```
 
 We start modelling the number of messages, at a given day $i$, $C_i$, with a Poisson. We will assume that there will be one moment when this parameter will change. So, at a day $\tau$ the Poisson parameter will change from, say, $\lambda_1$ to $\lambda_2$. So,
@@ -719,9 +707,9 @@ modelString = "
 "
 
 data.list = list(
-  alpha = 1 / mean(msg.data$msgs), 
-  N = length(msg.data$msgs),
-  msgs  = msg.data$msgs
+  alpha = 1 / mean(msg.data), 
+  N = length(msg.data),
+  msgs  = msg.data
 )
 
 run.model(modelString, samples=c("tau", "lambda1", "lambda2"), data=data.list, chainLength=1e5)
@@ -737,7 +725,7 @@ hist(samplesSample("lambda2"), prob=TRUE, xlim=c(19,26), breaks=100, main="lambd
 So the model, after processing the data, proposes the following scenario:
 
 ```{r, fig.width=12}
-barplot(msg.data$msgs, names.arg=1:73, space=space, width=width, xlab="days", ylab="#messages")
+barplot(msg.data, names.arg=1:73, space=space, width=width, xlab="days", ylab="#messages")
 lines(((1:73)-.5)*(width+space),c(rep(17.9,44),rep(22.7,29)), lwd=2, col="red")
 ```
 
@@ -886,7 +874,7 @@ Let's compare with $M=10000$:
 
 ```{r}
 data.list = list(
-    M=10000, y=100  # let's try a upper bound of 15k buses
+    M=10000, y=100  # let's try a upper bound of 10k buses
 )
 
 run.model(modelString, samples=c("N"), data=data.list, chainLength=5000)

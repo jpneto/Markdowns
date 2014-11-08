@@ -1,0 +1,122 @@
+---
+title: "Resampling"
+author: "João Neto"
+date: "October 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 10
+    fig_height: 6
+cache: yes
+---
+
+Resampling varieties [ref](http://en.wikipedia.org/wiki/Resampling_(statistics)):
+
++ Estimate the sampling distribution of an estimator using subsets of data (**jackfnifing**) or by drawing randomly with replacement (**bootstrapping**)
+
++ Exchanging labels on data points when performing significance tests (**permutation tests**)
+
++ Validating models by using random subsets (**bootstrapping**, **cross validation**)
+
+## Random Permutation Eg
+
+This random permutation test is a resampling alternative to a t-test [ref](http://www.r-bloggers.com/statistics-doesnt-have-to-be-so-hard-simulate/)
+
+```{r}
+beer  <- c(27,20,21,26,27,31,24,21,20,19,23,24,28,19,24,29,18,20,17,31,20,25,28,21,27)
+water <- c(21,22,15,12,21,16,19,15,22,24,19,23,13,22,20,24,18,20)
+size.beer <- length(beer)
+
+diff.mean.exp <- mean(beer) - mean(water)
+
+all.data <- c(beer,water)
+size.all.data <- length(all.data)
+
+resamplings <- 1e4
+stats       <- rep(NA,resamplings)
+
+for(i in 1:resamplings) {
+  # Random shuffle the data and keep the new difference mean
+  permutation    <- sample(1:size.all.data, size.beer)
+  sampling.beer  <- all.data[permutation]
+  sampling.water <- all.data[-permutation]
+  
+  stats[i] <- mean(sampling.beer) - mean(sampling.water)
+}
+```
+
+Will the experience's difference mean be much difference from the reshuffle means?
+
+```{r}
+hist(stats, breaks=50, prob=T, 
+     main=paste0("Experience Result > ",round(100*sum(stats<diff.mean.exp)/resamplings,2),"% resamplings"))
+abline(v=diff.mean.exp, lty=2, col="red")
+```
+
+This is strong evidence that the experience result is significant, not a result from randomness
+
+## Bootstrap to find confidence interval
+
+This next program selects 400 bootstrap samples from your data and then produces an interval estimate of the difference in population means.
+
+```{r}
+treated <- c(27,20,21,26,27,31,24,21,20,19,23,24,28,19,24,29,18,20,17,31,20,25,28,21,27)
+control <- c(21,22,15,12,21,16,19,15,22,24,19,23,13,22,20,24,18,20)
+
+size.treated = length(treated)
+size.control = length(control)
+
+resamplings <- 1e3
+stats       <- rep(NA,resamplings)
+
+for (i in 1:resamplings) {
+  # bootstrap sample counterparts are denoted with a 'B'
+  controlB <- sample(control, size.treated, replace=TRUE)
+  treatB   <- sample(treated, size.control, replace=TRUE)
+  stats[i] <- mean(treatB) - mean(controlB)
+}
+
+boxplot(stats, horizontal=T, pch=20)
+rug(stats)
+```
+
+Let's compare the confidence intervals of the bootstrap, the classic test and a bayesian approach:
+
+```{r, warning=FALSE, message=FALSE}
+quantile(x = stats, probs = c(.025,.975)) # 95% confidence interval
+
+t.test(beer,water) # Using the t-test to get the same results
+
+library(BayesianFirstAid)
+bayes.t.test(beer,water,n.iter=1e4) # Using the bayesian version of the t-test
+```
+
+## Bootstrap to find Pearson correlation of two samples
+
+```{r}
+LSAT <- c(576,635,558,578,666,580,555,661,651,605,653,575,545,572,594)
+GPA  <- c(3.39,3.3,2.81,3.03,3.44,3.07,3,3.43,3.36,3.13,3.12,2.74,2.76,2.88,2.96)
+size.sample <- length(GPA)
+
+resamplings <- 1e4
+stats       <- rep(NA,resamplings)
+
+for (i in 1:resamplings) {
+  # bootstrap sample counterparts are denoted with a 'B'
+  permutation <- sample(1:size.sample, size.sample, replace=TRUE)
+  LSATB <- LSAT[permutation] # the original pairs must be kept together
+  GPAB  <- GPA[permutation]
+
+  # sample correlation coefficient formula
+  stats[i] <- sum( ((LSATB-mean(LSATB))/sd(LSATB)) * ((GPAB-mean(GPAB))/sd(GPAB)) )/(size.sample-1)
+}
+
+hist(stats, breaks=50, prob=T)
+mean(stats)
+quantile(x = stats, probs = c(.025,.975)) # 95% confidence interval
+
+cor.test(LSAT, GPA) # Using cor.test to find the correlation betweem paired samples
+
+bayes.cor.test(LSAT, GPA, n.iter=1e4) # The bayesian version, not surprisingly, it's closer to the resampling results!
+```

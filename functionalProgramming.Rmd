@@ -1,5 +1,15 @@
-Functional Programming
-========================================================
+---
+title: "Functional Programming"
+author: "João Neto"
+date: "November 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
 
 Warning: _not so basic stuff for non functional language fans_ 8-)
 
@@ -111,10 +121,11 @@ Other function stuff
 
 When calling a function you can specify arguments by position, by complete name, or by partial name. Arguments are matched first by exact name (perfect matching), then by prefix matching and finally by position.
 
-```{r}
+```{r, error=TRUE}
 f <- function(abcdef, bcde1, bcde2) {
   list(a = abcdef, b1 = bcde1, b2 = bcde2)
 }
+
 str(f(1, 2, 3))
 str(f(2, 3, abcdef = 1))
 # Can abbreviate long argument names:
@@ -231,6 +242,28 @@ Infix Functions: use %name% to enclose the function name
 "%/\\%" <- function(a, b) paste(a, b)
 "a" %/\% "b"
 ```
+
+An eg that creates a Matlab-like DSL for matrix descriptions:
+
+```{r}
+qm<-function(...)
+{
+  # turn ... into string
+  args<-deparse(substitute(rbind(cbind(...))))
+  
+  # create "rbind(cbind(.),cbind(.),.)" construct
+  args<-gsub("\\|","),cbind(",args)
+  
+  # eval
+  eval(parse(text=args))
+}
+
+  
+M<-N<-diag(2)
+
+qm(M,c(4,5) | c(1,2),N | t(1:3))
+```
+
 
 Closures
 --------
@@ -366,7 +399,6 @@ f2 <- partial(f, y=6)
 f2(5)
 ```
 
-
 Function Operators
 -----------------
 
@@ -464,7 +496,7 @@ Output FOs
 
 How to modify the output of a function.
 
-```{r}
+```{r, error=TRUE}
 Negate <- function(f) { # Negates the function output
   function(...) !f(...)
 }

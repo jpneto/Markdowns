@@ -583,7 +583,7 @@ b <- matrix(c(1.1,1.4,2.2,2.9), ncol=1)
 plot(A[,2], b, pch=19, xlim=c(0,6), ylim=c(0,4))
 ```
 
-Notice that this sytem does not have an exact solution $Ax=b$. How can we find a solution with the minimum possible error? The best estimate, $\hat{x}$, which give us a result $A\hat{x}$ closest to $b$ can be found by geometry (find the vector with 90º angle and intersect with the subspace), by Calculus (set the derivate of the error to zero), by computation (use gradient descent based on the error derivate) or, herein, by Algebra (using the projection matrix):
+Notice that this sytem does not have an exact solution $Ax=b$. How can we find a solution with the minimum possible error? The best estimate, $\hat{x}$, which give us a result $A\hat{x}$ closest to $b$ can be found by geometry (find the vector with 90? angle and intersect with the subspace), by Calculus (set the derivate of the error to zero), by computation (use gradient descent based on the error derivate) or, herein, by Algebra (using the projection matrix):
 
 ```{r}
 x.hat <- solve(t(A) %*% A) %*% t(A) %*% b

@@ -1,0 +1,152 @@
+---
+title: "test"
+author: "Joao Neto"
+date: "Friday, October 17, 2014"
+output: html_document
+---
+
+```{r}
+library(BRugs)
+
+#------------------------------------------------------------------------------
+run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.10, 
+                      init.func, n.chains=1, thin=1) {
+  
+  writeLines(model, con="model.txt")  # Write the modelString to a file
+  modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
+  if (length(data)>0)                 # If there's any data available...
+    modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
+  modelCompile()                      # BRugs command tells BUGS to compile the model
+  
+  if (missing(init.func)) {
+    modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain
+  } else {
+    for (chain in 1:n.chains) {       # otherwise use user's init data
+      modelInits(bugsInits(init.func))
+    }
+  }
+  
+  modelUpdate(chainLength*burnin)     # Burn-in period to be discarded
+  samplesSet(samples)                 # BRugs tells BUGS to keep a record of the sampled values
+  samplesSetThin(thin)                # Set thinning
+  modelUpdate(chainLength)            # BRugs command tells BUGS to randomly initialize a chain
+}
+#------------------------------------------------------------------------------
+
+```
+
+
+Mixture of Gaussians
+--------------------
+
+Let's say we have this dataset (taken from [Bayesian Methods for Hackers](http://camdavidsonpilon.github.io/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers/)):
+
+```{r}
+samples <- read.csv("mixture_data.csv", header=F)[,1]
+samples <- as.numeric(levels(samples)[samples])  # because it read the values as factors
+hist(samples, breaks=40)
+```
+
+It appears the data has a bimodal form, one peak around 120 and another at 200.
+
+Our model proposes that the dataset has two clusters of data, each produced by a normal distribution. The construction was:
+
+1. For each data point $y_i$: 
+
+  2. choose distribution 1 with probability $p$, or distribution 2 with probability $1-p$
+
+  3. Draw one random sample from the chosen distribution $\mathcal{N}(\mu_k, \sigma_k)$, $k=1,2$
+
+So, our model is
+
+$$G_i \sim \text{Binomial}(p)$$
+
+$$y_i \sim \mathcal{N}(\mu_{G_i}, \sigma_{G_i})$$
+
+$$\mu_k \sim \mathcal{N}(0,1000)$$
+
+$$\sigma_k \sim \text{Gamma}(0.01, 0.01)$$
+
+$G_i$ means the cluster of the i-th datapoint; in this problem $G_i = \{1,2\}$. In the following model, it is used `dcat` instead of a binomial, just because this way it can also work with more than two clusters.
+
+```{r}
+modelString = "
+# BUGS model specification begins ...
+
+model {
+
+  for( i in 1 : N ) {
+     y[i]   ~  dnorm(mu[i], tau[i])  # likelihood
+     mu[i]  <- lambda[G[i]]          # prior for mean
+     tau[i] <- lambdaTau[G[i]]       # prior for precision
+     G[i]   ~  dcat(P[])             # the cluster attributions for each y_i
+  }   
+
+  P[1:2] ~ ddirch(alpha[])           # dirichlet distribution (in this case just for 2 clusters)
+  alpha[1] <- 0.5                    # It generalizes the beta (with K=2 we could have used the beta), and
+  alpha[2] <- 0.5                    # is the conjugate for the categorical distribution
+
+  lambda[1] ~ dnorm(0.0, 1.0E-6)     # hyperparameters for mean
+  lambda[2] <- lambda[1] + theta
+  theta ~ dnorm(0.0, 1.0E-6)I(0.0, )
+
+  lambdaTau[1] ~ dgamma(0.01,0.01)   # hyperparameters for precision/standard deviation
+  lambdaTau[2] ~ dgamma(0.01,0.01)
+
+  sigma[1] <- 1 / sqrt(lambdaTau[1])
+  sigma[2] <- 1 / sqrt(lambdaTau[2])
+}
+
+# ... BUGS model specification ends.
+" # close quote to end modelString
+```
+
+There is a trick here. To prevent divergence issues (all datapoints selected to a single cluster), the second mean hyperparameter, $\lambda_2$, is determined this way: $\lambda_2 = \lambda_1 + \theta, \theta \gt 0$ (check Bugs Book, pages 280-3).
+
+```{r}
+data.list = list(
+  y = samples, 
+  N = length(samples),
+  G = c(1, rep(NA,length(samples)-2), 2)  # TODO: do not understand these 1 and 2
+)
+
+# let's apply some thinning to the mcmc:
+run.model(modelString, samples=c("sigma", "lambda", "P", "G"), data=data.list, chainLength=3e4, thin=4)
+
+samplesStats("sigma")  
+samplesStats("lambda")  
+samplesStats("P")  
+samplesCorrel("sigma[1]", "sigma[2]") # the correlation is negative: one sd larger means the other is smaller
+```
+
+Let's vizualize the results:
+
+```{r, fig.width=12}
+p <- samplesStats("P")$mean[1] 
+
+mu1.hat    <- samplesStats("lambda")$mean[1]
+mu2.hat    <- samplesStats("lambda")$mean[2]
+sigma1.hat <- samplesStats("sigma")$mean[1]
+sigma2.hat <- samplesStats("sigma")$mean[2]
+
+hist(samples, breaks=40, prob=T)
+xs <- 0:300
+lines(xs,  p  *dnorm(xs,mu1.hat,sigma1.hat), col="red",  lwd=2)
+lines(xs,(1-p)*dnorm(xs,mu2.hat,sigma2.hat), col="blue", lwd=2)
+
+prob.cluster.1 <- 2 - samplesStats("G")[,1]
+# need to remove the first and last observations until the previous TODO is solved
+plot(samples[c(-1,-300)], prob.cluster.1, col = 1+round(prob.cluster.1), xlim=c(0,300), 
+     xlab="data point", ylab="probability", main="probability of belonging to first cluster", pch=19)
+```
+
+Let's also use BRugs graphical tools:
+
+```{r, fig.width=12}
+# cannot use samplesHistory("*") because of nodes G[]
+samplesHistory("lambda[1]", mfrow = c(1, 1))
+samplesDensity("lambda[1]", mfrow = c(1, 1)) 
+samplesAutoC("lambda[1]", mfrow = c(1, 1), 1)
+```
+
+

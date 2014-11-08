@@ -1,0 +1,358 @@
+---
+title: "Manipulating Data from the Web"
+author: "João Neto"
+date: "October 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+Refs:
+
++ [http://gastonsanchez.com/blog/resources/2014/05/12/Web-data.html](http://gastonsanchez.com/blog/resources/2014/05/12/Web-data.html)
+
+## Reading text content from the web
+
+```{r}
+# open a connection to the file with the book Moby Dick at Gutenberg's
+moby_url = url("http://www.gutenberg.org/ebooks/2701.txt.utf-8")
+moby_url
+
+# read the first 500 lines
+moby_dick = readLines(moby_url, n = 500)
+length(moby_dick)
+head(moby_dick, 12) # each line is an element of a char vector
+```
+
+Another option is to use `download.file()` to prevent overloading the site's server.
+
+```{r}
+download.file("http://www.gutenberg.org/cache/epub/2701/pg2701.txt", "mobydick.txt")
+moby_dick <- readLines("mobydick.txt", n=500) # read the 1st 500 lines
+length(moby_dick)
+head(moby_dick, 12) # each line is again an element of a char vector
+```
+
+The romance starts at line 536. Let's read the first 10 lines using `scan`:
+
+```{r, message=FALSE}
+n.lines <- 10
+moby_dick_chap1 <- rep(NA, n.lines)
+skip <- 535
+# reading 10 lines (line-by-line using scan)
+for (i in 1L:n.lines) {
+  one_line = scan("mobydick.txt", what = "", skip = skip, nlines = 1)
+  moby_dick_chap1[i] = paste(one_line, collapse = " ")
+  skip = skip + 1
+}
+moby_dick_chap1
+```
+
+We can also read html content:
+
+```{r}
+skulls = readLines("http://lib.stat.cmu.edu/DASL/Datafiles/EgyptianSkulls.html")
+head(skulls, 12)
+```
+
+## Read tables from the web
+
+```{r}
+taxon_url = "http://www.bio.ic.ac.uk/research/mjcraw/therbook/data/taxon.txt"
+taxon = read.table(taxon_url, header = TRUE, row.names = 1)
+head(taxon)
+```
+
+## Read tables from a https connection
+
+```{r}
+library(RCurl)
+
+iris_file = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+iris_url  = getURLContent(iris_file, ssl.verifypeer = FALSE) # use when getURL(iris_file) fails
+iris_data = read.csv(textConnection(iris_url), header = FALSE)
+names(iris_data) <- c("SL", "SW", "PL", "PW", "Species")
+head(iris_data)
+```
+
+## Read Google spreasheet files 
+
+The doc's public key is needed:
+
+```{r}
+library(RCurl)
+
+google_docs = "https://docs.google.com/spreadsheet/"
+cars_key = "pub?key=0AjoVnZ9iB261dHRfQlVuWDRUSHdZQ1A4N294TEstc0E&output=csv" # public key of data 'cars'
+cars_csv = getURLContent(paste(google_docs, cars_key, sep = ""), ssl.verifypeer = FALSE)
+cars2004 = read.csv(textConnection(cars_csv), row.names = 1, header = TRUE) # import data in R (through a text connection)
+head(cars2004)
+```
+
+To read excel `.xsl` and `.xlsx` files check this [post](http://www.r-bloggers.com/read-excel-files-from-r/). To read `.csv` files use function `read.csv`.
+
+## Get a wikipedia HTML table
+
+```{r}
+library(XML)
+
+swim_wiki = "http://en.wikipedia.org/wiki/World_record_progression_1500_metres_freestyle"
+swim1500 = readHTMLTable(swim_wiki, which = 1, stringsAsFactors = FALSE) # read 1st table from webpage
+head(swim1500)
+```
+
+## Parsing XML
+
+The main function is `xmlParse()` which is a DOM parser, ie, a parser that reads the XML document into a tree structure.
+
+```{r}
+library(XML)
+plant = "http://www.xmlfiles.com/examples/plant_catalog.xml"
+doc1 = xmlParse(plant)     # Parse as a C structure
+doc2 = xmlTreeParse(plant) # Parse as a R structure (this function is a xmlParse wrapper)
+class(doc2) # class "XMLDocument" is implemented as a hierarchy of lists
+```
+
+To parse HTML:
+
+```{r}
+doc3 = htmlTreeParse("http://www.r-project.org/mail.html") # parse into a R structure
+class(doc3)
+```
+
+After parsing, we need to be able to access its internal information
+
++ `xmlRoot` get access to the root node
++ `xmlChildren` get access to the child element of a given node
+
+To access the internal structure of a node
+
++ xmlName() name of the node
++ xmlSize() number of subnodes
++ xmlAttrs() named character vector of all attributes
++ xmlGetAttr() value of a single attribute
++ xmlValue() contents of a leaf node
++ xmlParent() name of parent node
++ xmlAncestors() name of ancestor nodes
++ getSibling() siblings to the right or to the left
++ xmlNamespace() the namespace (if there's one)
+
+Some egs:
+
+```{r}
+xmlName( xmlRoot(doc2) ) # the name of the root node
+xmlSize( xmlChildren( xmlRoot(doc2) ) ) # how many children that it have
+xmlChildren( xmlRoot(doc2) )[[1]]       # the 1st children
+xmlChildren( xmlChildren( xmlRoot(doc2) )[[1]] )[[2]]  
+xmlValue( xmlChildren( xmlChildren( xmlRoot(doc2) )[[1]] )[[2]] )
+```
+
+A simpler eg:
+
+```{r}
+xml_string = c(
+'<?xml version="1.0" encoding="UTF-8"?>',
+'<movies>',
+    '<movie mins="126" lang="eng">',
+        '<title>Good Will Hunting</title>',
+        '<director>',
+        '<first_name>Gus</first_name>',
+        '<last_name>Van Sant</last_name>',
+        '</director>',
+        '<year>1998</year>',
+        '<genre>drama</genre>',
+    '</movie>',
+
+    '<movie mins="106" lang="spa">',
+        '<title>Y tu mama tambien</title>',
+        '<director>',
+        '<first_name>Alfonso</first_name>',
+        '<last_name>Cuaron</last_name>',
+        '</director>',
+        '<year>2001</year>',
+        '<genre>drama</genre>',
+    '</movie>',
+'</movies>')
+
+# parse xml content
+movies_xml = xmlParse(xml_string, asText = TRUE)
+root = xmlRoot(movies_xml)
+movie_child = xmlChildren(root)
+goodwill = movie_child[[1]]
+goodwill
+xmlName(goodwill)
+xmlSize(goodwill)
+xmlAttrs(goodwill)
+xmlGetAttr(goodwill, name = 'lang')
+xmlValue(goodwill) # node content (as character string)
+xmlChildren(goodwill)
+gusvan = xmlChildren(goodwill)[[2]]
+gusvan
+xmlParent(gusvan)
+xmlChildren(gusvan)
+getSibling(goodwill)
+```
+
+We can iterate and apply functions to certain nodes:
+
+```{r}
+movie_child
+sapply(movie_child, xmlAttrs)
+sapply(movie_child, function(nd) xmlValue(xmlChildren(nd)$title) )
+xmlSApply(root, xmlAttrs) # sapply wrapper that operate on the sub-nodes of the given node
+xmlSApply(root, function(nd) xmlValue(xmlChildren(nd)$title) )
+```
+
+A better way to explore the xml tree is to query for certain nodes. This is possible through XPath.
+
+XPath has a syntax that must be known to explore its power. 
+
+For instance, `/movies/movie[1]` means the first movie that is child to the movies element:
+
+```{r}
+getNodeSet(movies_xml, "/movies/movie[1]")
+```
+
+The main parts of XPath syntax:
+
++ `/`   selects from the root node
++ `//`  selects nodes anywhere
++ `.`   selects the current node
++ `..`  selects the parent of the current node
++ `@`   selects attributes
++ `[]`  square brackets to indicate attributes
+
++ `*`       matches any element node
++ `@*`      matches any attribute node
++ `node()`  matches any node of any kind
+
+```{r}
+getNodeSet(movies_xml, "/movies/movie")
+getNodeSet(movies_xml, "/movies/movie[1]/title")
+getNodeSet(movies_xml, "/movies/movie/director/first_name")
+getNodeSet(movies_xml, "//last_name")
+getNodeSet(movies_xml, "/movies/movie[@lang='spa']/title")
+getNodeSet(movies_xml, "/movies/movie[@mins>120]/title")
+getNodeSet(movies_xml, "/movies/movie[@mins>120]/*")
+getNodeSet(movies_xml, "/movies/movie[@mins>120]/@*")
+```
+
+## Parsing JSON
+
+JSON has the following data types: null, true, false, number, string, lists (using []) and dictionaries (using {}). Eg: 
+
+  {
+    "name": ["X", "Y", "Z"],
+    "grams": [300, 200, 500],
+    "qty": [4, 5, null],
+    "new": [true, false, true],
+  }
+
+```{r}
+library(RJSONIO)
+```
+  
+RJSONIO package has two main functions:
+
++ `toJSON` converts an R object to a string in JSON
++ `fromJSON` converts JSON content to R objects
+
+```{r}
+swdf = as.data.frame(rbind(
+  c("Anakin", "male", "Tatooine", "41.9BBY", "yes"),
+  c("Amidala", "female", "Naboo", "46BBY", "no"),
+  c("Luke", "male", "Tatooine", "19BBY", "yes"),
+  c("Leia", "female", "Alderaan", "19BBY", "no"),
+  c("Obi-Wan", "male", "Stewjon", "57BBY", "yes"),
+  c("Han", "male", "Corellia", "29BBY", "no"),
+  c("Palpatine", "male", "Naboo", "82BBY", "no"),
+  c("R2-D2", "unknown", "Naboo", "33BBY", "no")
+))
+names(swdf) = c("Name", "Gender", "Homeworld", "Born", "Jedi")
+swdf
+
+sw_json = toJSON(swdf) # convert R data.frame to JSON
+cat(sw_json)
+
+
+sw_R = fromJSON(sw_json) # convert JSON string to R list
+sw_R
+```
+
+Let's import some JSON info from the net and clean it:
+
+```{r}
+miser = "http://mbostock.github.io/protovis/ex/miserables.js"
+miserables = readLines(miser)
+miserables = miserables[-c(1:11)]                   # eliminate first 11 lines (containing comments)
+miserables[1]                  = "{"                # open curly bracket in first line
+miserables[length(miserables)] = "}"                # closing curly bracket in last line
+miserables_str = paste(miserables, collapse = "")   # JSON content in one single string
+substr(miserables_str,1,120)
+```
+
+```{r}
+mis1 = fromJSON(miserables_str)
+lapply(mis1, length)
+head( mis1[[1]], 3)
+head( mis1[[2]], 3)
+
+# eg, translating the components into clean dataframes
+names <- as.data.frame(mis1[[1]])
+names <- data.frame(codeName=t(names[,c(T,F)]), group=t(names[,c(F,T)]))
+rownames(names) <- 1:nrow(names)
+head(names,10)
+
+links <- t(as.data.frame(mis1[[2]]))
+rownames(links) <- 1:nrow(links)
+colnames(links) <- c("source","target","value")
+head(links,10)
+```
+
+## Making R a web client with RCurl 
+
+RCurl provides an R interface to client-side HTTP.
+
+It allows us to:
++ download URLs
++ submit forms in different ways
++ supports HTTPS (the secure HTTP)
++ handle authentication using passwords
++ use FTP to download files
++ use persistent connections
++ upload files
++ handle escaping characters in requests
++ handle binary data
+
+Three main functions
+
++ getURL() fetches the content of a URI
++ getForm() submits a Web form via the GET method
++ postForm() submits a Web form via the POST method
+
+```{r}
+library(RCurl)
+library(XML)
+
+rproj = getURL("http://www.r-project.org/")
+rproj
+rproj_doc = htmlParse(rproj)
+rproj_doc # we can parse this html using XML functions, and already seen
+```
+
+RCurl has the capacity for making requests associated to Web Forms
+
+```{r}
+google.request <- getForm("http://www.google.com/search", hl="en", lr="", ie="ISO-8859-1",  q="RCurl", btnG="Search")
+google_doc = htmlParse(google.request)
+# get only the <a> nodes and show their 'href' attributes
+head( sapply( getNodeSet(google_doc,"//a"), function(nd) xmlGetAttr(nd, name = 'href')  ), 15)
+# or, more simply:
+head( getHTMLLinks(google_doc), 15)
+```
+
+There is the `RHTMLForms` package ([here](http://www.omegahat.org/RHTMLForms/)) that can be used with `RCurl` to ease the way to handle forms.
