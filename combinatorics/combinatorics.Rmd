@@ -1,0 +1,660 @@
+---
+title: "Combinatorics"
+author: "João Neto"
+date: "November 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+    css: styles.css
+cache: TRUE
+---
+
+## Combinations
+
+To make a matrix with all **combinations** of the elements of $S$ (of size $n$) taken $r$ at a time:
+
+```{r}
+S <- letters[1:5]
+n <- length(S)
+r <- 3
+result <- t(combn(S,r))
+result
+apply(result,1,function(x) paste0(x,collapse="")) # just return as a vector of strings
+```
+
+The number of possible combinations is $$C(n,r) = \frac{n!}{r!(n-r)!}$$
+
+This number is computed in R by the `choose` function:
+
+```{r, collapse=TRUE}
+choose(5,0)
+choose(5,1)
+choose(5,2)
+choose(5,3)
+choose(5,4)
+choose(5,5)
+```
+
+Some recursive relations:
+
++ $C(n,r) = C(n,n-r)$
+
++ $C(n,l)C(l,r) = C(n-1,r)C(n-1,r-1)$
+
++ $\sum_{k=0}^n C(n,k) = 2^n$
+
++ $C(m+n,r) = C(m,0)C(n,r) + C(m,1)C(n,r-1) + \ldots C(m,r)C(n,0)$
+
++ If repetition is allowed, there are $C(n+r-1,r)$ possibilities
+
++ If adjacent objects cannot be close together, then there are $C(n-r+1,r)$ possibilities
+
+Combinations, among many other things, give the coefficients for the binomial expression:
+
+$$(a+b)^n = \sum_{i=0}^n C(n,i) a^{n-i}b^i$$
+
+and thus combinations give us Pascal Triangle:
+
+```{r}
+pascal <- matrix(rep(NA,100),ncol=10)
+for(i in 0:10)
+  for(j in 0:i)
+    pascal[i,j] <- choose(i,j)
+print(pascal, na.print=" " )
+```
+
+## Permutations
+
+To make the same but where the order is relevant, ie, a **permutation** (if $m$ is equal to the length of $S$ we get all possible arrangements):
+
+```{r, warning=FALSE}
+library(gtools)
+
+result <- permutations(n, r, S)
+apply(result,1,function(x) paste0(x,collapse=""))
+```
+
+The number of possible permutations is $$P(n,r) = \frac{n!}{(n-r)!}$$
+
+Some recursive relations:
+
++ Segmentation: $P(n,r) = n P(n-1,r-1)$
+
++ Classification: $P(n,r) = P(n-1,r) + r P(n-1,r-1)$
+
+A permutation using all the elements of $S$ can be seen as a bijective mapping $S \rightarrow S$. There are $P(n,n)=n!$ such mappings. In this context a fixed point is when an element is mapped into itself. Mappings with no fixed points are called derangements (see below).
+
+### No restrictions
+
+To return all possibilities of $r$ values without any restrictions from the $n$ elements of $S$ (an element can be repeated):
+
+```{r}
+result <- as.matrix(expand.grid(lapply(numeric(r), function(x) S)), ncol=r)
+apply(result,1,function(x) paste0(x,collapse="")) 
+```
+
+This is a vector with $r^n$ elements.
+
+The next table shows how to count the total possibilities for the following conditions:
+$$
+\begin{array} {|c|c|c|}
+\hline
+\text{Order Counts?} & \text{Repetition?} & \text{Expression} \\
+\hline
+Yes & Yes & n^r \\
+Yes & No  & P(n,r) \\
+No  & Yes & C(n+r-1,r) \\
+No  & No  & C(n,r) \\
+\hline
+\end{array}
+$$
+
+### Circular Permutations
+
+A circular permutation is a circular arrangement of elements for which the order of the elements must be taken into account.
+
+The number of circular permutations of $r$ elements taken from a set of $n$ elements is:
+
+$$\frac{P(n,r)}{r}$$
+
+with $2 \leq r \leq n$.
+
+To produce these circular permutations:
+
+```{r, warning=FALSE, message=FALSE}
+library(binhf) # uses: shift()
+
+result <- permutations(n, r, S)
+
+# receive a vector of comparables, a shift the vector so that
+# the minimum is at the head of the vector
+shift.to.minimum <- function(row) {
+  shift(row, which(row==min(row))-1, dir='left')
+}
+
+result <- unique(t(apply(result, 1, shift.to.minimum)))
+head(result,12)
+```
+
+### Necklace Permutations
+
+These are 3D circular permutations, ie, they can be flipped. So, there are half of them
+
+$$\frac{P(n,r)}{2r}$$
+
+with $3 \leq r \leq n$.
+
+```{r, warning=FALSE, message=FALSE}
+result <- permutations(n, r, S)
+
+# shift the vector and its reverse, and select the smallest one (using lexicographic order)
+# pre: elements must be pastable into a string
+flip.and.shift.to.minimum <- function(row) {
+  row1 <- shift.to.minimum(row)
+  row2 <- shift.to.minimum(rev(row))
+  if (paste(row1,collapse="") < paste(row2,collapse=""))
+    row1
+  else
+    row2
+}
+
+result <- unique(t(apply(result, 1, flip.and.shift.to.minimum)))
+result
+```
+
+## Multisets
+
+A multiset (or bag) is a generalization of the notion of a set in which members are allowed to appear more than once.
+
+If we want to arrange multisets we can do something like this:
+
+```{r, collapse=TRUE}
+S <- c(1,2,3)
+n <- c(2,3,1)  # we want two 1s, three 2s, and one 3
+
+S1 <- rep(S,n)
+S1
+
+result <- unique(permutations(length(S1), length(S1), S1, set=FALSE))
+head(result,20)
+```
+
+The number of multisets of order $\{n_1,n_2,\ldots,n_k\}$ is given by
+
+$$\frac{n!}{n_1!n_2!\ldots n_k!}$$
+
+where $n_i$ means how many i-th elements are there, and $n = \sum_i n_i$.
+
+This expression can also be used to calculate the coefficients of the multinomial expressions like
+
+$$(a_1 + a_2 + \ldots + a_m)^n = \sum_{k_1+k_2+\ldots+k_m=n} \frac{n!}{k_1!k_2!\ldots k_k!}$$
+
+Eg: The coefficient of $ac^2$ from $(a+b+c)^3$ is
+
+$$(a+b+c)^3 = \ldots + \frac{3!}{1!0!2!} ac^2 + \ldots$$
+
+## Derangements
+
+A derangement is a permutation of the elements of a set such that none of the elements appear in their original position.
+
+```{r, collapse=TRUE}
+# number of derangements, also called subfactorial !n
+# pre: n>=0
+dn <- function(n) {
+  ifelse (n<2, 1-n, round(factorial(n)/exp(1)))
+}
+
+print(data.frame(n=0:12, dn=dn(0:12)), row.names=FALSE, quote=FALSE)
+```
+
+This following relation holds between the subfactorial and factorial:
+
+$$\lim_{n \rightarrow \infty} \frac{!n}{n!} = \frac{1}{e}$$
+
+which is the probability that a randomly selected permutation is a derangement.
+
+```{r, collapse=TRUE}
+options(digits=9)
+xs <- 1:14
+print(data.frame(n=xs, dn=dn(xs), fact=factorial(xs), ratio=dn(xs)/factorial(xs)), row.names=FALSE, quote=FALSE)
+1/exp(1)
+options(digits=7)
+```
+
+The next script computes all possible derangements:
+
+```{r}
+# computing all derangements, ie, 
+library(gtools)
+r <- 5
+S <- 1:r
+
+results <- permutations(r, r, S)                             # get all permutations
+results <- results[apply(results,1,function(x) !any(x==S)),] # filter those with fixed points
+head(results,12)
+```
+
+## Generating Functions
+
+A **generating function** is a power series in one indeterminate, whose coefficients encode information about a sequence of numbers $a_n$ that is indexed by the natural numbers. They are an important tool in combinatorics.
+
+Function $G(x) = a_0 + a_1x + a_2x^2 + \ldots$ is the generating function of sequence $\{a_0,a_1,a_2,\ldots\}$.
+
+They can be used to awswer questions like this:
+
+> There are 3 pieces of 1 gram weight, 4 pieces of 2 grams weight, 2 pieces of 4 grams weight, how many different ways to weigh the value of 6-gram?
+
+```{r, warning=FALSE, message=FALSE, collapse=TRUE}
+library(rSymPy) 
+
+x <- Var("x")
+sympy("a = 1+x+x**2+x**3")          # up to 3 pieces of 1 gram
+sympy("b = 1+x**2+x**4+x**6+x**8")  # up to 4 pieces of 2 gram
+sympy("c = 1+x**4+x**8")            # up to 2 pieces of 4 gram
+
+sympy("simplify(a*b*c)")            # the generating function for this problem
+```
+
+The answer for the number of ways is in the coefficient of $x^6$, in this case $4$. The solutions are $4+1+1; 2+4; 2+2+1+1; 2+2+2$.
+
+We can extract these coefficients using R:
+
+```{r, echo=FALSE}
+# TODO:
+# extract.coefs <- function(poly) {
+#   monomials <- strsplit(sol,"+", fixed=TRUE)[[1]] # fixed = T unless uses regex
+#   result <- rep(NA,length(monomials))
+#   for(i in 1:length(monomials)) {
+#      result[i] <- regmatches(monomials[i],gregexpr("[0-9]+", monomials[i]))[[1]]
+#   }
+#   result
+# }
+```
+
+```{r, collapse=TRUE}
+sol <- sympy("simplify(a*b*c)")            # the generating function for this problem
+sol
+monomials <- strsplit(sol,"+", fixed=TRUE)[[1]]
+monomials[7]
+regmatches(monomials[7],gregexpr("[0-9]+", monomials[7]))[[1]][1]
+```
+
+Another eg is to get the number of possible results from playing with several dice:
+
+```{r, collapse=TRUE}
+sympy("dice = 1+x+x**2+x**3+x**4+x**5+x**6")
+sympy("simplify(dice*dice)")   # two dice
+sympy("simplify(dice**3)")     # three dice
+```
+
+or a coin eg:
+
+> We have three type of coins, 10 cents, 20 cents and 50 cents. What are the possible combinations for amounts up to 100 cents?
+
+```{r, collapse=TRUE}
+sympy("coin10 = 1+x**10+x**20+x**30+x**40+x**50+x**60+x**70+x**80+x**90+x**100")
+sympy("coin20 = 1+x**20+x**40+x**60+x**80+x**100")
+sympy("coin50 = 1+x**50+x**100")
+sympy("simplify(coin10*coin20*coin50)") # it gives more results, up to 300 cents
+```
+
+Some useful relations:
+
++ $(1-x)^{-1} = 1+x+x^2+x^3+\ldots$
+
+Say I want to split $n$ into summations of $1,2,3,\ldots,m$. The generating function would be:
+
+$G(x) = (1+x+x^2+\ldots)(1+x^2+x^4+\ldots)\ldots(1+x^m+x^{2m}+\ldots) = (1-x)^{-1}(1-x^2)^{-1}\ldots(1-x^m)^{-1}$
+
+The generating function $\frac{1}{(1-x)^2}$ generates what sequence?
+
+```{r, collapse=TRUE}
+sympy("ones = 1+x+x**2+x**3+x**4+x**5+x**6+x**7+x**8") # test first elements
+sympy("simplify(ones**2)") 
+```
+
+We can see that the sequence is $\mathbb{N}$, ie, $\{1,2,3,4,\ldots\}$
+
++ $\frac{a}{1-bx} = a(1+bx+(bx)^2+(bx)^3+\ldots)$
+
+Find the sequence $\{a_n\}$ generated by $\frac{3+78x}{1-3x-54x^2}$
+
+$$G(x) = \frac{3+78x}{1-3x-54x^2} = \frac{3+78x}{(1+6x)(1-9x)} = \frac{A}{1+6x}+\frac{B}{1-9x}$$
+
+multiplying both fractions, then in the numerator we get a 2-degree polynomial that can be used to compare with $3+78x$ to find both A and B:
+
+$$G(x) = \frac{7}{1+6x}-\frac{4}{1-9x} = 7[1+(9x)+(9x)^2+\ldots]-4[1+(-6x)+(-6x)^2+\ldots]$$
+
+This results in $\{a_n\} = 7*9^n - 4*(-6)^n$
+
++ $(1+x)^n = 1 + nx + \frac{n(n-1)}{2}x^2+\ldots+\frac{m(n-1)\cdots(n-k+1)}{k!}x^k+\ldots$
+
+This is the generation function of $C(n,k)$.
+
+### Relation to Recurrence Relations
+
+Ginve the recurrence relation $h(n) = 2h(n-1) + 1$ with $h(0)=0, h(1)=1$, how can we find the corresponding generating function given $h(n)$?
+
+We want $G(x) = h(1)x + h(2)x^2 + h(3)x^3 + \ldots$ (notice that $h(0)=0$)
+
+If we sum that with $-2xG(x) = -2(h1)x^2 -2h(2)x^3 + \ldots$
+
+We get $(1-2x)G(x) = h(1)x - [h(2)-2h(1)]x^2 + [h(3)-2h(2)]x^3 + \ldots$
+
+Since $h(n)-2h(n-1)=1$, $(1-2x)G(x) = x + x^2 + x^3 + \ldots = \frac{x}{1-x}$ and we have the expression for G(x).
+
+Now, with $G(x)$ we are able to find a closed expression for the sequence produced by $h(x)$
+
+$$
+\begin{array}{lclr}
+G(x) & = & \frac{x}{(1-x)(1-2x)} & \\
+     & = & \frac{1}{1-2x}-\frac{1}{1-x} & \\
+     & = & (1+2x+2^2x^2 + 2^3x^3 + \ldots) - (1+x+x^2+x^3+\ldots) & \\
+     & = & (2-1)x + (2^2-1)x^2 + (2^3-1)x^3 + \ldots  & \\
+     & = & \sum_{k=1}^\infty (2^k-1)x^k  & \\
+\end{array}
+$$
+
+So the sequence for $h(n)$ is $\{a_n\} = 2^n-1$
+
+### Exponential Generating Function
+
+For an exponential generating function $G_e(x)$ we construct the following function:
+
+$$G_e(x) = a_0 + \frac{a_1}{1!}x + \frac{a_2}{2!}x^2 + \frac{a_3}{3!}x^3 + \ldots$$
+
+while generating functions are more used in combinatorial contexts, exponential generating functions are useful in contexts dealing with permutations.
+
+An eg of use is to count permutations with repetitions, ie,  multisets.
+
+> We want to know the possibilities of filling five number slots with number 1 to 4, considering that 1 must appear once or twice, 2 cannot appear more than once, 3 can appear up to three times, and 4 can only appear an even number of times.
+
+We can compute the following $G_e$:
+
+```{r, collapse=TRUE}
+sympy("number1 =     x/1 + x**2/2")
+sympy("number2 = 1 + x/1")    
+sympy("number3 = 1 + x/1 + x**2/2 + x**3/6")
+sympy("number4 = 1 +     + x**2/2 +         x**4/24")
+
+sympy("simplify(number1*number2*number3*number4)") 
+```
+
+The number we want is the coefficient of $x^5$ which is $43/24$. Since this is an exponential generating function, the $x^5$ coefficient must be divided by $5!=120$, so $43x^5/24 = 215x^5/5!$. So, $215$ is the number of ways to combine the numbers according to the constraints.
+
+The exponential term is related to the Taylor expansion of $e^x$:
+
+$$e^x = \sum_{n=0}^\infty \frac{x^n}{n!} = 1 + x + \frac{x^2}{2!} + \frac{x^3}{3!} + \ldots$$
+
+So, $e^x$ generates $\{1,1,1,\ldots\}$.
+
+Some related expansions:
+
++ $e^{-1}$ generates $\{1,-1,1,-1,\ldots\}$
+
++ $e^{kx}$ generates $\{1,k,k^2,k^3,\ldots\}$
+
++ $\frac{e^x+e^{-x}}{2}$ generates $\{1,0,1,0,1,0,\ldots\}$
+
+## Catalan Numbers
+
+Catalan numbers appear in many counting problems. The n-th catalan number $C_n, n\gt 0$ is
+
+$$C_n = \frac{1}{n+1} {2n \choose n} = \frac{(2n)!}{(n+1)!n!} = \prod_{k=2}^n \frac{n+k}{k}$$
+
+```{r, collapse=TRUE}
+cn <- function(n) {
+  choose(2*n,n) / (n+1)
+}
+
+xs <- 1:14
+print(data.frame(n=xs, cn=cn(xs)), row.names=FALSE, quote=FALSE)
+```
+
+Applications
+
++ $C_n$ is the number of Dyck words of length $2n$. 
+
+A **Dyck word** is a string consisting of n X's and n Y's such that no initial segment of the string has more Y's than X's. An instance is the language of parenthesis with X=( and Y=). 
+
++ $C_n$ is the number of different ways $n + 1$ factors can be completely parenthesized (or the number of ways of associating n applications of a binary operator). Eg with n=3: ((ab)c)d;   (a(bc))d;     (ab)(cd);     a((bc)d); and     a(b(cd)).
+
++ $C_n$ is the number of monotonic paths along the edges of a grid with n × n square cells, which do not pass above the diagonal. A monotonic path is one which starts in the lower left corner, finishes in the upper right corner, and consists entirely of edges pointing rightwards or upwards. Counting such paths is equivalent to counting Dyck words: X stands for "move right" and Y stands for "move up".
+
+> There are six people in a library queuing up, three of them want to return the book "Interviewing Skills", and 3 of them want to borrow the same book. If at the beginning, all the books of "Interviewing Skills" are out of stock in the library, how many ways can these people line up?
+
+The result is based on $C_3=5$ which we must multiply after considering the permutations of different people (three to deliver, three to borrow). So, $C_3*3!*3! = 180$ ways to these people to line up.
+
+To compute the solutions in R:
+
+```{r, collapse=TRUE}
+S <- c(1,2,3,-1,-2,-3)  # dyck words are represented as 'X' > 0 and 'Y' < 0
+r <- length(S)
+
+result <- permutations(r, r, S)  # get all possible r! permutations 
+head(result)
+tail(result)
+
+# filter only admissible results, ie, rows representing dyck words
+#  1. convert negatives to -1, positives to +1
+#  2. for each row, make a cumulative sum & find the min
+#  3. if min is negative, the row represents an unbalanced expression & is filtered out
+result <- result[apply(result, 1, function(x) min(cumsum(ifelse(x>0,1,-1))) ) >= 0,]
+head(result)
+tail(result)
+```
+
+If we just want the Catalan sequences (X objects are identical, Y objects are identical) we can use the code for multisets and filter just the dyck words:
+
+```{r, collapse=TRUE}
+S <- c(1,1,1,-1,-1,-1)  # dyck words are represented as 'X'=+1 and 'Y'=-1
+r <- length(S)
+
+result <- unique(permutations(r, r, S, set=FALSE))  # get just the different permutations 
+head(result,10)
+result <- result[apply(result, 1, function(x) min(cumsum(x)) ) >= 0,]
+head(result)
+```
+
++ $C_n$ is the number of noncrossing partitions of the set {1, ..., n}. A **noncrossing partition** of S is a partition in which no two blocks "cross" each other, i.e., if a and b belong to one block and x and y to another, they are not arranged in the order axby. An eg is how much non-crossing hand-shakes are there over a round table.
+
++ $\{C_n\}$ is the sequence produced by the following recurrence relation, $h(n) = h(0)*h(n-1) + h(1)*h(n-2) + \ldots + h(n-2)*h(1) + h(n-1)h(0)$, with $h(0)=1$.
+
+
+## Stirling Numbers
+
+### First Kind
+
+Sitrling numbers also appear in many application of combinatorics. 
+
+The **signed Stirling numbers of the first kind** $s(n,m)$ are defined such that the number of permutations of n elements which contain exactly $m$ [permutation cycles](http://mathworld.wolfram.com/PermutationCycle.html) is the nonnegative number $|s(n,m)|$ where,
+
+$$s(n+1,m)=s(n,m-1)-n s(n,m)$$
+
+with $m \gt 0$, and $s(0,0)=1$, $s(n,0)=s(0,n)=0, n \gt 0$
+
+In R:
+
+```{r, warning=FALSE, message=FALSE}
+library(copula)
+
+stirs1 <- matrix(rep(NA,100), ncol=10)
+for(n in 0:9) {
+  for(m in 0:n) 
+     stirs1[n+1,m+1] <- abs(Stirling1(n,m))
+}
+print(stirs1, na.print=" " )
+```
+
+### Second Kind
+
+A Stirling number of the second kind (or Stirling partition number), $S(n,m)$ is the number of ways to partition a set of $n$ objects into $m$ non-empty subsets.
+
+$$S(n,m) = \frac{1}{m!} \sum_{j=0}^m (-1)^j {m \choose j} (m-j)^n$$
+
+or following the recurrence relation
+
+$$S(n.m) = S(n-1,m-1) + n S(n-1,m)$$
+
+with $S(0,0)=1$ and $S(n,0)=0, n \gt 0$
+
+In R:
+
+```{r, warning=FALSE, message=FALSE}
+stirs2 <- matrix(rep(NA,100), ncol=10)
+for(n in 0:9) {
+  for(m in 0:n) 
+     stirs2[n+1,m+1] <- Stirling2(n,m)
+}
+print(stirs2, na.print=" " )
+```
+
+> How many ways can you divide four people A B C and D into two groups?
+
+```{r, warning=FALSE, message=FALSE}
+Stirling2(4,2)
+```
+
+The solutions are {A,B},{C,D};{A,C},{B,D};{A,D},{B,C};{A},{B,C,D};{B},{A,C,D};{C},{A,B,D};{D},{A,B,C} 
+
+Other formulas:
+
++ The ways to place n distict balls into m distinct boxes (leaving no empty box) is $m! S(n,m)$.
+
++ The ways to place n distict balls into m identical boxes (leaving no empty box) is $S(n,m)$.
+
++ The ways to place n distict balls into m distinct boxes (empty boxes allowed) is $m^n$.
+
++ The ways to place n distict balls into m identical boxes (empty boxes allowed) is $S(n,1)+S(n,2)+\ldots+S(n,k)$ where $k=m \gt n ? n : m$.
+
++ The ways to place n identical balls into m distinct boxes (leaving no empty box) is $C(n-1,m-1)$.
+
++ The ways to place n identical balls into m identical boxes (leaving no empty box) is is the coefficient of $x^n$ in $G(x) = \frac{x^m}{(1-x)(1-x^2)\cdots(1-x^m)}$..
+
++ The ways to place n identical balls into m distinct boxes (empty boxes allowed) is $C(n+m-1,n)$.
+
++ The ways to place n identical balls into m identical boxes (empty boxes allowed) is the coefficient of $x^n$ in $G(x) = \frac{1}{(1-x)(1-x^2)\cdots(1-x^m)}$.
+
+## Inclusion-Exclusion Principle
+
+There are two fundamental counting principles
+
++ **Addition Principle** - Assuming events $A$ and $B$ are mutually exclusive, if event $A$ can happen in $m$ ways, and event $B$ in $n$ ways, then event $A \lor B$ can happen in $m+n$ ways.
+
++ **Multiplication Principle** - Assuming events $A$ and $B$ are mutually exclusive, if event $A$ can happen in $m$ ways, and event $B$ in $n$ ways, then event $A \land B$ can happen in $mn$ ways
+
+However if $A$ and $B$ are not mutually exclusive we cannot use these principles.
+
+The **Inclusion-Exclusion Principle** states that if $A \cap B \neq \emptyset$ where the intersection has size $k$, then event $A \lor B$ can happen $m+n-k$ ways, ie, $|A \cup B| = |A| + |B| - |A \cap B|$.
+
+For three sets we'll have $|A \cup B \cup C| = |A|+|B|+|C|-|A \cap B|-|A \cap C|-|A \cap B|+|A\cap B \cap C|$.
+
+> Calculate the size of S, the permutation set of <a,b,c,d,e,f,g> which do not contain "ace" and "df".
+
+The permutations of six letters is $6!=720$
+
+Assume A is the permutation set which "ace" is an element. If we consider it as one element, the permutation set only has four elements, so $|A|=4!$. Assume B is the permutation set which "df" is an element, so $|B|=5!$. Also consider $|A \cap B|$ which is the set with both "ace" and "df". Using the same reasoning, $|A \cap B|=3!$. 
+
+So, $|S| = 6! - |A| - |B| + |A \cap B| = 720 - 24 - 120 + 6= 582$ elements.
+
+> How many primes are smaller than 120?
+
+Since $11^2 = 121$ the composite numbers always have a divisor smaller than $11$.
+
+Say $A_i$ is the set of number divisible by $i$ smaller than 120, where $i=2,3,5,7$.
+
+$$|A_i| = \lfloor\frac{120}{i}\rfloor$$, so $|A_2|=60, |A_3|=40, |A_5|=24, |A_7|=17$.
+
+We must check the intersections, say $A_2\cap A_3$ is the set of number divisible by $6$, so 
+
+$$|A_2\cap A_3| = \lfloor\frac{120}{2\times 3}\rfloor = 20$$
+
+and $|A_2\cap A_5| = 12$, $|A_2\cap A_7| = 8$, $|A_3\cap A_5| = 8$, $|A_3\cap A_7| = 5$, $|A_5\cap A_7| = 3$.
+
+Now, we need to (re)add the sets $|A_2\cap A_3\cap A_5|=4$, $|A_2\cap A_3\cap A_7|=2$, $|A_2\cap A_5\cap A_7|=1$ and $|A_3\cap A_5\cap A_7|=1$
+
+And discount again $|A_2\cap A_3\cap A_5\cap A_7|=0$.
+
+After all the summations and subtractions, we get $27$ primes.
+
+A useful function related to this problem is the **Euler function** $\Phi(n)$ is calculates the number of integers smaller than $n$ and relatively prime to $n$:
+
+$$\Phi(n) = n(1-\frac{1}{p_1})(1-\frac{1}{p_2})\cdots(1-\frac{1}{p_k1})$$
+
+where $p_i$ is the i-th prime ($p_1=2, p_2=3, \ldots$) that are included in the prime expansion of $n$.
+
+Eg: To calculate $\Phi(60)$, first decompose the number $60 = 2^2 \times 3 \times 5$, then $\Phi(60) = 60(1-1/2)(1-1/3)(1-1/5) = 16$
+
+## Pigeonhole Principle
+
+The **Pigeonhole Principle** states that if $n$ items are each put into one of $m$ boxes, where $n>m$, then one of the boxes contains more than one item.
+
+More generally, if we have $m$ boxes and $kn+1$ items, there must be a box with at least $k+1$ items.
+
+## Ramsey Numbers
+
+An eg of Ramsey problem: among 6 people there must be 3 mutual friends or 3 mutual strangers. This can be seen as a coloring problem of complete graphs:
+
+<center><img src="K6.png"><br>*Paint each edge red or blue. There will always be a monochromatic triangle.*</center>
+
+Ramsey's theorem states that one will find monochromatic cliques in any edge colouring of a sufficiently large complete graph. To demonstrate the theorem for two colours (say, blue and red), let $r$ and $s$ be any two positive integers. Ramsey's theorem states that there exists a least positive integer $R(r,s)$ for which every blue-red edge colouring of the complete graph on $R(r,s)$ vertices contains a blue clique on $r$ vertices or a red clique on $s$ vertices. Here $R(r,s)$ signifies an integer that depends on both $r$ and $s$. [ref](http://en.wikipedia.org/wiki/Ramsey's_theorem)
+
+The previous example is written $R(3,3)=6$. These numbers are called **Ramsey Numbers**.
+
+Another eg is $R(4,2)=4$ meaning that in a complet four node graph (called $K_4$) there is a clique of size four or a clique of size two. 
+
+The first complete graphs:
+
+<center><img src="K1-6.jpg"></center>
+
+This is a very complex problem, we only know a small set of Ramsey numbers. Even $R(5,5)$ is unknown, but we know that it must lie between $[43,49]$. Detailed info at [Wolfram's Mathworld](http://mathworld.wolfram.com/RamseyNumber.html).
+
+<!-- ----------------------------------------------------------------------------- -->
+
+```{r, eval=FALSE, echo=FALSE}
+#####################################################################
+# simulating hat problem:
+
+n <- 10
+people <- 1:n
+
+n.sims <- 1e4
+picks  <- replicate(n.sims, !any( sample(people, n)==people) )
+sum(picks)/n.sims
+
+
+# edX Combinatorics HW5-G3:
+
+# using a combinatorial argument:
+
+choose(6,1)*3^5 + 6*choose(5,2)*3^3 + choose(5,4)*18 + choose(6,3)*3^3 + 
+  choose(6,3)*choose(3,2)*3 + choose(6,5)*3
+
+# using exponential generating functions:
+
+# place at wolfram alpha:
+# (x+x^3/3!+x^5/5!)*(1+x^2/2!+x^4/4!)*(1+x+x^2/2!+x^3/3!+x^4/4!+x^5/5!)^3
+
+# and the result for x^6 is (217/40)x^6 = (217*6!/40)x^6/6! = 3906 x^6/6!
+
+# or by brute force:
+
+perms <- expand.grid(a=c(1:5),b=c(1:5),c=c(1:5),d=c(1:5),e=c(1:5),f=c(1:5))
+perms <- perms[apply(perms, 1, function(x) sum(x==1)%%2==1 ),]  # filter only odd 1s
+perms <- perms[apply(perms, 1, function(x) sum(x==2)%%2==0 ),]  # filter only even 2s
+nrow(perms)
+
+##############################################
+# edX Combinatorics HW5-G1:
+
+# derangent D4 = 9 times the combinations of the rest choose(8,4)
+
+# brute force 
+library(gtools)
+
+perms <- permutations(8, 8)
+perms <-perms[apply(perms, 1, function (x) sum(x==1:8)==4),]
+```

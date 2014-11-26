@@ -1,17 +1,21 @@
-```{r, message = FALSE, tidy = FALSE, echo = FALSE}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = TRUE,
-               fig.width = 10, fig.height = 5)
-```
+---
+title: "Optimization"
+author: "João Neto"
+date: "November 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
 
-Optimization
-========================================================
+Refs:
 
-ref:
 + [http://horicky.blogspot.pt/2013/01/optimization-in-r.html](http://horicky.blogspot.pt/2013/01/optimization-in-r.html)
 
-Check [http://cran.r-project.org/web/views/Optimization.html](CRAN Task View: Optimization and Mathematical Programming) for a more complete information about optimization functions available in R.
++ Check [CRAN Task View: Optimization and Mathematical Programming](http://cran.r-project.org/web/views/Optimization.html) for a more complete information about optimization functions available in R.
 
 Optimization refers to the case where we have variables $x_1, \ldots, x_n$ that we can assign values and we want to minimize or maximize a certain objective function $f(x_1, \ldots, x_n)$
 
@@ -128,6 +132,51 @@ solve(lps.model2)
 get.variables(lps.model2)
 ```
 
+It is possible to restrict the type of values, namely to integers which makes it a ILP (Integer Linear Programming), binary/boolean values (BLP) or even mixed types, known as Mixed Integer Liner Programming (MILP).
+
+Some egs:
+
+```{r}
+lps.model <- make.lp(0, 3)
+add.constraint(lps.model, c(6,2,4), "<=", 150)
+add.constraint(lps.model, c(1,1,6), ">=", 0)
+add.constraint(lps.model, c(4,5,4), "=", 40)
+set.objfn(lps.model, c(-3,-4,-3))
+
+set.type(lps.model, 2, "binary")
+set.type(lps.model, 3, "integer")
+get.type(lps.model) # This is Mixed Integer Linear Programming (MILP)
+
+set.bounds(lps.model, lower=-5, upper=5, columns=c(1))
+
+# give names to columns and restrictions
+dimnames(lps.model) <- list(c("R1","R2","R3"), c("C1","C2","C3")) 
+
+print(lps.model)
+solve(lps.model)
+get.objective(lps.model)
+get.variables(lps.model)
+get.constraints(lps.model)
+```
+
+
+```{r}
+lps.model <- make.lp(0, 3)
+add.constraint(lps.model, c(1,2,4), "<=", 5)
+add.constraint(lps.model, c(1,1,6), ">=", 2)
+add.constraint(lps.model, c(1,1,1), "=",  2)
+set.objfn(lps.model, c(2,1,2))
+
+set.type(lps.model, 1, "binary")
+set.type(lps.model, 2, "binary")
+set.type(lps.model, 3, "binary")
+
+print(lps.model)
+solve(lps.model)
+get.variables(lps.model)
+```
+
+
 Quadratic Programming
 ---------------------
 
@@ -150,13 +199,14 @@ In R:
 
 ```{r}
 library(quadprog)
+
 Dmat       <- matrix(c( 2,-1, 0,
                        -1, 2,-1,
                         0,-1, 2),3,3)
 dvec       <- c(0,-5,3)
-Amat       <- matrix(c(-4,-3,0,
-                        2, 1,0,
-                        0,-2,1),3,3)
+Amat       <- matrix(c(-4,-3, 0,
+                        2, 1, 0,
+                        0,-2, 1),3,3)
 bvec       <- c(-8,2,0)
 n.eqs      <- 2 # the first two constraints are equalities
 sol <- solve.QP(Dmat,dvec,Amat,bvec=bvec,meq=2)
@@ -189,20 +239,16 @@ Let's see some example of use (egs from [here](http://tutorial.math.lamar.edu/Cl
 
 + Example 1: minimize $f(x,y)=5x-3y$, constrained by $x^2+y^2=136$ which has solution (-10,6).
 
-```{r}
-library("Rsolnp")
+```{r, warning=FALSE, message=FALSE}
+library(Rsolnp)
 
 fn <- function(x) { # f(x,y) = 5x-3y
-  
   5*x[1] - 3*x[2]
 }
 
 # constraint z1: x^2+y^2=136
-
 eqn <- function(x) { 
-  
   z1=x[1]^2 + x[2]^2
-    
   return(c(z1))
 }
 constraints = c(136)
@@ -216,16 +262,12 @@ sol1$pars
 
 ```{r}
 fn <- function(x) {  # f(x,y) = 4x^2 + 10y^2
-
   4*x[1]^2 + 10*x[2]^2
 }
 
 # constraint z1: x^2+y^2 <= 4
-
 ineq <- function(x) { 
-  
   z1=x[1]^2 + x[2]^2
-    
   return(c(z1))
 }
 
@@ -248,8 +290,6 @@ sol2$pars
 ```
 
 + Example 3: minimize $f(X) = -x_1 x_2 x_3$ such that $4x_1x_2+2x_2x_3+2x_3x_1 = 100$ and $1 \leq x_i \leq 10, i = 1,2,3$
-
-
 
 ```{r}
 fn <- function(x,...){
@@ -294,4 +334,239 @@ x0 <- c(1, 1, 1)
 ctrl <- list(trace=0)
 sol4 <- solnp(x0, fun = fn, eqfun = eqn, eqB = constraints, control=ctrl)
 sol4$pars
+```
+
+# Using CVX
+
+This next section uses a low tech [solution](http://faculty.bscb.cornell.edu/~bien/cvxfromr.html) implemented by Jacob Bien. It needs Matlab and an installation of CVX. [Here](CVXfromR_1.6.zip)'s a local copy of the package.
+
+For information about CVX check [here](http://cvxr.com/).
+
+## Regression with Least-square
+
+The next eg finds a least-squares regression for a cubic polynomial, ie, it minimizes the $L_2$ norm:
+
+```{r}
+library(CVXfromR) # http://faculty.bscb.cornell.edu/~bien/cvxfromr.html
+
+df <- data.frame(X=c(1,3,4,5,7,8),  # the data
+                 Y=c(4,6,5,3,5,6))
+
+degree <- 3                         # cubic polynomial
+
+# creating matrix A and vector b containing the constraints
+A <- matrix(rep(NA,(degree+1)*nrow(df)), nrow=nrow(df))
+for(i in 1:nrow(df))  # for each data point
+  for (d in 1:(degree+1)) # for each degree
+    A[i,d] <- df$X[i]^(d-1)
+b <- df$Y
+
+cvxcode <- "
+   variables x(n);
+   minimize( norm(A*x-b) );
+  "
+
+# it takes sometime to run a matlab session
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=degree+1, A=A, b=b),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+# returns a polynomial predictor based on a CVX optimization result
+# vector 'as' keeps coefficients a_i of polynomial a_0 + a_1 x + ... + a_i x^i + ... + a_n x^n
+get.poly.predictor <- function(as) {
+  n <- length(as)
+  function(x) {
+    vals <- rep(NA,n)
+    for(i in 1:n)
+      vals[i] = x^(i-1)
+    sum(vals * as)
+  }
+}
+
+# get the predictor for the dataset
+predictor.L2 <- get.poly.predictor(opt.vals$x)
+
+plot(df, pch=19, xlim=c(0,8), ylim=c(0,8)) # plot points and prediction
+xs  <- seq(0,8,len=101)
+fit.L2 <- vapply(xs, predictor.L2, 0)
+lines(xs, fit.L2, type='l', col="red", lwd=2)
+```
+
+## Regression with $L_1$ norm
+
+Using the same dataset, but now with the $L_1$ norm, ie, minimizing the sum of the absolute values of the residuals:
+
+```{r}
+n   <- degree+1
+m   <- length(df$X)
+one <- rep(1,m)
+
+cvxcode <- "
+   variables x(n) y(m);
+   minimize( one' * y );
+   subject to
+     A*x - b <=  y;
+     A*x - b >= -y;
+  "
+
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=n, m=m, A=A, b=b, one=one),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+predictor.L1 <- get.poly.predictor(opt.vals$x)
+
+plot(df, pch=19, xlim=c(0,8), ylim=c(0,8)) # plot points and prediction
+lines(xs, fit.L2, type='l', col="red",   lwd=2)
+fit.L1 <- vapply(xs, predictor.L1, 0)
+lines(xs, fit.L1, type='l', col="green", lwd=2)
+legend("bottomright",c("L2 norm","L1 norm"), col=c("red","green"), lty=1, lwd=2) 
+```
+
+## Regression with $L_\infty$ norm
+
+Again with the Chebyshev norm, $L_\infty$, ie, the minimization of the maximum residual:
+
+```{r}
+n   <- degree+1
+m   <- length(df$X)
+one <- rep(1,m)
+
+cvxcode <- "
+   variables x(n) t;
+   minimize( t );
+   subject to
+     A*x - b <=  one * t;
+     A*x - b >= -one * t;
+  "
+
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=n, A=A, b=b, one=one),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+predictor.LInf <- get.poly.predictor(opt.vals$x)
+
+plot(df, pch=19, xlim=c(0,8), ylim=c(0,8)) # plot points and prediction
+lines(xs, fit.L2, type='l', col="red",   lwd=2)
+lines(xs, fit.L1, type='l', col="green", lwd=2)
+fit.LInf <- vapply(xs, predictor.LInf, 0)
+lines(xs, fit.LInf, type='l', col="blue", lwd=2)
+
+legend("bottomright",c("L2 norm","L1 norm","LInf norm"), col=c("red","green","blue"), lty=1, lwd=2)
+```
+
+## Robust Regression with Huber loss
+
+And with the [Huber loss](http://en.wikipedia.org/wiki/Huber_loss) for robust regression:
+
+```{r}
+df <- data.frame(X=c(1,3,4,5,6,7,8),  # including an outlier
+                 Y=c(4,6,5,3,20,5,6))
+
+degree <- 3                         # cubic polynomial
+n <- degree+1
+
+# creating matrix A and vector b containing the constraints
+A <- matrix(rep(NA,n*nrow(df)), nrow=nrow(df))
+for(i in 1:nrow(df))  # for each data point
+  for (d in 1:n) # for each degree
+    A[i,d] <- df$X[i]^(d-1)
+b <- df$Y
+
+# First compute standard least-squares:
+cvxcode <- "
+   variables x(n);
+   minimize( norm(A*x-b) );
+  "
+
+# it takes sometime to run a matlab session
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=degree+1, A=A, b=b),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+predictor.L2 <- get.poly.predictor(opt.vals$x)
+
+# Second compute with the Huber loss:
+cvxcode <- "
+   variables x(n);
+   minimize( sum(huber(A*x-b)) );
+  "
+
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=n, A=A, b=b),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+predictor.Huber <- get.poly.predictor(opt.vals$x)
+
+plot(df, pch=19, xlim=c(0,8), ylim=c(0,20)) # plot points and prediction
+fit.L2 <- vapply(xs, predictor.L2, 0)
+lines(xs, fit.L2, type='l', col="red", lwd=2)
+fit.Huber <- vapply(xs, predictor.Huber, 0)
+lines(xs, fit.Huber, type='l', col="blue", lwd=2)
+
+legend("topleft",c("L2 norm","Huber Loss (robust)"), col=c("red","blue"), lty=1, lwd=2)
+```
+
+## De-Noising Data
+
+Given $x_{\text{corrupt}}$ with $n$ noisy data points, produce a similar yet smoother dataset $x$. Smoother means that the difference between neighboring data points should be smaller.
+
+The objective goal is to minimize
+
+$$\| x - x_{\text{corrupt}} \|^2 + \mu \sum_{k=1}^{n-1} (x_{k+1} - x_k)^2$$
+
+where $\mu$ is a smoothness parameter, where if $\mu \rightarrow 0 \implies x \rightarrow x_{\text{corrupt}}$.
+
+Let's make some noisy dataset:
+
+```{r}
+set.seed(101)
+
+n  <- 201
+xs <- seq(0,8,len=n)
+
+x_corrupt <- sin(xs)^2/(1.5+cos(xs)) + rnorm(n,0,0.1)
+
+plot(xs,x_corrupt, type='l')
+```
+
+Let's specify the CVX problem:
+
+```{r}
+cvxcode <- "
+    variable x(n)
+    minimize( norm(x-corrupt) + mu*norm( x(2:n)-x(1:n-1) ) );
+  "
+```
+
+To apply the optimization, we must define a value for $\mu$. Different values give different smoothing results:
+
+```{r}
+mu <- 0.75
+
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=n, mu=mu, corrupt=x_corrupt),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+x_smooth <- opt.vals$x
+
+plot(xs,x_corrupt, type='l')
+lines(xs,x_smooth, col="red", lwd=2, type='l')
+```
+
+```{r}
+mu <- 2
+
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=n, mu=mu, corrupt=x_corrupt),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+x_smooth <- opt.vals$x
+
+plot(xs,x_corrupt, type='l')
+lines(xs,x_smooth, col="red", lwd=2, type='l')
+```
+
+```{r}
+mu <- 5
+
+opt.vals <- CallCVX(cvxcode, const.vars=list(n=n, mu=mu, corrupt=x_corrupt),
+                    opt.var.names="x", setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+x_smooth <- opt.vals$x
+
+plot(xs,x_corrupt, type='l')
+lines(xs,x_smooth, col="red", lwd=2, type='l')
 ```
