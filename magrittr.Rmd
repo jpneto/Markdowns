@@ -1,0 +1,92 @@
+---
+title: "Package magrittr"
+author: "João Neto"
+date: "December 2014"
+output: html_document
+---
+
+Ref: [vignette](http://cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html)
+
+```{r, message=FALSE, warning=FALSE}
+library(magrittr)
+```
+
+
+```{r}
+car_data <- 
+  mtcars %>%
+  subset(hp > 100) %>%                                             # extract a subset
+  aggregate(. ~ cyl, data = ., FUN = . %>% mean %>% round(2)) %>%  # aggregate info on n.cylinders
+  transform(kpl = mpg %>% multiply_by(0.4251)) %>%                 # add new column
+  print                                                            # print result before assign
+```
+
+Some notes:
+
++ By default the left-hand side (LHS) will be piped in as the first argument of the function appearing on the right-hand side (RHS). When the LHS is needed at a position other than the first, one can use the dot, `.`, as placeholder. This is used in the `aggregate` expression.
+
++ Whenever only one argument is needed, the LHS, then one can omit the empty parentheses (just like in `print`).
+
++ A pipeline with a dot (.) as LHS will create a unary function. This is used to define the aggregator function.
+
+Other `.` egs:
+
+```{r}
+1:9 %>% paste(letters[.])
+1:9 %>% paste(letters[.], .)
+1:9 %>% { paste(letters[.]) } # use {} to prevent placing '.' as the 1st function argument
+```
+
+It's possible to use `%>%` into anonymous functions:
+
+```{r}
+car_data %>%
+  { 
+    if (nrow(.) > 0)
+      rbind(head(., 1), tail(., 1))
+    else .
+  } %>%
+  .[,1:3]
+```
+
+Whenever you want to use a function- or call-generating statement as right-hand side, parentheses are used to evaluate the right-hand side before piping takes place:
+
+```{r}
+1:10 %>% (substitute(f(), list(f = sum))) # with the outside (), it would be an error
+```
+
+## %T%
+
+The "tee" operator, %T>% works like %>%, except it returns the left-hand side value, and not the result of the right-hand side operation. This is useful when a step in a pipeline is used for its side-effect (printing, plotting, logging, etc.).
+
+```{r}
+rnorm(200) %>%
+  matrix(ncol = 2) %T>%
+  plot %>%               # plot usually does not return anything. 
+  colSums
+```
+
+## %$%
+
+The "exposition" pipe operator, %$% exposes the names within the left-hand side object to the right-hand side expression. Essentially, it is a short-hand for using the with functions (and the same left-hand side objects are accepted).
+
+```{r}
+iris %>%
+  subset(Sepal.Length > mean(Sepal.Length)) %$%
+  cor(Sepal.Length, Sepal.Width)
+
+data.frame(z = rnorm(100)) %$% 
+  ts.plot(z)
+```
+
+## %<>%
+
+The compound assignment pipe operator `%<>%` can be used as the first pipe in a chain. The effect will be that the result of the pipeline is assigned to the left-hand side object, rather than returning the result as usual. It is essentially shorthand notation for expressions like `foo <- foo %>% bar %>% baz`, which boils down to `foo %<>% bar %>% baz`.
+
+```{r}
+x <- 1:9
+x %<>% sqrt %>% add(1)
+x
+```
+
+Function `add(1)` is one of several aliases the package has to help writing expressions. Check the helpfile for more egs.

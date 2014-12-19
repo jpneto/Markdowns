@@ -285,7 +285,7 @@ regmatches(monomials[7],gregexpr("[0-9]+", monomials[7]))[[1]][1]
 Another eg is to get the number of possible results from playing with several dice:
 
 ```{r, collapse=TRUE}
-sympy("dice = 1+x+x**2+x**3+x**4+x**5+x**6")
+sympy("dice = x+x**2+x**3+x**4+x**5+x**6")
 sympy("simplify(dice*dice)")   # two dice
 sympy("simplify(dice**3)")     # three dice
 ```
@@ -489,6 +489,16 @@ for(n in 0:9) {
 print(stirs1, na.print=" " )
 ```
 
+notice that R arrays start at index 1. So $s(7,1)=24$ is at position $[6][2]$.
+
+There is a formula to compute $s(n,2)$ that uses harmonic numbers. The n-th harmonic number, $H_n$, is the sum of the reciprocals of the first n natural numbers, ie, 
+
+$$H_n = \sum_{i=1}{n} \frac{1}{n}$$
+
+the formula is
+
+$$s(n,2) = n! H_n$$
+
 ### Second Kind
 
 A Stirling number of the second kind (or Stirling partition number), $S(n,m)$ is the number of ways to partition a set of $n$ objects into $m$ non-empty subsets.
@@ -537,6 +547,308 @@ Other formulas:
 + The ways to place n identical balls into m distinct boxes (empty boxes allowed) is $C(n+m-1,n)$.
 
 + The ways to place n identical balls into m identical boxes (empty boxes allowed) is the coefficient of $x^n$ in $G(x) = \frac{1}{(1-x)(1-x^2)\cdots(1-x^m)}$.
+
+## Bell Numbers
+
+Bell numbers follow the recurrence relation
+
+$$B_n = \sum_{i=1}^n {n-1 \choose i-1} B_{n-i}$$
+
+with $B_0 = 1$ (only one partition of the empty set).
+
+```{r}
+# returns a vector with the first (max+1) bell numbers
+# pre: max > 0
+bell <- function(max) {
+  result <- c(1,rep(NA,max-1)) # B(0) = 1
+  
+  for (n in 1:max) {
+    is = 1:n
+    result[n+1] <- sum( choose(n-1,is-1)*result[1+n-is] )
+  }
+  
+  result
+}
+
+print(data.frame(n=0:12, Bn=bell(12)), digits=7, row.names=FALSE)
+```
+
+The Bell number $B_n$ gives the number of partitions of a set of size $n$.
+
+Eg, for set $\{1,2,3\}$, with $n=3$, $B_3=5$ since there are five different ways to partition it (the order is irrelevant),
+
+$$\{ \{a\}, \{b\}, \{c\} \}~;~
+\{ \{a\}, \{b, c\} \}~;~
+\{ \{b\}, \{a, c\} \}~;~
+\{ \{c\}, \{a, b\} \}~;~
+\{ \{a, b, c\} \}$$
+
+```{r}
+bell(3)[4] # returns B_3
+```
+
+They can also be computed via Stirling numbers of the 2nd kind:
+
+$$B_n = \sum_{k=0}^n S(n,k)$$
+
+```{r, warning=FALSE}
+library(partitions) # http://cran.r-project.org/web/packages/partitions/vignettes/setpartitions.pdf
+
+listParts(3)
+# returns, for each row, from which partition a given element belongs to
+as.matrix(t(setparts(3)), ncol=3)
+```
+
+## Partitions of an Integer
+
+The five partitions of $4$ are $4=3+1=2+2=2+1+1=1+1+1+1$.
+
+The number of partitions of an integer is given by the partition function p(n) which does not have a closed form.
+
+However we can compute its value using the following recurrence relation
+
+$$p(n) = \sum_{k \in \mathbb{Z}-\{0\}} (-1)^{k-1} p\big(n-\frac{k(3k-1)}{2}\big) = p(n-1) + p(n-2) - p(n-5) - p(n-7) + p(n-12) \ldots $$
+
+with $p(0)=1$ and $p(n)=0, n \lt 0$.
+
+Package `partitions` can used to enumerate the partitions of an integer:
+
+```{r, warning=FALSE}
+library(partitions)
+
+n <- 4
+m <- as.matrix(t(parts(n)), ncol=n)
+m[m==0] = NA
+print(m, na.print="")
+P(4) # just the number of partitions of given integer
+```
+
+If the ordering matters (ie, $1+4 \neq 4+1$):
+
+```{r}
+t(compositions(5))
+```
+
+The package is also able to return the partitions restricted to a certain maximum size:
+
+```{r}
+t(restrictedparts(6,3))    # partition of 6 up to 3 partitions
+R(3,6, include.zero =TRUE) # just the number
+```
+
+## Permutation Group
+
+A permutation group on set $1, 2, \ldots, n$ is a 1-1 mapping on itself. It is represented by
+$\left(
+\begin{smallmatrix}
+1 & 2 & \ldots & n \cr
+a_1 & a_2 & \ldots & a_n 
+\end{smallmatrix}
+\right)$ where $a_1a_2\ldots a_n$ is a set arragement. The same permutation may have $n!$ representations. Eg, these two representations are equivalent: 
+
+$$\left(
+\begin{matrix}
+1 & 2 & 3 & 4 \cr
+3 & 1 & 2 & 4
+\end{matrix}
+\right)
+=
+\left(
+\begin{matrix}
+3 & 1 & 4 & 2 \cr
+2 & 3 & 4 & 1 
+\end{matrix}
+\right)
+$$
+
+Permutation multiplication receives two permutation groups and return the two mappings composition.
+
+Eg:
+
+$$\left(
+\begin{matrix}
+1 & 2 & 3 & 4 \cr
+3 & 1 & 2 & 4
+\end{matrix}
+\right)
+.
+\left(
+\begin{matrix}
+3 & 1 & 2 & 4 \cr
+2 & 4 & 3 & 1 
+\end{matrix}
+\right)
+=
+\left(
+\begin{matrix}
+1 & 2 & 3 & 4 \cr
+2 & 4 & 3 & 1
+\end{matrix}
+\right)
+$$
+
+This operation is not commutative but it defines a group with the permutations of a given set.
+
+A quick reminder: given a set $G$ and an operation $(.) : G \times G \rightarrow G$, the tuple $(G,.)$ is a **group** if it has the next four properties:
+
++ The operation $(.)$ is closed in $G$, ie, $x,y \in G \implies x . y \in G$
+
++ The operation is associative, ie, $x,y,z \in G \implies (x . y) . z = x . (y . z)$
+
++ There is an identity element $e \in G$, ie, $x \in G \implies e . x = x . e = x$
+
++ For every $x \in G$ there is an inverse element $x^{-1} \in G$ such that $x . x^{-1} = x^{-1} . x = e$
+
+The identity element is 
+$e= \left(
+\begin{matrix}
+1 & 2 & 3 & 4 \cr
+1 & 2 & 3 & 4
+\end{matrix}
+\right)$
+and the inverse is
+$\left(
+\begin{matrix}
+1 & 2 & 3 & 4 \cr
+a_1 & a_2 & \ldots & a_n
+\end{matrix}
+\right)^{-1}
+=
+\left(
+\begin{matrix}
+a_1 & a_2 & \ldots & a_n \cr
+1 & 2 & 3 & 4
+\end{matrix}
+\right)
+$
+
+The group of all permutations of $\{1,2,\ldots,n\}$ over the composition is known as **n-order symmetric group**, or just $S_n$.
+
+A more compact notation for, say, 
+$e= \left(
+\begin{matrix}
+1 & 2 & 3 & 4 & 5\cr
+5 & 2 & 3 & 1 & 4
+\end{matrix}
+\right)$
+is $(154)(2)(3)$ which is made by starting at the first position, $1$, and travel the sequence $1 \rightarrow 5 \rightarrow 4 \rightarrow 1$ until we reach a cycle; then repeat for the elements not included yet.
+
+A theorem states that given $p=(a_1a_2\cdots a_n)$, $p^n=(1)(2)\cdots(n)=e$.
+
+Eg: $p=(123)$, then $p^2=p.p=
+\left(
+\begin{matrix}
+1 & 2 & 3\cr
+2 & 3 & 1
+\end{matrix}
+\right)
+.
+\left(
+\begin{matrix}
+1 & 2 & 3\cr
+2 & 3 & 1
+\end{matrix}
+\right)
+=
+\left(
+\begin{matrix}
+1 & 2 & 3\cr
+3 & 1 & 2
+\end{matrix}
+\right)
+=(132)$. And $p^3=p.p^2=
+\left(
+\begin{matrix}
+1 & 2 & 3\cr
+1 & 2 & 3
+\end{matrix}
+\right)
+=
+(1)(2)(3)=e$
+
+Def: for a $p \in S_m$, the **cyclic group** generated by p is $\left<p\right> = \{ p^n | 0 \leq n \lt k, p^k=e \}$
+
+Theorem: For $p\in S_m$, $\left<p\right>$ is a subgroup of $S_m$.
+
+## Conjugacy Class
+
+Every permutation has format 
+
+$$(a_1a_2\cdots a_{k_1}) (b_1b_2\cdots b_{k_2}) \cdots (h_1h_2\cdots h_{k_m})$$
+
+where $\sum_i k_i = n$.
+
+For $S_n$ we can use a more compact notation, 
+
+$$1^{c_1} 2^{c_2} \cdots n^{c_n}$$
+
+where $\sum_k k.c_k = n$
+
+Eg, in $S_5$, $1+1+3$ can be represented by $1^23^1$. The five partitions of $S_5$ would be written as $4^1; 3^11^1; 2^2, 2^11^2, 1^4$.
+
+The conjugacy class over group $G$ of element $a\in G$ is
+
+$$Cl(a) = \{ g\in G | x\in G, g = xax^{-1} \}$$
+
+All pair of elements $a,b\in G$ either belong to the same equivalence class and then $Cl(a)=Cl(b)$, or do not and then $Cl(a) \cap Cl(b)=\emptyset$.
+
+A conjugate class is an equivalent relation, partitioning $G$ into equivalence classes.
+
+Another reminder: A relation $R$ on set $S$ is an **equivalence relation** iff
+
++ $xRX$, for all $x\in S$
+
++ $xRy \implies yRx$
+
++ $xRy \and yRz \implies xRz$
+
+An **equivalence class** of $x\in S$ is defined as $\{y \in S | yRx \}$.
+
+For symmetric groups, permutations with the same notation $1^{c_1} 2^{c_2} \cdots n^{c_n}$ belong to the same conjugacy class.
+
+Egs:
+
+Symmetric group $S_3$ has three conjugacy classes: $1^3; 1^12^1; 3^1$.
+
+Symmetric group $S_4$ has five conjugacy classes: $1^4; 1^22^1; 2^2; 1^13^1; 4^1$.
+
+The conjugacy class $2^2$ of $S_4$ is composed of 3 different permutations: $(12)(34); (13)(24); (14)(23)$.
+
+The conjugacy class $1^13^1$ of $S_4$ is composed of 8 different permutations: $(123)(4); (124)(3); (132)(4); (134)(2); (142)(3); (143)(2); (234)(1); (243)(1)$.
+
+To compute the conjugacy class size $1^{c_1} 2^{c_2} \cdots n^{c_n}$ of the symmetric group $S_n$ use the following formula:
+
+$$\frac{n!}{\prod_{k=1}^n k^{c_k} c_k!}$$
+
+Eg: conjugacy class $1^13^1$ of $S_4$ has $\frac{4!}{1^1\times 1! \times 3^1 \times 1!} = 24/3 = 8$ elements.
+
+Eg2: conjugacy class $1^22^24^1$ of $S_{10}$ has $\frac{10!}{1^2 \times 2! \times 2^2 \times 2! \times 4^1 \times 1!}=56700$ elements.
+
+The number of permutation in $S_n$ with $m$ cycles is given by the Stirling number of the first kind, $s(n,m)$.
+
+Eg: $s(5,4)=10$ which corresponds to the 4-cycle permutations on $S_5$, namely $(12)(3)(4)(5); (2)(13)(4)(5); (1)(2)(3)(14)(5); \ldots (1)(2)(3)(45)$.
+
+
+
+## Stabilizers & Orbits
+
+Let $G$ be a permutation group on set $S$, and $x\in S$. The set
+
+$$G_x = {g \in G | g(x) = x}$$
+
+is called the **stabilizer** of $x$.
+
+Eg: If $G = \{ e, (12)(3)(4), (1)(2)(34), (12)(34) \}$, $G_1 = \{ e, (1)(2)(34)\}$
+
+The subset of all images of $x\in S$ under permutations of group $G$, is called the **orbit** of $x$ in $G$,
+
+$$G(x) = \{ g(x) | g \in G \}$$
+
+Orbits are equivalence classes of $G$, and follow the property $|G| = |G_x| |G(x)|$ known as the *Orbit-stabilizer theorem*.
+
+Eg: If $G = \{ e, (12)(3)(4), (1)(2)(34), (12)(34) \}$, $G(1) = \{ 1, 2\}$ since for $g=(12)(3)(4), g(1)=2$ and for $g=e, g(1)=1$ (no other values are possible for this $G$).
+
+The previous property also holds: $|G|=4$, $|G_1|\times|G(1)|=4$
 
 ## Inclusion-Exclusion Principle
 
@@ -612,49 +924,3 @@ The first complete graphs:
 
 This is a very complex problem, we only know a small set of Ramsey numbers. Even $R(5,5)$ is unknown, but we know that it must lie between $[43,49]$. Detailed info at [Wolfram's Mathworld](http://mathworld.wolfram.com/RamseyNumber.html).
 
-<!-- ----------------------------------------------------------------------------- -->
-
-```{r, eval=FALSE, echo=FALSE}
-#####################################################################
-# simulating hat problem:
-
-n <- 10
-people <- 1:n
-
-n.sims <- 1e4
-picks  <- replicate(n.sims, !any( sample(people, n)==people) )
-sum(picks)/n.sims
-
-
-# edX Combinatorics HW5-G3:
-
-# using a combinatorial argument:
-
-choose(6,1)*3^5 + 6*choose(5,2)*3^3 + choose(5,4)*18 + choose(6,3)*3^3 + 
-  choose(6,3)*choose(3,2)*3 + choose(6,5)*3
-
-# using exponential generating functions:
-
-# place at wolfram alpha:
-# (x+x^3/3!+x^5/5!)*(1+x^2/2!+x^4/4!)*(1+x+x^2/2!+x^3/3!+x^4/4!+x^5/5!)^3
-
-# and the result for x^6 is (217/40)x^6 = (217*6!/40)x^6/6! = 3906 x^6/6!
-
-# or by brute force:
-
-perms <- expand.grid(a=c(1:5),b=c(1:5),c=c(1:5),d=c(1:5),e=c(1:5),f=c(1:5))
-perms <- perms[apply(perms, 1, function(x) sum(x==1)%%2==1 ),]  # filter only odd 1s
-perms <- perms[apply(perms, 1, function(x) sum(x==2)%%2==0 ),]  # filter only even 2s
-nrow(perms)
-
-##############################################
-# edX Combinatorics HW5-G1:
-
-# derangent D4 = 9 times the combinations of the rest choose(8,4)
-
-# brute force 
-library(gtools)
-
-perms <- permutations(8, 8)
-perms <-perms[apply(perms, 1, function (x) sum(x==1:8)==4),]
-```

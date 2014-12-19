@@ -14,7 +14,9 @@ cache: yes
 Current version of [OpenBUGS](http://www.openbugs.info/w/Downloads) needed.
 
 Refªs:
+
 + Lunn et al. **The BUGS Book** [website](http://www.mrc-bsu.cam.ac.uk/bugs/thebugsbook/exercises/)
+
 + Kruschke **Doing Bayesian Data Analysis**
 
 BUGS allow us to do statistical inference using a graphical model approach:
@@ -26,29 +28,49 @@ BUGS allow us to do statistical inference using a graphical model approach:
 The model is described in a declarative way. It has two kinds of connections:
 
 + logical dependence which is represented by `<-`, there is not randomness here, just a simple assignment. At the right there is an expression
+
 + stochastic dependence which is represented by `~`. At the right there is a statistical distribution
 
 BUGS supports many distributions. Some of them:
+
 + Normal, `dnorm(mean,precision)`, precision = 1/variance
+
 + Bernoulli, `dbern(p)`, p is the success probability
+
 + Binomial, `dbin(p,n)`, p is the success probability and n is the number of trials
+
 + Categorical, `dcat(p[])`, p is a vector with a discrete distribution
+
 + Uniform, `dunif(a,b)`, uniform between [a,b]
+
 + Beta, `dbeta(a,b)`
+
 + Gamma, `dgamma(a,b)`
+
 + Logistic, `dlogis(mu, tau)`
+
 + Exponential, `dexp(theta)`
+
 + Student's t, `dt(mean, tau, k)`, where $k$ is the degrees of freedom
+
 + Pareto, `dpar(a,b)`, $p(x|a,b)=ab^ax^{-(a+1)}$
+
 + Poisson, `dpois(theta)`
+
 + Geometrix, `dgeom(theta)`
+
 + Beta-binomial, `dbetabin(a,b,n)`
+
 + Multinomial, `x[1:R] ~ dmulti(theta[], n)`, $n$ events each with R mutually exclusive outcomes with probabilities $\theta_1\ldots \theta_R$
 
 Vector's use:
+
 + `v[i]`, the ith position
+
 + `v[a:b]`, (v[a], v[a+1], ..., v[b])
+
 + `v[i,]`, the ith row
+
 + `v[,j]`, the jth column
 
 Check [BUGS's manual](http://www.politicalbubbles.org/bayes_beach/manual14.pdf#page=56) for more information.
@@ -150,7 +172,7 @@ run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.1
   modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
   if (length(data)>0)                 # If there's any data available...
     modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
-  modelCompile()                      # BRugs command tells BUGS to compile the model
+  modelCompile(n.chains)              # BRugs command tells BUGS to compile the model
   
   if (missing(init.func)) {
     modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain
@@ -296,7 +318,7 @@ Prediction eg
 
 A hospital will begin a new high-risk treatment. Other hospitals that do it have a risk of death $\theta$ around $10\%$ and it will be quite surprisingly if it was less than $3\%$ and more than $20\%$ (say that this interval occupies $90\%$ of the probability mass). This is our prior information, which will be modelled by a convenient  beta distribution:
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(rriskDistributions) # for finding distribution parameters
 
 prior.dist <- get.beta.par(p=c(.05,.5,.95),q=c(.03,.1,.2), plot=FALSE, show.output=FALSE)
@@ -542,7 +564,7 @@ samplesDensity("theta", mfrow = c(1, 1))
 
 Let's say we wish to fit a beta to this data:
 
-```{r}
+```{r, warning=FALSE}
 library(MASS) 
 beta.fit <- fitdistr(thetaSample,"beta",list(shape1=1,shape2=1)) 
 beta.fit
@@ -617,16 +639,15 @@ data.list = list(
     n=100, y=ys
 )
 
-# initialize BUGS' chain, in this case we use only one chain
 # sometimes it is necessary to tell BUGS where to start, especially in cases
 # of distributions with large variances, where BUGS might create inappropriate
 # starting values or simply it's unable to produce a starting value. 
 # JAGS chooses a 'central' value which avoids this problem.
 
-n.chains <- 1
-mus <- c(0)  # more chains => these vectors should have more values
-rs  <- c(1)
-ds  <- c(10)
+n.chains <- 3
+mus <- c(0,1,2)  # more chains => these vectors should have more values
+rs  <- c(1,1.2,2)
+ds  <- c(10,15,20)
 
 # Herein, it's used a closure with a local var 'i' that determines which chain
 # is being initialized
@@ -862,7 +883,7 @@ modelString = "
 "
 
 data.list = list(
-    M=5000, y=100  # let's try a upper bound of 5k buses
+    M=5000, y=100  # let's try an upper bound of 5k buses
 )
 
 run.model(modelString, samples=c("N"), data=data.list, chainLength=5000)
@@ -874,7 +895,7 @@ Let's compare with $M=10000$:
 
 ```{r}
 data.list = list(
-    M=10000, y=100  # let's try a upper bound of 10k buses
+    M=10000, y=100  # let's try an upper bound of 10k buses
 )
 
 run.model(modelString, samples=c("N"), data=data.list, chainLength=5000)

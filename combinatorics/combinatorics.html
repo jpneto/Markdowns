@@ -78,6 +78,11 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 <li><a href="#first-kind">First Kind</a></li>
 <li><a href="#second-kind">Second Kind</a></li>
 </ul></li>
+<li><a href="#bell-numbers">Bell Numbers</a></li>
+<li><a href="#partitions-of-an-integer">Partitions of an Integer</a></li>
+<li><a href="#permutation-group">Permutation Group</a></li>
+<li><a href="#conjugacy-class">Conjugacy Class</a></li>
+<li><a href="#stabilizers-orbits">Stabilizers &amp; Orbits</a></li>
 <li><a href="#inclusion-exclusion-principle">Inclusion-Exclusion Principle</a></li>
 <li><a href="#pigeonhole-principle">Pigeonhole Principle</a></li>
 <li><a href="#ramsey-numbers">Ramsey Numbers</a></li>
@@ -409,12 +414,12 @@ monomials[7]
 regmatches(monomials[7],gregexpr(&quot;[0-9]+&quot;, monomials[7]))[[1]][1]
 ## [1] &quot;4&quot;</code></pre>
 <p>Another eg is to get the number of possible results from playing with several dice:</p>
-<pre class="r"><code>sympy(&quot;dice = 1+x+x**2+x**3+x**4+x**5+x**6&quot;)
-## [1] &quot;1 + x + x**2 + x**3 + x**4 + x**5 + x**6&quot;
+<pre class="r"><code>sympy(&quot;dice = x+x**2+x**3+x**4+x**5+x**6&quot;)
+## [1] &quot;x + x**2 + x**3 + x**4 + x**5 + x**6&quot;
 sympy(&quot;simplify(dice*dice)&quot;)   # two dice
-## [1] &quot;1 + 2*x + 3*x**2 + 4*x**3 + 5*x**4 + 6*x**5 + 7*x**6 + 6*x**7 + 5*x**8 + 4*x**9 + 3*x**10 + 2*x**11 + x**12&quot;
+## [1] &quot;x**2 + 2*x**3 + 3*x**4 + 4*x**5 + 5*x**6 + 6*x**7 + 5*x**8 + 4*x**9 + 3*x**10 + 2*x**11 + x**12&quot;
 sympy(&quot;simplify(dice**3)&quot;)     # three dice
-## [1] &quot;1 + 3*x + 6*x**2 + 10*x**3 + 15*x**4 + 21*x**5 + 28*x**6 + 33*x**7 + 36*x**8 + 37*x**9 + 36*x**10 + 33*x**11 + 28*x**12 + 21*x**13 + 15*x**14 + 10*x**15 + 6*x**16 + 3*x**17 + x**18&quot;</code></pre>
+## [1] &quot;x**3 + 3*x**4 + 6*x**5 + 10*x**6 + 15*x**7 + 21*x**8 + 25*x**9 + 27*x**10 + 27*x**11 + 25*x**12 + 21*x**13 + 15*x**14 + 10*x**15 + 6*x**16 + 3*x**17 + x**18&quot;</code></pre>
 <p>or a coin eg:</p>
 <blockquote>
 <p>We have three type of coins, 10 cents, 20 cents and 50 cents. What are the possible combinations for amounts up to 100 cents?</p>
@@ -642,6 +647,11 @@ print(stirs1, na.print=&quot; &quot; )</code></pre>
 ##  [8,]    0   720   1764   1624   735   175   21    1           
 ##  [9,]    0  5040  13068  13132  6769  1960  322   28    1      
 ## [10,]    0 40320 109584 118124 67284 22449 4536  546   36     1</code></pre>
+<p>notice that R arrays start at index 1. So <span class="math">\(s(7,1)=24\)</span> is at position <span class="math">\([6][2]\)</span>.</p>
+<p>There is a formula to compute <span class="math">\(s(n,2)\)</span> that uses harmonic numbers. The n-th harmonic number, <span class="math">\(H_n\)</span>, is the sum of the reciprocals of the first n natural numbers, ie,</p>
+<p><span class="math">\[H_n = \sum_{i=1}{n} \frac{1}{n}\]</span></p>
+<p>the formula is</p>
+<p><span class="math">\[s(n,2) = n! H_n\]</span></p>
 </div>
 <div id="second-kind" class="section level3">
 <h3>Second Kind</h3>
@@ -686,6 +696,231 @@ print(stirs2, na.print=&quot; &quot; )</code></pre>
 <li><p>The ways to place n identical balls into m identical boxes (empty boxes allowed) is the coefficient of <span class="math">\(x^n\)</span> in <span class="math">\(G(x) = \frac{1}{(1-x)(1-x^2)\cdots(1-x^m)}\)</span>.</p></li>
 </ul>
 </div>
+</div>
+<div id="bell-numbers" class="section level2">
+<h2>Bell Numbers</h2>
+<p>Bell numbers follow the recurrence relation</p>
+<p><span class="math">\[B_n = \sum_{i=1}^n {n-1 \choose i-1} B_{n-i}\]</span></p>
+<p>with <span class="math">\(B_0 = 1\)</span> (only one partition of the empty set).</p>
+<pre class="r"><code># returns a vector with the first (max+1) bell numbers
+# pre: max &gt; 0
+bell &lt;- function(max) {
+  result &lt;- c(1,rep(NA,max-1)) # B(0) = 1
+  
+  for (n in 1:max) {
+    is = 1:n
+    result[n+1] &lt;- sum( choose(n-1,is-1)*result[1+n-is] )
+  }
+  
+  result
+}
+
+print(data.frame(n=0:12, Bn=bell(12)), digits=7, row.names=FALSE)</code></pre>
+<pre><code>##   n      Bn
+##   0       1
+##   1       1
+##   2       2
+##   3       5
+##   4      15
+##   5      52
+##   6     203
+##   7     877
+##   8    4140
+##   9   21147
+##  10  115975
+##  11  678570
+##  12 4213597</code></pre>
+<p>The Bell number <span class="math">\(B_n\)</span> gives the number of partitions of a set of size <span class="math">\(n\)</span>.</p>
+<p>Eg, for set <span class="math">\(\{1,2,3\}\)</span>, with <span class="math">\(n=3\)</span>, <span class="math">\(B_3=5\)</span> since there are five different ways to partition it (the order is irrelevant),</p>
+<p><span class="math">\[\{ \{a\}, \{b\}, \{c\} \}~;~
+\{ \{a\}, \{b, c\} \}~;~
+\{ \{b\}, \{a, c\} \}~;~
+\{ \{c\}, \{a, b\} \}~;~
+\{ \{a, b, c\} \}\]</span></p>
+<pre class="r"><code>bell(3)[4] # returns B_3</code></pre>
+<pre><code>## [1] 5</code></pre>
+<p>They can also be computed via Stirling numbers of the 2nd kind:</p>
+<p><span class="math">\[B_n = \sum_{k=0}^n S(n,k)\]</span></p>
+<pre class="r"><code>library(partitions) # http://cran.r-project.org/web/packages/partitions/vignettes/setpartitions.pdf
+
+listParts(3)</code></pre>
+<pre><code>## [[1]]
+## [1] (1,2,3)
+## 
+## [[2]]
+## [1] (1,3)(2)
+## 
+## [[3]]
+## [1] (1,2)(3)
+## 
+## [[4]]
+## [1] (2,3)(1)
+## 
+## [[5]]
+## [1] (1)(2)(3)</code></pre>
+<pre class="r"><code># returns, for each row, from which partition a given element belongs to
+as.matrix(t(setparts(3)), ncol=3)</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]    1    1    1
+## [2,]    1    2    1
+## [3,]    1    1    2
+## [4,]    2    1    1
+## [5,]    1    2    3</code></pre>
+</div>
+<div id="partitions-of-an-integer" class="section level2">
+<h2>Partitions of an Integer</h2>
+<p>The five partitions of <span class="math">\(4\)</span> are <span class="math">\(4=3+1=2+2=2+1+1=1+1+1+1\)</span>.</p>
+<p>The number of partitions of an integer is given by the partition function p(n) which does not have a closed form.</p>
+<p>However we can compute its value using the following recurrence relation</p>
+<p><span class="math">\[p(n) = \sum_{k \in \mathbb{Z}-\{0\}} (-1)^{k-1} p\big(n-\frac{k(3k-1)}{2}\big) = p(n-1) + p(n-2) - p(n-5) - p(n-7) + p(n-12) \ldots \]</span></p>
+<p>with <span class="math">\(p(0)=1\)</span> and <span class="math">\(p(n)=0, n \lt 0\)</span>.</p>
+<p>Package <code>partitions</code> can used to enumerate the partitions of an integer:</p>
+<pre class="r"><code>library(partitions)
+
+n &lt;- 4
+m &lt;- as.matrix(t(parts(n)), ncol=n)
+m[m==0] = NA
+print(m, na.print=&quot;&quot;)</code></pre>
+<pre><code>##      [,1] [,2] [,3] [,4]
+## [1,]    4               
+## [2,]    3    1          
+## [3,]    2    2          
+## [4,]    2    1    1     
+## [5,]    1    1    1    1</code></pre>
+<pre class="r"><code>P(4) # just the number of partitions of given integer</code></pre>
+<pre><code>## [1] 5</code></pre>
+<p>If the ordering matters (ie, <span class="math">\(1+4 \neq 4+1\)</span>):</p>
+<pre class="r"><code>t(compositions(5))</code></pre>
+<pre><code>##                
+##  [1,] 5 0 0 0 0
+##  [2,] 1 4 0 0 0
+##  [3,] 2 3 0 0 0
+##  [4,] 1 1 3 0 0
+##  [5,] 3 2 0 0 0
+##  [6,] 1 2 2 0 0
+##  [7,] 2 1 2 0 0
+##  [8,] 1 1 1 2 0
+##  [9,] 4 1 0 0 0
+## [10,] 1 3 1 0 0
+## [11,] 2 2 1 0 0
+## [12,] 1 1 2 1 0
+## [13,] 3 1 1 0 0
+## [14,] 1 2 1 1 0
+## [15,] 2 1 1 1 0
+## [16,] 1 1 1 1 1</code></pre>
+<p>The package is also able to return the partitions restricted to a certain maximum size:</p>
+<pre class="r"><code>t(restrictedparts(6,3))    # partition of 6 up to 3 partitions</code></pre>
+<pre><code>##           
+## [1,] 6 0 0
+## [2,] 5 1 0
+## [3,] 4 2 0
+## [4,] 3 3 0
+## [5,] 4 1 1
+## [6,] 3 2 1
+## [7,] 2 2 2</code></pre>
+<pre class="r"><code>R(3,6, include.zero =TRUE) # just the number</code></pre>
+<pre><code>## [1] 7</code></pre>
+</div>
+<div id="permutation-group" class="section level2">
+<h2>Permutation Group</h2>
+<p>A permutation group on set <span class="math">\(1, 2, \ldots, n\)</span> is a 1-1 mapping on itself. It is represented by <span class="math">\(\left( \begin{smallmatrix} 1 &amp; 2 &amp; \ldots &amp; n \cr a_1 &amp; a_2 &amp; \ldots &amp; a_n  \end{smallmatrix} \right)\)</span> where <span class="math">\(a_1a_2\ldots a_n\)</span> is a set arragement. The same permutation may have <span class="math">\(n!\)</span> representations. Eg, these two representations are equivalent:</p>
+<p><span class="math">\[\left(
+\begin{matrix}
+1 &amp; 2 &amp; 3 &amp; 4 \cr
+3 &amp; 1 &amp; 2 &amp; 4
+\end{matrix}
+\right)
+=
+\left(
+\begin{matrix}
+3 &amp; 1 &amp; 4 &amp; 2 \cr
+2 &amp; 3 &amp; 4 &amp; 1 
+\end{matrix}
+\right)
+\]</span></p>
+<p>Permutation multiplication receives two permutation groups and return the two mappings composition.</p>
+<p>Eg:</p>
+<p><span class="math">\[\left(
+\begin{matrix}
+1 &amp; 2 &amp; 3 &amp; 4 \cr
+3 &amp; 1 &amp; 2 &amp; 4
+\end{matrix}
+\right)
+.
+\left(
+\begin{matrix}
+3 &amp; 1 &amp; 2 &amp; 4 \cr
+2 &amp; 4 &amp; 3 &amp; 1 
+\end{matrix}
+\right)
+=
+\left(
+\begin{matrix}
+1 &amp; 2 &amp; 3 &amp; 4 \cr
+2 &amp; 4 &amp; 3 &amp; 1
+\end{matrix}
+\right)
+\]</span></p>
+<p>This operation is not commutative but it defines a group with the permutations of a given set.</p>
+<p>A quick reminder: given a set <span class="math">\(G\)</span> and an operation <span class="math">\((.) : G \times G \rightarrow G\)</span>, the tuple <span class="math">\((G,.)\)</span> is a <strong>group</strong> if it has the next four properties:</p>
+<ul>
+<li><p>The operation <span class="math">\((.)\)</span> is closed in <span class="math">\(G\)</span>, ie, <span class="math">\(x,y \in G \implies x . y \in G\)</span></p></li>
+<li><p>The operation is associative, ie, <span class="math">\(x,y,z \in G \implies (x . y) . z = x . (y . z)\)</span></p></li>
+<li><p>There is an identity element <span class="math">\(e \in G\)</span>, ie, <span class="math">\(x \in G \implies e . x = x . e = x\)</span></p></li>
+<li><p>For every <span class="math">\(x \in G\)</span> there is an inverse element <span class="math">\(x^{-1} \in G\)</span> such that <span class="math">\(x . x^{-1} = x^{-1} . x = e\)</span></p></li>
+</ul>
+<p>The identity element is <span class="math">\(e= \left( \begin{matrix} 1 &amp; 2 &amp; 3 &amp; 4 \cr 1 &amp; 2 &amp; 3 &amp; 4 \end{matrix} \right)\)</span> and the inverse is <span class="math">\(\left( \begin{matrix} 1 &amp; 2 &amp; 3 &amp; 4 \cr a_1 &amp; a_2 &amp; \ldots &amp; a_n \end{matrix} \right)^{-1} = \left( \begin{matrix} a_1 &amp; a_2 &amp; \ldots &amp; a_n \cr 1 &amp; 2 &amp; 3 &amp; 4 \end{matrix} \right) \)</span></p>
+<p>The group of all permutations of <span class="math">\(\{1,2,\ldots,n\}\)</span> over the composition is known as <strong>n-order symmetric group</strong>, or just <span class="math">\(S_n\)</span>.</p>
+<p>A more compact notation for, say, <span class="math">\(e= \left( \begin{matrix} 1 &amp; 2 &amp; 3 &amp; 4 &amp; 5\cr 5 &amp; 2 &amp; 3 &amp; 1 &amp; 4 \end{matrix} \right)\)</span> is <span class="math">\((154)(2)(3)\)</span> which is made by starting at the first position, <span class="math">\(1\)</span>, and travel the sequence <span class="math">\(1 \rightarrow 5 \rightarrow 4 \rightarrow 1\)</span> until we reach a cycle; then repeat for the elements not included yet.</p>
+<p>A theorem states that given <span class="math">\(p=(a_1a_2\cdots a_n)\)</span>, <span class="math">\(p^n=(1)(2)\cdots(n)=e\)</span>.</p>
+<p>Eg: <span class="math">\(p=(123)\)</span>, then <span class="math">\(p^2=p.p= \left( \begin{matrix} 1 &amp; 2 &amp; 3\cr 2 &amp; 3 &amp; 1 \end{matrix} \right) . \left( \begin{matrix} 1 &amp; 2 &amp; 3\cr 2 &amp; 3 &amp; 1 \end{matrix} \right) = \left( \begin{matrix} 1 &amp; 2 &amp; 3\cr 3 &amp; 1 &amp; 2 \end{matrix} \right) =(132)\)</span>. And <span class="math">\(p^3=p.p^2= \left( \begin{matrix} 1 &amp; 2 &amp; 3\cr 1 &amp; 2 &amp; 3 \end{matrix} \right) = (1)(2)(3)=e\)</span></p>
+<p>Def: for a <span class="math">\(p \in S_m\)</span>, the <strong>cyclic group</strong> generated by p is <span class="math">\(\left&lt;p\right&gt; = \{ p^n | 0 \leq n \lt k, p^k=e \}\)</span></p>
+<p>Theorem: For <span class="math">\(p\in S_m\)</span>, <span class="math">\(\left&lt;p\right&gt;\)</span> is a subgroup of <span class="math">\(S_m\)</span>.</p>
+</div>
+<div id="conjugacy-class" class="section level2">
+<h2>Conjugacy Class</h2>
+<p>Every permutation has format</p>
+<p><span class="math">\[(a_1a_2\cdots a_{k_1}) (b_1b_2\cdots b_{k_2}) \cdots (h_1h_2\cdots h_{k_m})\]</span></p>
+<p>where <span class="math">\(\sum_i k_i = n\)</span>.</p>
+<p>For <span class="math">\(S_n\)</span> we can use a more compact notation,</p>
+<p><span class="math">\[1^{c_1} 2^{c_2} \cdots n^{c_n}\]</span></p>
+<p>where <span class="math">\(\sum_k k.c_k = n\)</span></p>
+<p>Eg, in <span class="math">\(S_5\)</span>, <span class="math">\(1+1+3\)</span> can be represented by <span class="math">\(1^23^1\)</span>. The five partitions of <span class="math">\(S_5\)</span> would be written as <span class="math">\(4^1; 3^11^1; 2^2, 2^11^2, 1^4\)</span>.</p>
+<p>The conjugacy class over group <span class="math">\(G\)</span> of element <span class="math">\(a\in G\)</span> is</p>
+<p><span class="math">\[Cl(a) = \{ g\in G | x\in G, g = xax^{-1} \}\]</span></p>
+<p>All pair of elements <span class="math">\(a,b\in G\)</span> either belong to the same equivalence class and then <span class="math">\(Cl(a)=Cl(b)\)</span>, or do not and then <span class="math">\(Cl(a) \cap Cl(b)=\emptyset\)</span>.</p>
+<p>A conjugate class is an equivalent relation, partitioning <span class="math">\(G\)</span> into equivalence classes.</p>
+<p>Another reminder: A relation <span class="math">\(R\)</span> on set <span class="math">\(S\)</span> is an <strong>equivalence relation</strong> iff</p>
+<ul>
+<li><p><span class="math">\(xRX\)</span>, for all <span class="math">\(x\in S\)</span></p></li>
+<li><p><span class="math">\(xRy \implies yRx\)</span></p></li>
+<li><p><span class="math">\(xRy \and yRz \implies xRz\)</span></p></li>
+</ul>
+<p>An <strong>equivalence class</strong> of <span class="math">\(x\in S\)</span> is defined as <span class="math">\(\{y \in S | yRx \}\)</span>.</p>
+<p>For symmetric groups, permutations with the same notation <span class="math">\(1^{c_1} 2^{c_2} \cdots n^{c_n}\)</span> belong to the same conjugacy class.</p>
+<p>Egs:</p>
+<p>Symmetric group <span class="math">\(S_3\)</span> has three conjugacy classes: <span class="math">\(1^3; 1^12^1; 3^1\)</span>.</p>
+<p>Symmetric group <span class="math">\(S_4\)</span> has five conjugacy classes: <span class="math">\(1^4; 1^22^1; 2^2; 1^13^1; 4^1\)</span>.</p>
+<p>The conjugacy class <span class="math">\(2^2\)</span> of <span class="math">\(S_4\)</span> is composed of 3 different permutations: <span class="math">\((12)(34); (13)(24); (14)(23)\)</span>.</p>
+<p>The conjugacy class <span class="math">\(1^13^1\)</span> of <span class="math">\(S_4\)</span> is composed of 8 different permutations: <span class="math">\((123)(4); (124)(3); (132)(4); (134)(2); (142)(3); (143)(2); (234)(1); (243)(1)\)</span>.</p>
+<p>To compute the conjugacy class size <span class="math">\(1^{c_1} 2^{c_2} \cdots n^{c_n}\)</span> of the symmetric group <span class="math">\(S_n\)</span> use the following formula:</p>
+<p><span class="math">\[\frac{n!}{\prod_{k=1}^n k^{c_k} c_k!}\]</span></p>
+<p>Eg: conjugacy class <span class="math">\(1^13^1\)</span> of <span class="math">\(S_4\)</span> has <span class="math">\(\frac{4!}{1^1\times 1! \times 3^1 \times 1!} = 24/3 = 8\)</span> elements.</p>
+<p>Eg2: conjugacy class <span class="math">\(1^22^24^1\)</span> of <span class="math">\(S_{10}\)</span> has <span class="math">\(\frac{10!}{1^2 \times 2! \times 2^2 \times 2! \times 4^1 \times 1!}=56700\)</span> elements.</p>
+<p>The number of permutation in <span class="math">\(S_n\)</span> with <span class="math">\(m\)</span> cycles is given by the Stirling number of the first kind, <span class="math">\(s(n,m)\)</span>.</p>
+<p>Eg: <span class="math">\(s(5,4)=10\)</span> which corresponds to the 4-cycle permutations on <span class="math">\(S_5\)</span>, namely <span class="math">\((12)(3)(4)(5); (2)(13)(4)(5); (1)(2)(3)(14)(5); \ldots (1)(2)(3)(45)\)</span>.</p>
+</div>
+<div id="stabilizers-orbits" class="section level2">
+<h2>Stabilizers &amp; Orbits</h2>
+<p>Let <span class="math">\(G\)</span> be a permutation group on set <span class="math">\(S\)</span>, and <span class="math">\(x\in S\)</span>. The set</p>
+<p><span class="math">\[G_x = {g \in G | g(x) = x}\]</span></p>
+<p>is called the <strong>stabilizer</strong> of <span class="math">\(x\)</span>.</p>
+<p>Eg: If <span class="math">\(G = \{ e, (12)(3)(4), (1)(2)(34), (12)(34) \}\)</span>, <span class="math">\(G_1 = \{ e, (1)(2)(34)\}\)</span></p>
+<p>The subset of all images of <span class="math">\(x\in S\)</span> under permutations of group <span class="math">\(G\)</span>, is called the <strong>orbit</strong> of <span class="math">\(x\)</span> in <span class="math">\(G\)</span>,</p>
+<p><span class="math">\[G(x) = \{ g(x) | g \in G \}\]</span></p>
+<p>Orbits are equivalence classes of <span class="math">\(G\)</span>, and follow the property <span class="math">\(|G| = |G_x| |G(x)|\)</span> known as the <em>Orbit-stabilizer theorem</em>.</p>
+<p>Eg: If <span class="math">\(G = \{ e, (12)(3)(4), (1)(2)(34), (12)(34) \}\)</span>, <span class="math">\(G(1) = \{ 1, 2\}\)</span> since for <span class="math">\(g=(12)(3)(4), g(1)=2\)</span> and for <span class="math">\(g=e, g(1)=1\)</span> (no other values are possible for this <span class="math">\(G\)</span>).</p>
+<p>The previous property also holds: <span class="math">\(|G|=4\)</span>, <span class="math">\(|G_1|\times|G(1)|=4\)</span></p>
 </div>
 <div id="inclusion-exclusion-principle" class="section level2">
 <h2>Inclusion-Exclusion Principle</h2>
@@ -741,11 +976,6 @@ print(stirs2, na.print=&quot; &quot; )</code></pre>
 </center>
 
 <p>This is a very complex problem, we only know a small set of Ramsey numbers. Even <span class="math">\(R(5,5)\)</span> is unknown, but we know that it must lie between <span class="math">\([43,49]\)</span>. Detailed info at <a href="http://mathworld.wolfram.com/RamseyNumber.html">Wolfram’s Mathworld</a>.</p>
-<!-- ----------------------------------------------------------------------------- -->
-
-
-
-
 </div>
 
 

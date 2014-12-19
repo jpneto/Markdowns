@@ -570,3 +570,89 @@ x_smooth <- opt.vals$x
 plot(xs,x_corrupt, type='l')
 lines(xs,x_smooth, col="red", lwd=2, type='l')
 ```
+
+## Margin Classifiers
+
+```{r}
+df <- data.frame(X1=c(1,2,3,4,5,6,8),  # the data
+                 X2=c(4,5,6,5,3,5,6),
+                 Y =c(-1,-1,-1,-1,1,1,1) )
+
+plot(df$X1, df$X2, col=df$Y+3, pch=19)
+
+# separate both classes and place the coordinates into matrices
+
+n <- 2 # number of dimensions (herein, X1 and X2)
+plus1  <- matrix(c(df$X1[df$Y== 1], df$X2[df$Y== 1]), ncol=2)
+minus1 <- matrix(c(df$X1[df$Y==-1], df$X2[df$Y==-1]), ncol=2)
+
+cvxcode <- "
+   variables a(n) b(1) u(R) v(Q);
+   minimize( ones(1,R)*u + ones(1,Q)*v );
+   P1 * a - b >= 1-u;
+   P2 * a - b <= -(1-v);
+   u >= 0;
+   v >= 0;
+  "
+```
+
+Variables `u` and `v` are slack variables that allow the algorithm to fit non-separable sets. The values 1 and -1 at the constraints are the initial 'width' of the hyper-plane that separates the two datasets. In two dimensions, vector `a` consists of two coordinates (X1 and X2) while `b` is just a number, ie, a 2D hyperplane is just a line.
+
+```{r}
+opt.vals <- CallCVX(cvxcode, 
+                    const.vars=list(n=n, P1=plus1, R=nrow(plus1), P2=minus1, Q=nrow(minus1)),
+                    opt.var.names=c("a","b"), 
+                    setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+
+a <- x_smooth <- opt.vals$a # the separating line is given by  a_1 x_1 + a_2 x_2 + b = 0
+b <- x_smooth <- opt.vals$b
+
+plot(df$X1, df$X2, col=df$Y+3, pch=19)
+abline(-b/a[2], -a[1]/a[2], col="purple", lwd=2, lty=2)
+```
+
+## Max Margin with Outliers
+
+Let's introduce one outlier and some extra points:
+
+```{r}
+df <- data.frame(X1=c(1,2,2,3,3,3.5,4,5,6,8,6,5,3.5),  # the data
+                 X2=c(4,4.5,5,4.5,4,6,5,3,5,6,4,4,4.5),
+                 Y =c(-1,-1,-1,-1,-1,-1,-1,1,1,1,1,1,1) )
+
+n <- 2 # number of dimensions (herein, X1 and X2)
+plus1  <- matrix(c(df$X1[df$Y== 1], df$X2[df$Y== 1]), ncol=2)
+minus1 <- matrix(c(df$X1[df$Y==-1], df$X2[df$Y==-1]), ncol=2)
+
+plot(df$X1, df$X2, col=df$Y+3, pch=19)
+```
+
+With outliers we should try to keep the slacks as small as possible, but allowing some weight to the margin size that separates both classes. The margin size is proportional to the euclidean norm of `a`, and so the minimization can be expressed as
+
+$$\min \|a\| + \gamma (1^Tu + 1^Tv)$$
+
+where $\gamma$ is a parameter that weights the importance of the slack sizes. usually, the user should test with different $\gamma$ values to find a suitable one. Herein we'll use $\gamma=2.0$.
+
+```{r}
+cvxcode <- "
+   variables a(n) b(1) u(R) v(Q);
+   minimize( norm(a) + 2*(ones(1,R)*u + ones(1,Q)*v) );
+   P1 * a - b >= 1-u;
+   P2 * a - b <= -(1-v);
+   u >= 0;
+   v >= 0;
+  "
+
+opt.vals <- CallCVX(cvxcode, 
+                    const.vars=list(n=n, P1=plus1, R=nrow(plus1), P2=minus1, Q=nrow(minus1)),
+                    opt.var.names=c("a","b"), 
+                    setup.dir="C:\\Users\\jpn\\Documents\\Software\\cvx")
+
+
+a <- x_smooth <- opt.vals$a # the separating line is given by  a_1 x_1 + a_2 x_2 + b = 0
+b <- x_smooth <- opt.vals$b
+
+plot(df$X1, df$X2, col=df$Y+3, pch=19)
+abline(-b/a[2], -a[1]/a[2], col="purple", lwd=2, lty=2)
+```

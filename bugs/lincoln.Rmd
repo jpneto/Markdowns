@@ -48,7 +48,7 @@ run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.1
   modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
   if (length(data)>0)                 # If there's any data available...
     modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
-  modelCompile()                      # BRugs command tells BUGS to compile the model
+  modelCompile(n.chains)              # BRugs command tells BUGS to compile the model
   
   if (missing(init.func)) {
     modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain

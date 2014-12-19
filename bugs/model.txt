@@ -1,29 +1,22 @@
 
-# BUGS model specification begins ...
+  model {
 
-model {
+      # Likelihood function
 
-  for( i in 1 : N ) {
-     y[i]   ~  dnorm(mu[i], tau[i])  # likelihood
-     mu[i]  <- lambda[G[i]]          # prior for mean
-     tau[i] <- lambdaTau[G[i]]       # prior for precision
-     G[i]   ~  dcat(P[])             # the cluster attributions for each y_i
-  }   
+      phi <- -log(choose1 / choose2) + CZERO
+      dummy <- 0
+      dummy ~ dpois( phi )
+      CZERO <- 10000    # for the zero's trick
 
-  P[1:2] ~ ddirch(alpha[])           # dirichlet distribution (in this case just for 2 clusters)
-  alpha[1] <- 0.5                    # It generalizes the beta (with K=2 we could have used the beta), and
-  alpha[2] <- 0.5                    # is the conjugate for the categorical distribution
+      # compute binomial coefficients
 
-  lambda[1] ~ dnorm(0.0, 1.0E-6)     # hyperparameters for mean
-  lambda[2] <- lambda[1] + theta
-  theta ~ dnorm(0.0, 1.0E-6)I(0.0, )
+      choose1 <- exp( loggam(N-K+1) - (loggam(n-k+1) + loggam(N-K-(n-k)+1)) ) # choose(N-K,n-k)
+      choose2 <- exp( loggam(N+1)   - (loggam(n+1)   + loggam(N-n+1)) )       # choose(N,n)
 
-  lambdaTau[1] ~ dgamma(0.01,0.01)   # hyperparameters for precision/standard deviation
-  lambdaTau[2] ~ dgamma(0.01,0.01)
+      # Priors
 
-  sigma[1] <- 1 / sqrt(lambdaTau[1])
-  sigma[2] <- 1 / sqrt(lambdaTau[2])
-}
+      N ~ dcat(pN[])  # using jeffrey's prior p(N) propto 1/N
 
-# ... BUGS model specification ends.
+      # N ~ dunif(m, M)   # using an uniform prior (too sensitive to M)
+  }
 
