@@ -1,22 +1,32 @@
 
   model {
 
-      # Likelihood function
+      # Likelihood function 
 
-      phi <- -log(choose1 / choose2) + CZERO
+      phi <- -log(choose1 * binom1 * choose2 * choose3 * binom2) + CZERO
       dummy <- 0
       dummy ~ dpois( phi )
-      CZERO <- 10000    # for the zero's trick
+      CZERO <- 1000000    # for the zero's trick
 
       # compute binomial coefficients
+      # cf. http://stats.stackexchange.com/questions/62418/binomial-coefficient-in-jags
+      choose1 <- exp( loggam(n+1) - (loggam(k1+1) + loggam(n-k1+1)) )           # choose(n,k1)
+      binom1  <- pow(p1, k1) * pow(1-p1, n-k1)
 
-      choose1 <- exp( loggam(N-K+1) - (loggam(n-k+1) + loggam(N-K-(n-k)+1)) ) # choose(N-K,n-k)
-      choose2 <- exp( loggam(N+1)   - (loggam(n+1)   + loggam(N-n+1)) )       # choose(N,n)
+      choose2 <- exp( loggam(k1+1) - (loggam(c+1) + loggam(k1-c+1)) )           # choose(k1,c)
+      choose3 <- exp( loggam(n-k1+1) - (loggam(k2-c+1) + loggam(n-k1-k2+c+1)) ) # choose(n-k1,k2-c)
+      binom2  <- pow(p2, k2) * pow(1-p2, n-k2)
 
-      # Priors
+      # Priors 
 
-      N ~ dcat(pN[])  # using jeffrey's prior p(N) propto 1/N
+      p1 ~ dunif(0,1)
+      p2 ~ dunif(0,1)
+      n  ~ dunif(m1,m2)         # uniform prior
+      #n ~ dexp(0.001)I(m1,m2)  # truncated exponential prior (another option for the prior of n)
 
-      # N ~ dunif(m, M)   # using an uniform prior (too sensitive to M)
+      # Some needed constants
+
+      m1 <- k1+k2-c    # the minimum possible number of errors
+      m2 <- 350        # we don't know the max, but let's allow some breathing space
   }
 

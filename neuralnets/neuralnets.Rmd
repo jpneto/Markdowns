@@ -1,11 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T,
-               fig.width = 6, fig.height = 6)
-```
-Neural Networks
-========================================================
+---
+title: "Neural Networks"
+author: "João Neto"
+date: "May 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 4
+    fig_height: 4
+cache: TRUE
+---
 
 A neural network (NN) model is very similar to a non-linear regression model, with the exception that the former can handle an incredibly large amount of model parameters. For this reason, neural network models are said to have the ability to approximate any continuous function.
 
@@ -13,14 +17,14 @@ Neural network is very good at learning non-linear function and also multiple ou
 
 R has several packages for dealing with NNs, like `neuralnet`, `nnet` or `RSNNS`.
 
-Using package neuralnel
+Using package neuralnet
 ---------------
 
 From [http://gekkoquant.com/2012/05/26/neural-networks-with-r-simple-example/](http://gekkoquant.com/2012/05/26/neural-networks-with-r-simple-example/)
 
-```{r}
-library("neuralnet")
- 
+```{r, message=FALSE}
+library(neuralnet)
+
 #Going to create a neural network to perform square rooting (using backpropagation)
 #Type ?neuralnet for more information on the neuralnet library
  
@@ -43,7 +47,9 @@ print(net.sqrt)
 #Plot the neural network
 plot(net.sqrt)
 ```
+
 <center><img src="nnet1.png" height="50%" width="50%""></center>
+
 ```{r}
 #Test the neural network on some training data
 testdata <- as.data.frame((1:10)^2) #Generate some squared numbers
@@ -89,9 +95,12 @@ nn <- neuralnet(setosa+versicolor+virginica ~
                             +Petal.Width,
                 data=nnet_iristrain, 
                 hidden=c(3))
+
 plot(nn)
 ```
+
 <center><img src="nnet1.png" height="50%" width="50%""></center>
+
 ```{r}
 mypredict <- compute(nn, iris[-5])$net.result
 # Put multiple binary output to categorical output
@@ -109,6 +118,7 @@ Using package nnet
 From [http://www.r-bloggers.com/visualizing-neural-networks-from-the-nnet-package/](http://www.r-bloggers.com/visualizing-neural-networks-from-the-nnet-package/)
 
 Let's use the iris dataset as an example:
+
 ```{r}
 library(nnet)
 
@@ -118,24 +128,9 @@ samp    <- c(sample(1:50,25), sample(51:100,25), sample(101:150,25))
 nn.iris <- nnet(ir[samp,], targets[samp,], size = 2, rang = 0.1,decay = 5e-4, maxit = 200)
 ```
 
-This is a plot function for nnet neural nets:
+This is a plot function for nnet neural nets called `plotnet`. Read [https://beckmw.wordpress.com/2013/11/14/visualizing-neural-networks-in-r-update/](https://beckmw.wordpress.com/2013/11/14/visualizing-neural-networks-in-r-update/) for visualizing options.
 
-```{r}
-#import function from Github
-require(RCurl)
-
-root.url<-'https://gist.github.com/fawda123'
-raw.fun<-paste(
-  root.url,
-  '5086859/raw/71593216393fe43546e8cc4392d5838b8d35c7e1/nnet_plot_fun.r',
-  sep='/'
-  )
-script<-getURL(raw.fun, ssl.verifypeer = FALSE)
-eval(parse(text = script))
-rm('script','raw.fun')
-```
-
-The function has several arguments that affect the plotting method:
+Here are some:
 
 + mod.in  model object for input created from nnet function
 + nid	logical value indicating if neural interpretation diagram is plotted, default T
@@ -155,25 +150,9 @@ The function has several arguments that affect the plotting method:
 Now let's plot the previous trained neural net:
 
 ```{r}
-require(scales)
+library(NeuralNetTools)
 
-#plot the model with different default values for the arguments
-par(mar=numeric(4),family='serif')
-plot.nnet(nn.iris, pos.col='blue', neg.col='red', alpha.val=0.7, rel.rsc=4,
-          circle.cex=8, cex=1.4, circle.col='gray')
-```
-
-And getting the NN's weights:
-
-```{r}
-plot.nnet(nn.iris,wts.only=T)
-```
-
-This plot function allows to filter the neurons that we want to present the connections using params all.in and all.out:
-
-```{r}
-plot.nnet(nn.iris, pos.col='blue', neg.col='red', alpha.val=0.7, rel.rsc=4,
-          circle.cex=8, cex=1.4, circle.col='gray',all.in='Sepal W.',all.out='v')
+plotnet(nn.iris, alpha=0.6)
 ```
 
 Using NNs via the Caret package
@@ -184,12 +163,12 @@ The caret package (short for classification and regression training) contains fu
 Check [http://caret.r-forge.r-project.org/modelList.html](http://caret.r-forge.r-project.org/modelList.html) for a list of available methods.
 
 ```{r}
-require(quantmod) 
-require(nnet)
-require(caret)
+library(quantmod) 
+library(nnet)
+library(caret)
 
-T <- seq(0,20,length=200)                       # time stamps
-y <- 1 + 3*cos(4*T+2) +.2*T^2 + rnorm(200)      # the time series we want to predict
+t <- seq(0,20,length=200)                       # time stamps
+y <- 1 + 3*cos(4*t+2) +.2*t^2 + rnorm(200)      # the time series we want to predict
 dat <- data.frame( y, x1=Lag(y,1), x2=Lag(y,2)) # create a triple with lagged values
 names(dat) <- c('y','x1','x2')
 head(dat)
@@ -200,8 +179,8 @@ ps <- predict(model, dat)
 
 #Examine results
 
-plot(T,y,type="l",col = 2)
-lines(T[-c(1:2)],ps, col=3)
+plot(t,y,type="l",col = 2)
+lines(t[-c(1:2)],ps, col=3)
 legend(1.5, 80, c("y", "pred"), cex=1.5, fill=2:3)
 ```
 

@@ -1,12 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T,
-               fig.width = 8, fig.height = 8)
-```
-
-Singular Value Decomposition
-========================================================
+---
+title: "Singular Value Decomposition"
+author: "João Neto"
+date: "March 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
 
 [wikipedia] An eigenvector of a square matrix $A$ is a non-zero vector $v$ that, when multiplied by $A$, yields the original vector multiplied by a single number $\lambda$; that is, $A.v = \lambda.v$. The number $\lambda$ is called the eigenvalue of $A$ corresponding to $v$.
 
@@ -123,6 +126,7 @@ evs$values[1] * (5*evs$vectors[,1])
 
 SVD
 ---
+
 So, given matrix $M:n\times m$ that performs some linear transformation, the SVD decomposes that transformation into three steps: $U:m\times m$, $D:m\times n$, $V:n\times n$, such that $M = U \times D \times V^T$
 
 + $V^T$ is the rotation to a more suitable axis system
@@ -140,7 +144,7 @@ These singular values can be seen as the semiaxes of an ellipsoid where the scal
 
 $U$ and $V$ are unitary matrixes, i.e. $U \times U^T=I \wedge V \times V^T=I$.
 
-A very good introduction.: [Singular Value Decomposition](Singular Value Decomposition)
+A very good introduction: [Singular Value Decomposition](Singular Value Decomposition)
 
 ```{r, tidy=FALSE}
 M <- matrix(c(1,0,0,0,
@@ -284,8 +288,10 @@ new.pts <- t(apply(pts,1,function(p) product %*% p))
 points(new.pts,type="l",col="red")
 text(0, -9, "red: transformed object")
 ```
+
 SVD & (Hang,Stretch,Align)
 -------------------------
+
 ```{r, tidy=FALSE}
 product
 m1.svd <- svd(product)

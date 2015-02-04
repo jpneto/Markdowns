@@ -1,24 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
-               fig.width = 5, fig.height = 5, fig.align='center')
-```
-
-<!-- Includes \cancel latex command -->
-<script type="text/x-mathjax-config">
-MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
-  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
-    cancel: ["Extension","cancel"],
-    bcancel: ["Extension","cancel"],
-    xcancel: ["Extension","cancel"],
-    cancelto: ["Extension","cancel"]
-  });
-});
-</script>
-
-Information Theory
-========================================================
+---
+title: "Information Theory"
+author: "João Neto"
+date: "January 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
 
 _This is based on the book of Thomas Cover "Elements of Information Theory" 2ed (2006)_
 

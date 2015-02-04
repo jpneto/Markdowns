@@ -1,0 +1,89 @@
+---
+title: "Color Palette"
+author: "João Neto"
+date: "January 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 4
+    fig_height: 4
+cache: TRUE
+---
+
+# R base
+
+R provides with some base palettes:
+
++ rainbow
+
++ heat.colors
+
++ terreain.colors
+
++ topo.colors
+
++ cm.colors
+
+```{r}
+show_palette <- function(colors) {
+  image(1:n, 1, as.matrix(1:n), col = colors, 
+    xlab = "", ylab = "", xaxt = "n", 
+    yaxt = "n", bty = "n")
+}
+
+n <- 6
+show_palette(rainbow(n))
+show_palette(heat.colors(n))
+show_palette(terrain.colors(n))
+show_palette(topo.colors(n))
+show_palette(cm.colors(n))
+```
+
+There also a `alpha` parameter, from `[0,1]` for transparency.
+
+```{r, fig.width=8}
+par(mfrow=c(1,2))
+show_palette(rainbow(n, alpha=0.33))
+show_palette(rainbow(n, alpha =0.66))
+```
+
+For greyscales:
+
+```{r}
+n <- 20
+greys <- grey(seq(0, 1, length = n))
+show_palette(greys)
+```
+
+
+# RColorBrewer
+
+[Ref](htpp://mran.revolutionanalytics.com/packages/info/?RColorBrewer)
+
+> Cindy Brewer [website](http://colorbrewer2.org/) helps you choose the appropriate color scale for you map depending on your data type: qualitative, sequential or diverging (with a neutral color between two extremes).
+ 
+There are 3 types of palettes, sequential, diverging, and qualitative.
+
++ Sequential palettes are suited to ordered data that progress from low to high
+
++ Diverging palettes put equal emphasis on mid-range critical values and extremes at both ends of the data range
+
++ Qualitative palettes are best suited to representing nominal or categorical data
+
+```{r, fig.width=8, fig.height=8}
+# install: install.packages('RColorBrewer')
+library(RColorBrewer)
+
+display.brewer.all() 
+```
+
+To get the colors of a given palette:
+
+```{r}
+brewer.pal(11,"Spectral")
+display.brewer.pal(11,"Spectral")
+```
+
+ggplot2 can use these palettes via the [scale_brewer](http://docs.ggplot2.org/current/scale_brewer.html) option.
+

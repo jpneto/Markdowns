@@ -1,46 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = FALSE}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = TRUE, echo = TRUE, dev='svg',
-               fig.width = 5, fig.height = 5, fig.align='center')
-```
-
-```{r set-options, echo=FALSE, cache=FALSE}
-options(width = 300)
-```
-
-<!-- Includes \cancel latex command -->
-<script type="text/x-mathjax-config">
-MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
-  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
-    cancel: ["Extension","cancel"],
-    bcancel: ["Extension","cancel"],
-    xcancel: ["Extension","cancel"],
-    cancelto: ["Extension","cancel"]
-  });
-});
-</script>
-
-Distributions
-========================================================
-
-+ [Discrete Distributions](#discrete)
-  + [Discrete Uniform](#dunif)
-  + [Bernoulli](#bernoulli)
-  + [Binomial](#binomial)
-  + [Multinomial](#multinomial)
-  + [Hypergeometric](#hypergeometric)
-  + [Poisson](#poisson)
-  + [Geometric](#geometric)
-  + [Negative Binomial](#negbinomial)
-+ [Continuous Distributions](#continuous)
-  + [Uniform](#unif)
-  + [Exponential](#exp)
-  + [Erlang](#erlang)
-  + [Gamma](#gamma)
-  + [Beta](#beta)
-  + [Normal](#normal)
-  + [Dirichlet](#dirichlet)
+---
+title: "Distributions"
+author: "João Neto"
+date: "May 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
 
 We can divide these distributions into main families:
 
@@ -91,10 +60,10 @@ R has four type of functions for getting information about a family of distribut
 + p* returns the c.d.f.
 + q* returns the quantiles (eg, percentiles)
 
-<a name="discrete">Discrete Distributions
+Discrete Distributions
 ========================================================
 
-<a name="dunif">Discrete Uniform Distribution
+Discrete Uniform Distribution
 -----------------------------------
 
 Given a positive number $N$ of events, a discrete uniform assigns an equal probability for each, namely $1/N$. For $Y \sim Unif(N)$
@@ -142,7 +111,7 @@ If the samples are not numbered, there is a method called _mark and recapture_ t
 
 > A portion of the population is captured, marked, and released. Later, another portion is captured and the number of marked individuals within the sample is counted. Since the number of marked individuals within the second sample should be proportional to the number of marked individuals in the whole population, an estimate of the total population size can be obtained by dividing the number of marked individuals by the proportion of marked individuals in the second sample. [wikipedia](http://en.wikipedia.org/wiki/Capture-recapture)
 
-<a name="bernoulli">Bernoulli Distribution
+Bernoulli Distribution
 -----------------------------------
 
 A Bernoulli random variable, say $Y$, follows the discrete _Bernoulli distribution_ that can have just two values, 1 meaning _success_ and 0 meaning _failure_, namely $P(Y=1)=p$ and $P(Y=0)=q=1-p$. For each and every observation -- a **Bernoulli trial** -- the value $p$ stays constant. 
@@ -167,7 +136,7 @@ n=10; p=1/4
 sample(0:1, size=n, replace=T, prob=c(1-p,p))
 ```
 
-<a name="binomial">Binomial Distribution
+Binomial Distribution
 ------------------------
 
 This distribution counts the number successes in a fixed number of Bernoulli trials. The distribution appears in problems where:
@@ -226,7 +195,7 @@ pbinom(30,n,success)
 + Bernoulli(p) = binomial(1,p), which means that the Bernoulli distribution is just a special case of a binomial.
 + With large enough $n$, the distribution $Normal(\mu=np,\sigma^2=np(1-p)$ approximates the binomial. This is expected, since the binomial is just the sum of $n$ iid bernoulli random variables from where the Central Limit Theorem can be applied.
 
-<a name="multinomial">Multinomial Distribution
+Multinomial Distribution
 -------------------------
 
 For $n$ independent trials each of which leads to a success for exactly one of $k$ categories, with each category having a given fixed success probability $p_k$, the multinomial distribution gives the probability of any particular combination of numbers of successes $(x_1, x_2, \ldots, x_k)$ for the various categories.
@@ -263,7 +232,7 @@ A: $p(X_1=1,X_2=2,X_3=3|n=6,p_1=.2,p_2=.3,p_3=.5) = \frac{6!}{1!2!3!}0.2^1 0.3^2
 dmultinom(x=c(1,2,3), prob=c(.2,.3,.5))
 ```
 
-<a name="hypergeometric">Hypergeometric Distribution
+Hypergeometric Distribution
 -------------------------
 
 The hypergeometric distribution models sampling from an urn without replacement.
@@ -328,7 +297,7 @@ sample(1:10,10,replace=T)
 sample(c(1,4,7),10,replace=T,prob=c(.5,.4,.1))
 ```
 
-<a name="poisson">Poisson Distribution
+Poisson Distribution
 -------------------------
 
 The Poisson is a distribution which counts the number of occurrences of rare events over a period of time or space. It expresses the probability of a given number of events occurring in a fixed interval of time and/or space if these events occur with a known average rate and independently of the time since the last event.
@@ -371,7 +340,7 @@ plot(lambda.vals, fy.vals,
 + If for every $t>0$ the number of arrivals in the time interval [0,t] follows the Poisson distribution with mean $\lambda t$, then the sequence of inter-arrival times are iid exponential random variables having mean $1/\lambda$.
 + The cdf $F(x|\lambda) = 1-F_{\chi^2}(2\lambda|2(x+1))$ for an integer $x$
 
-<a name="geometric">Geometric Distribution
+Geometric Distribution
 -----------------
 
 The geometric distribution counts the number of Bernoulli trials needed to get one success. For example, suppose a die is thrown repeatedly until a $1$ appears. The probability distribution of the number of times it is thrown is a geometric distribution with $p = \frac{1}{6}$.
@@ -397,7 +366,7 @@ this means that the number of failures does not enter in account to find the pro
 
 + The exponential distribution is the continuous analogue of the geometric distribution. If $X$ is an exponentially distributed random variable with parameter $\lambda$, then $\left \lfloor{X}\right \rfloor$ is a geometrically distributed random variable with parameter $p=1-e^{-\lambda}$
 
-<a name="negbinomial">Negative Binomial Distribution
+Negative Binomial Distribution
 -----------------
 
 The negative binomial distribution is a discrete probability distribution of the number of successes in a sequence of iid Bernoulli trials with probability of success $p$ before a _specified_ (non-random) number of failures (denoted $r$) occurs. It is also called Pascal Distribution (when $r$ is an integer).
@@ -426,7 +395,7 @@ plot(xs, ys, type="h", lwd=1, col="red", main="number of failures until success"
 + The geometric distribution is a special case of the Negative Binomial, $Geom(p) = NB(1,1-p)$
 + The Negative Binomial is seen as a robust alternative to the Poisson, which approaches the Poisson for large $r$, but which has larger variance than the Poisson for small $r$. $Poisson(\lambda) = \lim_{r \rightarrow \infty} NB(r,\frac{\lambda}{\lambda+r})$
 
-<a name="continuous">Continuous Distributions.
+Continuous Distributions.
 ========================================================
 
 Math Preliminaries
@@ -473,7 +442,7 @@ $$B(\alpha) = \frac{\prod_{i=1}^K \Gamma(\alpha_i)}{\Gamma(\sum_{i=1}^K \alpha_i
 
 for $\alpha = (\alpha_1, \alpha_2, \ldots, \alpha_K)$. This function is used in the definition of the [Dirichlet distribution](#dirichlet).
 
-<a name="unif">Uniform Distribution
+Uniform Distribution
 -----------------
 
 The uniform distribution $U(a,b)$ assigns the same density to all real values between $a$ and $b$ (and zero elsewhere). For $Y \sim U(a,b)$:
@@ -500,7 +469,7 @@ runif(5)                 # Five numbers between [0,1]
 runif(10,min=-4, max=7)  # Ten numbers between [-4,7]
 ```
 
-<a name="exp">Exponential Distribution
+Exponential Distribution
 -----------------
 
 This distribution describes the time between events in a Poisson process, i.e. a process in which events occur continuously and independently at a constant average rate. It is defined by the parameter $\lambda > 0$. Value $1/\lambda$ is a survival parameter in the sense that if a random variable $Y$ is the duration of time that a given biological or mechanical system manages to survive and $Y \sim Exp(1/\lambda)$ then the expected value of Y is $1/\lambda$.
@@ -554,7 +523,7 @@ Properties:
 + $Exp(\lambda) = Gamma(1,\lambda)$
 + $Exp(1) = \lim_{n \to \infty} n \times Beta(1,n)$
 
-<a name="gamma">Erlang Distribution
+Erlang Distribution
 -----------------
 
 In a Poisson process of rate $\lambda$, the waiting times between $k$ events have an Erlang distribution $Erlang(k,\lambda)$. So, if $k=1$, $Erlang(1,\lambda) = Exp(\lambda)$.
@@ -575,7 +544,7 @@ Properties:
 + If $X \sim Erlang(k,\lambda)$ then $aX \sim Erlang(k,\lambda/a), a \in \mathbb{R}$
 + If $X_i \sim Erlang(k_i,\lambda)$ then $\sum_i X_i \sim Erlang(\sum_i k_i, \lambda)$
 
-<a name="gamma">Gamma Distribution
+Gamma Distribution
 -----------------
 
 In a Poisson process with rate $\lambda$ the gamma distribution gives the time to the k^{th} event, so $Exp(\lambda) = Gamma(1,\lambda)$. But in this distribution $k$ can be any non-negative value, not necessarily an integer (the factorial function is replaced by the gamma _function_). Parameter $k$ is called _shape_ and $\lambda$ is called _rate_. For $Y \sim Gamma(k,\lambda)$:
@@ -610,7 +579,7 @@ legend(par('usr')[2], par('usr')[4], xjust=1,
 
 The properties of the Erlang also apply herein.
 
-<a name="beta">Beta Distribution
+Beta Distribution
 -----------------
 
 In a Poisson process, if $\alpha+\beta$ events occur in a time interval $T$, then the fraction of $T$ until $\alpha$ events occurs follows a $Beta(\alpha,\beta)$ distribution. Given $Y \sim Beta(\alpha,\beta), \alpha,\beta>0$:
@@ -649,7 +618,7 @@ Properties:
 + $Beta(1,1) = Uniform(0,1)$
 + $f(x|\alpha,\beta) = f(1-x|\beta,\alpha)$
 
-<a name="normal">Normal Distribution
+Normal Distribution
 -----------------
 
 The normal($\mu$,$\sigma^2$) distribution is used for continuous random variables that can take any value $-\infty \leq x < \infty$. 
@@ -702,7 +671,7 @@ Due to the CLT the normal distribution can be use to approximate certain distrib
 + $T(v) \approx Normal(0,1)$ for $v>>1$
 
 
-<a name="dirichlet">Dirichlet Distribution
+Dirichlet Distribution
 -----------------
 
 Given $K$ different events $1, 2, \ldots, K$, and that each event was observed $\alpha_i-1$ times, the Dirichlet pdf outputs a belief $x_i$ for each event $i$, where $\sum_i x_i = 1$. The Dirichlet distribution is the multidimensional generalization of the beta distribution.

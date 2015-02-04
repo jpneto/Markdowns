@@ -1,12 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T,
-               fig.width = 10, fig.height = 5)
-```
-
-Fourier Transform: A R Tutorial
-========================================================
+---
+title: "Fourier Transform: A R Tutorial"
+author: "João Neto"
+date: "March 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
 
 Main references:
 
@@ -160,6 +163,7 @@ The Fourier Transform sees _every_ trajectory (aka time signal, aka signal) _as 
 Given a trajectory the fourier transform (FT) breaks it into a set of related cycles that describes it. Each cycle has a __strength__, a __delay__ and a __speed__. These cycles are easier to handle, ie, compare, modify, simplify, and if needed, they can be used to reconstruct the original trajectory.
 
 The trajectory is processed thru a set of filters:
+
 + each filter gives us a cycle and the remainder of the trajectory 
 + filters are independent, each one catches a different part of the trajectory
 + there are enough filters to catch all of the trajectory, ie, the last filter leaves no trajectory remainder
@@ -167,8 +171,9 @@ The trajectory is processed thru a set of filters:
 The result cycles can be combined linearly, giving the same results no matter the mixing order.
 
 So, the FT algorithm receives a trajectory, apply its filters to find the appropriate cycles, and outputs the full set of cyclic components. There are two algorithms:
-+ the Discrete Fourier Transform (DFT) which requires $O(N^2)$ operations (for N samples)
-+ the Fast Fourier Transform (FFT) which requires $O(N log_2(N))$ operations
+
++ the Discrete Fourier Transform (DFT) which requires $O(n^2)$ operations (for $n$ samples)
++ the Fast Fourier Transform (FFT) which requires $O(n.log(n))$ operations
 
 This tutorial does not focus on the algorithms. There's a R function called `fft()` that computes the FFT. 
 
@@ -212,6 +217,7 @@ This is a Java Applet created using GeoGebra from www.geogebra.org - it looks li
 </center>
 
 So when moving:
+
 + the d slider makes the point moving in circles
 + the z slider makes the circular wider or narrower
 
@@ -355,6 +361,7 @@ get.trajectory <- function(X.k,ts,acq.freq) {
 ```
 
 Here's two useful functions:
+
 + `plot.frequency.spectrum()` plot a frequency spectrum of a given $X_k$
 + `plot.harmonic()` plots the i-th harmonic on the current plot
 
@@ -385,7 +392,7 @@ plot.harmonic <- function(Xk, i, ts, acq.freq, color="red") {
 
 Let's check that last eg. Notice that this plot is equal to the blue line in the animation:
 
-```{r known.trajectory, dependson="plot.fourier.series"}
+```{r known.trajectory, dependson="plot.fourier.series", warning=FALSE}
 X.k <- fft(c(4,0,0,0))                   # get amount of each frequency k
 
 time     <- 4                            # measuring time interval (seconds)
@@ -402,11 +409,12 @@ plot.harmonic(X.k,2,ts,acq.freq,"green")
 plot.harmonic(X.k,3,ts,acq.freq,"blue")
 ```
 
-The result has lots of harmonics. Some of them are possibly the result of noise, and hopefully will be very weak. usually, we will just need the strong harmonics: those that contribute meaningfully to the signal. 
+The result has lots of harmonics. Some of them are possibly the result of noise, and hopefully will be very weak. Usually, we will just need the strong harmonics: those that contribute meaningfully to the signal. 
 
-The highest meaningful sin wave frequency -- after the fft-analysis of the original waveform signal -- is at half the data acquisition frequency, because our input signal is composed of real avlues (ie, trajectory has no imaginary parts). The last useful bin is at acq.freq/2. The __Nyquist Frequency__ is half the sampling rate. The Nyquist frequency is the maximum frequency that can be detected for a given sampling rate. This is because in order to measure a wave you need at least two sample points to identify it (trough and peak).
+The highest meaningful sin wave frequency -- after the fft-analysis of the original waveform signal -- is at half the data acquisition frequency, because our input signal is composed of real values (ie, trajectory has no imaginary parts). The last useful bin is at acq.freq/2. The __Nyquist Frequency__ is half the sampling rate. The Nyquist frequency is the maximum frequency that can be detected for a given sampling rate. This is because in order to measure a wave you need at least one trough and one peak to identify it.
 
 One important point is that any signal can be described in two ways:
+
 + a _time domain_, the x-axis is a time variable and the y-axis the signal's amplitude
 + a _frequency domain_, the x-axis is a frequency variable and the y-axis the signal's amplitude
 
@@ -417,7 +425,9 @@ The DFT and the IFT are the mathematical tools that translate between these two 
 Examples
 --------
 
-Let's try with one eg. We'll make a trajectory given the following complex wave $f(t) = 2 + 0.75 \times sin(3wt) + 0.25 \times sin(7wt) + 0.5 \times sin(10wt)$
+Let's try with one eg. We'll make a trajectory given the following complex wave 
+
+$$f(t) = 2 + 0.75 \times sin(3wt) + 0.25 \times sin(7wt) + 0.5 \times sin(10wt)$$
 
 ```{r, dependson="plot.fourier.series"}
 acq.freq <- 100                    # data acquisition (sample) frequency (Hz)
@@ -455,7 +465,7 @@ plot.frequency.spectrum(X.k, xlimits=c(0,20))
 
 And if we only had the frequency peaks we could rebuild the signal:
 
-```{r}
+```{r, warning=FALSE}
 x.n <- get.trajectory(X.k,ts,acq.freq) / acq.freq  # TODO: why the scaling?
 plot(ts,x.n, type="l"); abline(h=0,lty=3)
 points(ts,trajectory,col="red",type="l") # compare with original
@@ -497,28 +507,28 @@ plot.show <- function(trajectory, time=1, harmonics=-1, plot.freq=FALSE) {
 
 A decreasing signal:
 
-```{r}
+```{r, warning=FALSE}
 trajectory <- 4:1
 plot.show(trajectory, time=2)
 ```
 
 A staircase signal:
 
-```{r}
+```{r, warning=FALSE}
 trajectory <- c(rep(1,5),rep(2,6),rep(3,7))
 plot.show(trajectory, time=2, harmonics=0:3, plot.freq=TRUE)
 ```
 
 A seesaw:
 
-```{r}
+```{r, warning=FALSE}
 trajectory <- c(1:5,2:6,3:7)
 plot.show(trajectory, time=1, harmonics=c(1,2))
 ```
 
 Assume this time-series with a strong noise component:
 
-```{r}
+```{r, warning=FALSE}
 set.seed(101)
 acq.freq <- 200
 time     <- 1
@@ -539,7 +549,7 @@ And we find a peak at the 3 Hz harmonics, as expected!
 
 There are several R libraries (surprise!) that produce this type of frequency plots. Here's one eg (the results are not exactly the same, which might be the consequence of slightly different algorithms...):
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(GeneCycle)
 
 f.data <- GeneCycle::periodogram(trajectory)

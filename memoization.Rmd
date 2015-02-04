@@ -1,0 +1,145 @@
+---
+title: "Memoization"
+author: "João Neto"
+date: "January 2015"
+output: html_document
+---
+
+Memoization is the ability to cache the results of previous function invocations in order
+to save time and space resources.
+
+The classical eg is the naïve recursive computation of the Fibonacci sequence:
+
+```{r}
+# pre: n>=0
+fib <- function(n) {
+  if (n<2) 
+    return(1)
+  
+  return (fib(n-1)+fib(n-2))
+}
+
+system.time(fib(25))
+system.time(fib(30))
+```
+
+The problem is that the same arguments are computed again and again. If we were able to 
+keep the intermediate results, the computation would be much faster:
+
+```{r}
+n <- 101
+results <- rep(NA,n)  # intermediate results
+
+fib2 <- function(n, results) {
+  if (!is.na(results[n+1]))  # answer already known
+    return (results[n+1])
+  
+  if (n<2) {
+    eval.parent(substitute(results[n+1] <- 1))  # needed: R does not have call by reference
+  } else {
+    eval.parent(substitute(results[n+1] <- fib2(n-1, results) + fib2(n-2, results)))
+  }
+  
+  return (results[n+1])
+}
+
+system.time(fib2(25, results))
+system.time(fib2(30, results))
+system.time(fib2(100, results))
+```
+
+There is a R package useful to memoize functions:
+
+```{r}
+library(memoise)
+```
+
+There are just three functions:
+
++ memoise -- memoise a function
+
++ forget -- resets the cache of a memoised function
+
++ is.memoised -- checks if a function is memoised
+
+```{r}
+a <- function(n) { runif(n) }
+
+memA <- memoise(a)
+
+replicate(5,    a(2))
+replicate(5, memA(2))
+```
+
+Notice, however, that it does not work that well with recursivity:
+
+```{r}
+fibM <- memoize(fib)
+
+system.time(fibM(25))
+system.time(fibM(30))
+system.time(fibM(33))
+```
+
+In this [post](http://adamleerich.com/2014/12/07/fibonacci-sequence-in-r-with-memoization/) there's an alternative solution:
+
+```{r}
+fibM <- (function() {
+ 
+    # The code here related to the cache *mostly* comes from the memoise
+    # package's object new_cache.
+ 
+    cache <- NULL
+ 
+    cache_reset <- function() {
+        cache <<- new.env(TRUE, emptyenv())
+        cache_set('0', 0)
+        cache_set('1', 1)
+    }
+ 
+    cache_set <- function(key, value) {
+        assign(key, value, envir = cache)
+    }
+ 
+    cache_get <- function(key) {
+        get(key, envir = cache, inherits = FALSE)
+    }
+ 
+    cache_has_key <- function(key) {
+        exists(key, envir = cache, inherits = FALSE)
+    }
+ 
+    cache_reset() # Initialize the cache
+  
+    # This is the function that gets returned by the anonymous function and
+    # becomes fibM.
+    function(n) {
+ 
+        nc <- as.character(n)
+ 
+        # Handle "vectors" by element
+        if (length(n) > 1) {
+            return(sapply(n, fibM))
+        }
+ 
+        # Cached cases
+        if (cache_has_key(nc)) 
+            return(cache_get(nc))
+ 
+        out <- fibM(n - 1) + fibM(n - 2)
+        cache_set(nc, out)
+        return(out)
+    }
+})()
+```
+
+Let's use it:
+
+```{r}
+ls(environment(fibM)$cache) # current environment (only base values are computed)
+fibM(30)
+ls(environment(fibM)$cache)
+
+system.time(fibM(33))
+```
+
