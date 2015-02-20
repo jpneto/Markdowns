@@ -1,0 +1,143 @@
+---
+title: "Image Manipulation with EBImage"
+author: "João Neto"
+date: "February 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 4
+---
+
+Ref:
+
++ [Introduction to EBImage](http://www.bioconductor.org/packages/release/bioc/vignettes/EBImage/inst/doc/EBImage-introduction.pdf)
+
++ [Image Analysis using EBImage](http://www.r-bloggers.com/r-image-analysis-using-ebimage/)
+
+From the authors:
+
+> EBImage is an R package which provides general purpose functionality for the reading, writing, processing and analysis of images. 
+
+```{r}
+# to install: source("http://bioconductor.org/biocLite.R"); biocLite("EBImage")
+library("EBImage")
+
+pic <- readImage("sicily.jpeg")
+display(pic)
+```
+
+Image Properties
+
+```{r}
+dim(pic)    # there are 3 matrices for RGB colors
+print(pic)  # the RGB values are from [0,1]
+```
+
+Change to Greyscale
+
+```{r}
+pic_bw <- pic
+colorMode(pic_bw) <- Grayscale
+display(pic_bw)
+```
+
+Adjust Brigthness
+
+```{r}
+pic1 <- pic + 0.1 # more light
+pic2 <- pic - 0.1 # less light
+par(mfrow=c(1,2))
+display(pic1)
+display(pic2)
+```
+
+Adjust Contrast
+
+```{r}
+pic1 <- pic * 0.5 # reduce contrast
+pic2 <- pic * 2   # increase contrast
+par(mfrow=c(1,2))
+display(pic1)
+display(pic2)
+```
+
+Gamma Correction
+
+```{r}
+pic1 <- pic ^ 2 
+pic2 <- pic ^0.7 
+par(mfrow=c(1,2))
+display(pic1)
+display(pic2)
+```
+
+Cropping
+
+```{r}
+display(pic[100:200,100:300,])
+```
+
+Rotating and Translating
+
+```{r}
+pic1 <- rotate(pic, 45)
+pic2 <- translate(rotate(pic, 45), c(150, 50))
+par(mfrow=c(1,2))
+display(pic1)
+display(pic2)
+```
+
+Other operations
+
+```{r}
+par(mfrow=c(3,2))
+display(pic > 0.5)
+display(transpose(pic))
+display(flip(pic))
+display(flop(pic))
+display(resize(pic,300,300))
+# applying a matrix affine transformation (check help file)
+m <- matrix(c(0.6, 0.2, 0, -0.2, 0.3, 300), nrow=3)
+display( affine(pic, m) )
+```
+
+Changing color layers
+
+```{r}
+imgk    <- channel(pic, 'rgb')
+imgk[236:276, 106:146, 1] = 1
+imgk[236:276, 156:196, 2] = 1
+imgk[236:276, 206:246, 3] = 1
+display(imgk)
+
+# make a color square inside a BW picture
+imgk    <- channel(pic, 'rgb')
+imgk_bw <- channel(pic_bw, 'rgb')
+r <- imgk_bw[,,,1]
+g <- imgk_bw[,,,1]
+b <- imgk_bw[,,,1]
+r[100:200, 200:300,] <- imgk[100:200, 200:300, 1]
+g[100:200, 200:300,] <- imgk[100:200, 200:300, 2]
+b[100:200, 200:300,] <- imgk[100:200, 200:300, 3]
+display(rgbImage(red=r, green=g, blue=b)) 
+```
+
+Filtering
+
+```{r}
+filter_low <- makeBrush(21, shape= 'disc', step=FALSE)^2
+filter_low <- filter_low/sum(filter_low)
+pic_low <- filter2(pic, filter_low)  # low pass, ie, blur
+display(pic_low)
+
+filter_high <- matrix(1, nc = 3, nr = 3)
+filter_high[2, 2] <- -8
+pic_high <- filter2(pic, filter_high)
+display(pic_high)   # high pass
+
+pic_med <- medianFilter(pic, 1.1)  # median filter  
+display(pic_med)   
+```
+
