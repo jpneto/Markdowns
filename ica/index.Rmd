@@ -1,0 +1,194 @@
+---
+title: "Independent Component Analysis"
+author: "João Neto"
+date: "February 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
+
+Refs:
+
++ J. Nathan Kutz - Data-Driven Modeling & Scientific Computation
+
++ Jonathon Shlens - [A Tutorial on Independent Component Analysis](http://arxiv.org/abs/1404.2986)
+
+Independent Component Analysis (ICA) is a signal processing technique that tries to unmix two different signals that were collected together. One instance is the cocktail problem: two different sound sources, say a music background and a conversation were recorded by two different microphones placed on distinct locations. We wish to extract the music and the conversation into different tracks so that we can listen to both. These type of problems where we wish to separtate mixed sources is usually called _blind source separation_ (BSS). ICA is a tool to solve BSS problems where the signal was produced by a linear mixture.
+
+ICA assumes the each received signals $X = (X_1, X_2, \ldots)$ are an unknown linear mixture $A$ of the unknown sources $S$:
+
+$$X = A.S$$
+
+being $A$ a full rank matrix, ie, $A$ as an inverse. 
+
+ICA also assumes that the signals are mutually independent, $p(S_i, S_j) = p(S_i)p(S_j)$, and that the signals $S_i$ do not come from a Gaussian source, which is necessary because ICA requires that the kurtosis must be different than zero (which does not happen in the Gaussian distribution).
+
+The goal of ICA is to find an approximation $W$ of $A^{-1}$ such that:
+
+$$\hat{S} = WX \approx S$$
+
+ICA is a generative model since the model describes how $X$ could be generated from $A$ and $X$.
+
+ICA tries to find $A$ by estimating the matrices of its SVD decomposition:
+
+$$A = U \Sigma V^T$$
+
+so $W$ should be, ideally,
+
+$$W = A^{-1} = V \Sigma^{-1} U^T$$
+
+since the inverse of a rotation matrix is its transpose ($V^{-1}=V^T$), and, since $A$ is invertible by assumption, the inverse of $\Sigma$ exists.
+
+ICA goes in three steps:
+
+1. Examine the covariance of the data to estimate $U^T$
+
+2. Also using the covariance, it estimates $\Sigma^{-1}$
+
+3. Finally, it uses the independence and kurtosis assumptions to estimate $V$
+
+Let's see how to compute these steps assuming two 2D signals $X_1$ and $X_2$ both with mean zero.
+
+The first step computes $U$, which is a rotation matrix by an angle $\theta$, in order to maximize the variance
+
+$$Var(\theta) = \sum_{j=1}^N (X_1(j) \cos \theta + X_2(j) \sin \theta)^2$$
+
+By making its derivative go zero, ie, $dVar/d\theta = 0$ and solving it for $\theta$, we get a maximum at:
+
+$$\theta_0 = \frac{1}{2} \tan^{-1} \Big[ \frac{-2 \sum_j X_1(j) X_2(j)}{\sum_j X_2^2(j) - X_1^2(j)} \Big]$$
+
+So, matrix $U^T$ is
+
+$$U^T = 
+\left[ \begin{array}{rr}
+\cos \theta_0 & \sin \theta_0\\
+-\sin \theta_0 & \cos \theta_0 \end{array} \right]$$
+
+So the principal component axes are $\theta_0$ and $\theta_0+\pi/2$ ($X_i$ are 2D) and their variances are:
+
+$$\sigma_1 = \sum_{j=1}^N \big(X_1(j) \cos \theta_0 + X_2(j) \sin \theta_0\big)^2$$
+
+$$\sigma_2 = \sum_{j=1}^N \big(X_1(j) \cos (\theta_0+\frac{\pi}{2}) + X_2(j) \sin(\theta_0+\frac{\pi}{2}\big)^2$$
+
+This makes step 2: 
+
+$$\Sigma^{-1} = 
+\left[ \begin{array}{cc}
+1/\sqrt{\sigma_1} & 0 \\
+0 & 1/\sqrt{\sigma_2} \end{array} \right]$$
+
+For step 3 we need to take this expression of normalized kurtosis,
+
+$$K(\theta) = \frac{1}{\overline{X}_1^2+\overline{X}_2^2} \sum_{j=1}^N (X_1(j) \cos \theta + X_2(j) \sin \theta)^4$$
+
+where $\overline{X}_i^2$ are the data after the transformation of $U$ and $\Sigma^{-1}$.
+
+We want to make it as small as possible to try to approximate the independence assumptions of the data. The angle $\phi_0$ that minimizes $K(\cdot)$ is given below in the code example (equation too large for my current laziness to write it in latex).
+
+<!-- $$\phi_0 = \frac{1}{4} \tan^{-1} \Big[ \frac{}{}  \Big]$$ -->
+
+The rotation matrix $V$ is then given by:
+
+$$V = 
+\left[ \begin{array}{rr}
+\cos \phi_0 & \sin \phi_0\\
+-\sin \phi_0 & \cos \phi_0 \end{array} \right]$$
+
+Putting all together, the reconstructed signal, $\hat{S}$ is
+
+$$\hat{S} = 
+\left[ \begin{array}{rr}
+\cos \phi_0 & \sin \phi_0\\
+-\sin \phi_0 & \cos \phi_0 \end{array} \right]
+\left[ \begin{array}{cc}
+1/\sqrt{\sigma_1} & 0 \\
+0 & 1/\sqrt{\sigma_2} \end{array} \right]
+\left[ \begin{array}{rr}
+\cos \theta_0 & \sin \theta_0\\
+-\sin \theta_0 & \cos \theta_0 \end{array} \right]
+$$
+
+## Eg: unmixing images
+
+Let's see an example where $X_1$ and $X_2$ are two images
+
+```{r}
+# to install: source("http://bioconductor.org/biocLite.R"); biocLite("EBImage")
+library("EBImage")
+
+# plot a picture
+show_pic <- function(pic, adjust=FALSE) {
+  dims <- dim(pic)
+  plot(c(0, dims[1]), c(0, dims[2]), type='n', xlab="", ylab="")
+  rasterImage(pic,0,0,dims[1],dims[2])        # present image
+}
+
+# plot two pictures side by side
+show_both_pics <- function(pic1, pic2) {
+  par(mfrow=c(1,2))
+  show_pic(pic1)
+  show_pic(pic2)
+}
+
+S1 <- readImage("sicily1.jpeg")
+S2 <- readImage("sicily2.jpeg")
+show_both_pics(S1, S2)
+```
+
+Let's mix both images
+
+```{r}
+A <- matrix(c(0.80, 0.20,
+              0.5, 0.67), ncol=2, byrow=TRUE)
+
+X1 <- A[1,1]*S1 + A[1,2]*S2
+X2 <- A[2,1]*S1 + A[2,2]*S2
+show_both_pics(X1, X2)
+```
+
+Step 1 is to find the angle with maximal variance:
+
+```{r}
+x1v <- scale(as.vector(X1), center=TRUE, scale=FALSE)   # make it a vector and center data around mean
+x2v <- scale(as.vector(X2), center=TRUE, scale=FALSE)
+
+theta0 <- 0.5*atan( -2*sum(x1v*x2v) / sum(x1v^2-x2v^2) ); # compute 1st principal direction
+Us <- matrix(c( cos(theta0), sin(theta0), 
+               -sin(theta0), cos(theta0)), ncol=2,byrow=TRUE)
+```
+
+Step 2 is finding the scaling of the principal components:
+
+```{r}
+sigma1 <- sum( (x1v*cos(theta0)     +x2v*sin(theta0))^2 )
+sigma2 <- sum( (x1v*cos(theta0-pi/2)+x2v*sin(theta0-pi/2))^2 )
+Sigma_inv <- matrix(c(1/sqrt(sigma1),       0, 
+                          0,          1/sqrt(sigma2)), ncol=2, byrow=TRUE)
+```
+
+Step 3 is the rotation to separability:
+
+```{r}
+X1bar <- Sigma_inv[1,1]*(Us[1,1]*X1+Us[1,2]*X2);
+X2bar <- Sigma_inv[2,2]*(Us[2,1]*X1+Us[2,2]*X2);
+
+x1vbar <- as.vector(X1bar)
+x2vbar <- as.vector(X2bar)
+
+phi0 <- 0.25*atan( -sum(2*(x1vbar^3)*x2vbar-2*x1vbar*(x2vbar^3)) / 
+                    sum(3*(x1vbar^2)*(x2vbar^2)-0.5*(x1vbar^4)-0.5*(x2vbar^4)))
+
+V <- matrix(c( cos(phi0), sin(phi0), 
+              -sin(phi0), cos(phi0)), ncol=2,byrow=TRUE)
+
+S1_hat <- normalize(V[1,1]*X1bar+V[1,2]*X2bar) # normalization to recover initial contrast
+S2_hat <- normalize(V[2,1]*X1bar+V[2,2]*X2bar)
+
+show_both_pics(S1_hat, S2_hat)
+```
+
+The second picture was retrieved quite nicely. The upper part of the first picture however didn't. A reason is that the blue sky has little detail, acting like a DC component, which the algorithm could not detect.

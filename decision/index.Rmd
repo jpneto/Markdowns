@@ -1,0 +1,383 @@
+---
+title: "Bayesian Decision Theory"
+author: "João Neto"
+date: "January 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 9
+    fig_height: 6
+cache: TRUE
+---
+
+Bayesian probability can process prior information and data to give us a posterior distribution that summarizes what we know about a given problem. That's where the _inference problem_ stops. That posterior does not include what action we should perform if there are several options to consider. To act we require extra information and that's where the _decision problem_ begins.
+
+To build a decision problem we need to know:
+
++ what are the possible **states**, $s \in S$, and their probability
+
++ what are the possible **actions**, $a \in A$
+
++ a **loss function**, $L(s,a)$ giving the loss of performing action $a$ if the *true state* is state $s$
+
+## Vaccination example
+
+This eg is from Stuart Coles [1999](http://homepages.dcc.ufmg.br/~assuncao/LDA/aulas/StuartColesBayes.pdf): There is a new vaccination plan against the flu. It is estimated that 60% of the entire population is immune to this flu strand. People with flu will miss work which means that there's a work loss for society (cost 20 units), but there's also a cost to vaccinate an already immune person (cost 8 units). We assume that there's a negligible cost of vaccinate a non immune person and also not vaccinating an immune one. The decision problem is that. without any individual information, should we vaccinate one person?
+
+The possible states are $S = \{s_1, s_2\}$, where $s_1$ means immune individual, and $s_2$ means vulnerable person. Notice that we don't know this for sure, if we knew then this would have a trivial solution. We only know the 60% initial estimate, ie, $p(s_1)=0.6$ and $p(s_2)=0.4$. This was the inference part (eventually this distribution was found after sampling the entire population).
+
+The possible actions are $A=\{a_1, a_2\}$, where $a_1$ means 'vaccinate' and $a_2$ means 'not vaccinate'.
+
+The loss function is
+
+$$
+\begin{array}{c|cc}
+L(s,a) & s_1 & s_2\\
+\hline
+a_1 & 8 & 0 \\
+a_2 & 0 & 20  \\
+\end{array}
+$$
+
+The best decision is the one that minimizes the expected loss $E_S[L(s,a)]$:
+
+```{r}
+all_states   <- 1:2         # s_1 and s_2
+prior_states <- c(0.6, 0.4) # p(s_1) and p(s_2)
+
+loss <- function(a, s) {
+  losses <- matrix( c(8, 0,
+                      0,20), ncol=2, byrow=TRUE)
+  losses[a,s]
+}
+
+# cost after deciding to vaccinate
+action <- 1   # a_1
+sum( loss(action, all_states) * prior_states) # compute expected loss of vaccination
+# cost after deciding to not vaccinate
+action <- 2   # a_2
+sum( loss(action, all_states) * prior_states) # compute expected loss of non vaccination
+```
+
+So the loss of not vaccinating is larger than vaccinating. The decision then is to vaccinate each individual person.
+
+This decision might change if more data $D$ is provided. In this case we should go back to the inference step and remake the distribution over the known states to compute $p(S|D)$ before computing and minimize the new loss values.
+
+Continuing with the vaccine eg, say that we have a cheap but not entirely reliable test for flu vulnerability that provides the values $x_1,x_2,x_3,x_4$ ($x_1$ meaning negligible response to $x_4$ meaning strong response) the following joint probability distribution:
+
+$$
+\begin{array}{c|cc}
+& p(x_i|s_1) & p(x_i|s_2) \\
+\hline
+x_1 & 0.35 & 0.09 \\
+x_2 & 0.30 & 0.17  \\
+x_3 & 0.21 & 0.25  \\
+x_4 & 0.14 & 0.49  \\
+\end{array}
+$$
+
+Given the prior information regarding $S$, $p(S)$ and a data $x$, we use the conditional table for $p(x|S)$ and with Bayes Theorem compute $p(S|x)$.
+
+```{r}
+likelihood_x_states <- matrix(c(.35,.09,
+                                .30,.17,
+                                .21,.25,
+                                .14,.49), ncol=2, byrow=TRUE)
+
+posterior <- function(prior, likelihood, given_state, given_data) {
+  
+  evidence <- sum( likelihood[given_data,all_states] * prior )
+  prior[given_state]*likelihood[given_data,given_state] / evidence
+}
+
+posterior_states <- matrix(rep(NA,8), ncol=2)
+for(xi in 1:4)
+  for(si in 1:2)
+    posterior_states[xi,si] <- posterior(prior_states, likelihood_x_states, si, xi)
+
+colnames(posterior_states) <- paste0("s",1:2)
+rownames(posterior_states) <- paste0("p(S|x",1:4,")")
+posterior_states
+```
+
+Again the inference problem is over: we have the posterior for the states given the data. To be able to find the best decision, we should recompute the expected losses.
+
+
+The posterior expected loss is computed by
+
+$$\rho(a,x_i) = E_{S|x_i}[L(s,a)] = \sum_s L(s,a) p(s|x_i)$$
+
+```{r}
+expected_loss <- matrix(rep(NA,8), ncol=2)
+
+for(xi in 1:4)
+  for(action in 1:2)
+    expected_loss[xi,action] <- sum(loss(action,all_states) * posterior_states[xi,all_states]) 
+
+colnames(expected_loss) <- paste0("a",1:2)
+rownames(expected_loss) <- paste0("E[L(S,a)|x",1:4,")")
+expected_loss
+```
+
+In this case we see that the best action is not always vaccinate (action $a_1$ which is in the first column). We only should vaccinate if the test returns $x_3$ or $x_4$, ie, when the test returns strong responses of vulnerability.
+
+The decision/policy $d(x_i)$ is the action $a$ with minimum posterior expected loss:
+
+$$d(x_i) = \arg\min_a \rho(a,x_i)$$
+
+```{r, collapse=TRUE}
+d <- function(xi) {
+  which.min(expected_loss[xi,])
+}
+
+d(1) # we observed x1 (the action should be a_2, ie, not vaccinate)
+d(3) # we observed x3 (the action should be a_1, ie, vaccinate)
+```
+
+We can compute the risk associated with a given policy $d(x)$ by averaging the losses across the uncertainty of the data $x_i$, which is called the **Bayes risk**:
+
+$$BR(d) = \sum_x \rho(d(x),x) p(x)$$
+
+```{r}
+# compute marginal probabilities p(xi)
+marginals <- likelihood_x_states %*% prior_states
+marginals
+
+bayes_risk <- function(d) {
+  risk <- 0
+  for(xi in 1:4) {
+    decision      <- d(xi)
+    decision_loss <- expected_loss[xi,decision]
+    risk <- risk + decision_loss * marginals[xi]
+  }
+  risk
+}
+
+bayes_risk(d)  # expected loss per individual
+```
+
+Let's compare against the policy of universal vaccination:
+
+```{r}
+bayes_risk(function(xi) 1)  # always choose action 1, ie, vaccinate
+```
+
+Or the policy to not vaccinate everyone:
+
+```{r}
+bayes_risk(function(xi) 2)  # always choose action 2, ie, not vaccinate
+```
+
+Or the policy to first flip a coin to decide between actions $a_1$ and $a_2$ (let's simulate to estimate the mean risk):
+
+```{r}
+n_sims <- 1e3
+sims   <- replicate(n_sims, bayes_risk(function(xi) sample(1:2,1)))
+mean(sims)
+```
+
+which is a better policy than universal non-vaccination, _in the context of the selected loss function_.
+
+## 2D Searching
+
+This is based on the Rasmus Bååth's blog [post](http://www.sumsar.net/blog/2015/01/probable-points-and-credible-intervals-part-two/) about a 1D searching for a robot.
+
+We are searching for the Robo robot that disappeared again, but now in a 2D world map. 
+
+The team made some inferences regarding the available information and produced a sampling of the posterior distribution for Robo's position:
+
+```{r}
+library(mvtnorm) # rmvnorm
+
+landscape_sizex <- 60  # the size of the landscape
+landscape_sizey <- 30
+
+# build a posterior sample
+posterior_sample <- function(n) {
+  dist_i <- sample(3, n, replace = TRUE, c(32, 18, 50)) # from which distribution to sample
+  # params of the three distributions
+  mu_x <- c(40, 15, 25)
+  mu_y <- c(15, 25, 10)
+  mu <- matrix(c(mu_x,mu_y),ncol=2)
+  sigma <- c(2*diag(2), 4*diag(2), 15*diag(2))
+  dim(sigma) <- c(2,2,3)
+  # create the posterior sample
+  post <- matrix(rep(NA,2*n), ncol=2)
+  for (i in 1:n)
+    post[i,] <- rmvnorm(1, mean=mu[dist_i[i],], sigma=sigma[,,dist_i[i]])
+  post <- post[post[,1] >= 0 & post[,1] <= landscape_sizex,]
+  post[post[,2] >= 0 & post[,2] <= landscape_sizey,]
+} 
+
+s <- posterior_sample(5e3)  # the available posterior sample
+```
+
+Let's produce a density for this sample to vizualize what we have:
+
+```{r}
+library(MASS)
+n_grid <- 31
+s_dens <- kde2d(s[,1], s[,2], 15, n=n_grid, lims = c(0,landscape_sizex,0,landscape_sizey))
+persp(s_dens, phi = 20, theta = 195, d=5, xlab="x", ylab="y", expand = 0.5, ticktype = "detailed")
+```
+
+Let's try using the standard loss functions, here in a 2D version (adapted from Rasmus's code):
+
+```{r, warning=FALSE, message=FALSE}
+library(fields)  # for 2D interpolation
+
+L0 <- function(x, s) {
+  -interp.surface(s_dens, matrix(c(x[1],x[2]), ncol=2))  # proportional to L0 loss
+}
+
+L1 <- function(x, s) {
+  sum(c(abs(x[1]-s[,1]),abs(x[2]-s[,2])))
+}
+
+L2 <- function(x, s) {
+  sum(apply(s,1,function(si) sum((si-x)^2)))
+}
+```
+
+Some useful functions:
+
+```{r}
+# apply normalization to [0,1]
+normalize_0_1 <- function(x) {
+  (x-min(x))/(max(x)-min(x))
+}
+
+# compute the loss value for each value of the posterior sample
+grid_loss <- function(loss_function, s, ...) {
+  f <- function(x,y) loss_function(c(x,y), s, ...)
+  outer(1:landscape_sizex, 1:landscape_sizey, Vectorize(f))
+}
+
+# where is the minimum loss value given a matrix?
+point_estimate <- function(grid) {
+  which(grid == min(grid), arr.ind = TRUE)[1,] # if there are several solutions, pick the first
+}
+
+# to plot a grid like the loss function
+draw_grid <- function(grid, title="Loss Function", pallete=c("blue","cyan"), 
+                            n_colors=15, zaxis="loss", drawPt=TRUE) {
+  best_p    <- point_estimate(grid)         # the best estimate (minimum loss)
+  best_loss <- grid[best_p[1], best_p[2]]   # its loss value
+  # plot the loss function in perspective
+  color <- colorRampPalette(pallete)(n_colors)
+  nrz <- nrow(grid)
+  ncz <- ncol(grid)
+  zfacet <- grid[-1, -1] + grid[-1, -ncz] + grid[-nrz, -1] + grid[-nrz, -ncz]
+  facetcol <- cut(zfacet, n_colors)
+  p_plot <- persp(grid, phi = 20, theta = 195, d=5, expand = 0.5,
+                  xlab="x", ylab="y", zlab=zaxis, col = color[facetcol], main=title)
+  # put a dot where's the minimum loss
+  if (drawPt)
+    points(trans3d(best_p[1]/landscape_sizex, best_p[2]/landscape_sizey, best_loss, pmat = p_plot), col = 2, pch = 16)
+}
+```
+
+Let's compute and show the values for different loss functions:
+
+```{r}
+loss_L0 <- normalize_0_1(grid_loss(L0, s))
+draw_grid(loss_L0, title="L0 loss")
+point_estimate(loss_L0)
+
+loss_L1 <- normalize_0_1(grid_loss(L1, s))
+draw_grid(loss_L1, title="L1 loss")
+point_estimate(loss_L1)
+
+loss_L2 <- normalize_0_1(grid_loss(L2, s))
+draw_grid(loss_L2, title="L2 loss")
+point_estimate(loss_L2)
+```
+
+Say we had to choose a point in the landscape where a satellite could run its search algorithm and be able to find Robot but only within a given maximum distance. What is the best point?
+
+```{r}
+# minimize the number of grid points that are not searched by the satellite, given their posterior densities
+limited_dist_loss <- function(x, s, max_dist) {
+  # check how many grid points we will *not* find RObo
+  mean((abs(x[1]-s[,1]) + abs(x[2]-s[,2]))^2 > max_dist^2) # Euclidean distance
+}
+
+max_dist <- 15
+
+loss_dist <- normalize_0_1(grid_loss(limited_dist_loss, s, max_dist))
+draw_grid(loss_dist, title=paste("Max distance is", max_dist))
+point_estimate(loss_dist)
+```
+
+If the satellite is very good (covers a long distance) the decision problem becomes less problematic, as we can see in this next instance:
+
+```{r}
+max_dist <- 45
+
+loss_dist <- normalize_0_1(grid_loss(limited_dist_loss, s, max_dist))
+draw_grid(loss_dist, title=paste("Max distance is", max_dist))
+```
+
+Let's assume the map is a landscape with different types of terrain with different search cost values:
+
+```{r}
+landscape_cost  <- c(mountain = 5, forest = 3, plain = 1)
+
+landscape <- matrix( rep(landscape_cost['plain'], landscape_sizex*landscape_sizey), ncol=landscape_sizey)
+landscape[25:50, 5:25] <- landscape_cost['forest']
+landscape[30:40,10:20] <- landscape_cost['mountain']
+
+draw_grid(landscape, "Cost per unit", c("blue","red"), 10, "cost", FALSE)
+```
+
+Say we could search a square up to $7\times 7$ and had a budget of $175$. What would be the best choice?
+
+```{r}
+max_cost    <- 175
+max_sq_size <- 7
+
+limited_cost_loss <- function(x, s, max_cost) { # x is the 5x5 square's center coordinate
+  # find the correct square limits (important at landscape edges)
+  min.x <- max(x[1]-max_sq_size%/%2, 1)
+  min.y <- max(x[2]-max_sq_size%/%2, 1)
+  max.x <- min(x[1]+max_sq_size%/%2, landscape_sizex)
+  max.y <- min(x[2]+max_sq_size%/%2, landscape_sizey)
+  
+  if (sum(landscape[min.x:max.x, min.y:max.y]) > max_cost) {
+    result = 1 # max possible cost for limited_dist_loss is 1
+  } else {
+    result = limited_dist_loss(x, s, 1.414214*max_sq_size%/%2) # sqrt(2)*size half square
+  }
+
+  result
+}
+
+loss_cost <- normalize_0_1(grid_loss(limited_cost_loss, s, max_cost))
+draw_grid(loss_cost, title=paste("Max cost is", max_cost))
+point_estimate(loss_cost) # the center of the search square
+```
+
+Let's try a tighter budget:
+
+```{r}
+max_cost    <- 75
+
+loss_cost <- normalize_0_1(grid_loss(limited_cost_loss, s, max_cost))
+draw_grid(loss_cost, title=paste("Max cost is", max_cost))
+point_estimate(loss_cost) # the center of the search square
+```
+
+The decision is to explore the plains near the right peak, since we cannot afford to search the mountain, where it lies the higher posterior density.
+
+And if we have unlimited budget to select our best area?
+
+```{r}
+max_cost    <- landscape_cost['mountain'] * max_sq_size^2 # maximum possible budget
+
+loss_cost <- normalize_0_1(grid_loss(limited_cost_loss, s, max_cost))
+draw_grid(loss_cost, title=paste("Max cost is", max_cost))
+point_estimate(loss_cost) # the center of the search square
+```
+
+which is similar to the L0 cost function (not exactly sure why, thou :-).
