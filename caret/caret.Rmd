@@ -1,0 +1,126 @@
+---
+title: "Caret"
+author: "João Neto"
+date: "February 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
+Ref:
+
++ [Short Intro to cater](http://cran.r-project.org/web/packages/caret/vignettes/caret.pdf)
+
++ [Caret Model Training and Tuning](http://topepo.github.io/caret/training.html)
+
+> The caret package (short for Classification And REgression Training) is a set of functions that attempt to streamline the process for creating predictive models. The package contains tools for: data splitting
+pre-processing
+feature selection
+model tuning using resampling
+variable importance estimation
+as well as other functionality. [ref](http://topepo.github.io/caret/training.html)
+
+```{r}
+# to install package with all dependencies:
+# install.packages("caret", dependencies = c("Depends", "Suggests"))
+library(caret)
+```
+
+To partition data into training and test sets:
+
+```{r}
+inTrain <- createDataPartition(y = iris$Species, # which columns is the outcome data
+                               p = .75,          # training set relative size
+                               list = FALSE)
+training <- iris[ inTrain,]
+testing  <- iris[-inTrain,]
+```
+
+Given some model, `train` tune it according to the data. Function `train` recognizes a [huge number of models](http://topepo.github.io/caret/bytag.html). To see the current list:
+
+```{r}
+names(getModelInfo())
+```
+
+For this first example, let's use support vector machines with linear kernels:
+
+```{r, warning=FALSE, message=FALSE}
+svm_fit <- train(Species ~ .,
+                 data = training,
+                 method = "svmLinear",
+                 preProcess = c("center", "scale"))
+svm_fit
+```
+
+And we use the trained model to make predictions:
+
+```{r}
+test_pred <- predict(svm_fit, newdata=testing)
+confusionMatrix(data=test_pred, testing$Species)
+```
+
+It's possible to control how the model tuning is done:
+
+```{r}
+ctrl <- trainControl(method = "repeatedcv", # K-fold cross validation w/repeated train/test splits
+                     number = 8,            # K value (default 10)
+                     repeats = 3)           # number of repetitions (for repeatedcv only)
+
+# if the tuning is done, method="none" will not use resampling nor parameter tuning
+
+svm_fit <- train(Species ~ .,
+                 data = training,
+                 method = "svmLinear",
+                 tuneLength = 15,  # how many candidate parameter values to evaluate
+                 trControl = ctrl,
+                 preProc = c("center", "scale"))
+svm_fit
+
+test_pred <- predict(svm_fit, newdata=testing)
+confusionMatrix(data=test_pred, testing$Species)
+```
+
+In this case, we don't notice changes, since the initial training was already almost perfect.
+
+There's also an option `tuneGrid` that allows the user to pass parameter values he chooses:
+
+```{r}
+tune_grid <-  expand.grid(interaction.depth = c(1, 5, 9),
+                          n.trees = (1:30)*10,
+                          shrinkage = 0.1)
+
+gbm_fit <- train(Species ~ .,
+                 data = training,
+                 method = "gbm",
+                 tuneGrid = tune_grid,
+                 trControl = ctrl,
+                 preProc = c("center", "scale"),
+                 metric = "Kappa", # which metric to optimize ()
+                 verbose=FALSE)
+
+test_pred <- predict(gbm_fit, newdata=testing)
+confusionMatrix(data=test_pred, testing$Species)
+
+plot(gbm_fit)
+plot(gbm_fit, metric="Kappa")
+```
+
+There are options to pre-process data (besides centering and scaling) that can be checked [here](http://topepo.github.io/caret/preprocess.html).
+
+To compare different models:
+
+```{r}
+resamps <- resamples(list(GBM = gbm_fit,
+                          SVM = svm_fit))
+resamps
+summary(resamps)
+bwplot(resamps, layout = c(2, 1))
+dotplot(resamps, metric = "Kappa")
+xyplot(resamps, what = "BlandAltman")
+splom(resamps)
+```
+
+A company package `caretEmsemble` deals with ensembles of models, and a vignette can be read [here](http://cran.r-project.org/web/packages/caretEnsemble/vignettes/caretEnsemble-intro.html).
