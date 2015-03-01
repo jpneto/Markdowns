@@ -1,3 +1,7 @@
+CREATE DATABASE rosters;
+
+\c rosters;
+
 CREATE TABLE players (
   SCHOOL_FULL_NAME varchar(30), 
   SCHOOL_NAME varchar(30), 
@@ -11,7 +15,7 @@ CREATE TABLE players (
   ID integer PRIMARY KEY
 );
 
-\COPY players FROM 'C:\Users\jpn\Downloads\rosters.csv' DELIMITER ',' CSV HEADER;
+\COPY players FROM 'C:\Users\jpn.INFORMATICA\Downloads\rosters.csv' DELIMITER ',' CSV HEADER;
 
 
 
@@ -23,6 +27,6 @@ CREATE TABLE teams (
   ID integer PRIMARY KEY
 );
 
-\COPY teams FROM 'C:\Users\jpn\Downloads\teams.csv' DELIMITER ',' CSV HEADER;
+\COPY teams FROM 'C:\Users\jpn.INFORMATICA\Downloads\teams.csv' DELIMITER ',' CSV HEADER;
 
 

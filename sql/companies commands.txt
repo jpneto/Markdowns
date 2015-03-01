@@ -1,3 +1,7 @@
+CREATE DATABASE crunchbase;
+
+\c crunchbase;
+
 CREATE TABLE companies (
   PERMALINK varchar(256), 
   NAME varchar(256), 
@@ -13,7 +17,7 @@ CREATE TABLE companies (
   ID integer PRIMARY KEY
 );
 
-\COPY companies FROM 'C:\Users\jpn\Downloads\companies.csv' DELIMITER ';' CSV HEADER;
+\COPY companies FROM 'C:\Users\jpn.INFORMATICA\Downloads\companies.csv' DELIMITER ';' CSV HEADER;
 
 CREATE TABLE acquisitions (
   COMPANY_PERMALINK varchar(128), 
@@ -34,4 +38,4 @@ CREATE TABLE acquisitions (
   ID integer PRIMARY KEY
 );
 
-\COPY acquisitions FROM 'C:\Users\jpn\Downloads\acquisitions.csv' DELIMITER ';' CSV HEADER;
+\COPY acquisitions FROM 'C:\Users\jpn.INFORMATICA\Downloads\acquisitions.csv' DELIMITER ';' CSV HEADER;

@@ -1,29 +1,25 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T, dev='svg',
-               fig.width = 5, fig.height = 5, fig.align='center')
-```
+---
+title: "Spectral Clustering"
+author: "João Neto"
+date: "December 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: TRUE
+---
 
-<!-- Includes \cancel latex command -->
-<script type="text/x-mathjax-config">
-MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
-  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
-    cancel: ["Extension","cancel"],
-    bcancel: ["Extension","cancel"],
-    xcancel: ["Extension","cancel"],
-    cancelto: ["Extension","cancel"]
-  });
-});
-</script>
-
-Spectral Clustering
-========================================================
 
 Refs:
+
 + [Spectral Clustering: A quick overview](http://charlesmartin14.wordpress.com/2012/10/09/spectral-clustering/)
+
 + [Luxburg - A Tutorial on Spectral Clustering](http://www.kyb.mpg.de/fileadmin/user_upload/files/publications/attachments/Luxburg07_tutorial_4488%5b0%5d.pdf)
+
 + Hastie et al. - The Elements of Statistical Learning 2ed (2009), chapter 14.5.3 (pg.544-7)
+
 + [CRAN Cluster Analysis](http://cran.r-project.org/web/views/Cluster.html)
 
 The goal of spectral clustering is to cluster data that is connected but not necessarily clustered within convex boundaries. 
@@ -167,8 +163,7 @@ abline(v=2.25, col="red", lty=2) # there are just 2 clusters as expected
 
 This gap usually is hard to find. Choosing the optimal $k$ is called [rounding](http://www.auai.org/uai2012/papers/167.pdf).
 
-Using R `kernlab` package
------------------------
+## Using R `kernlab` package
 
 Of course all this is already implemented in R:
 

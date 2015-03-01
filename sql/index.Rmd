@@ -17,6 +17,8 @@ Preliminaries
 
 Herein we are using the open-source database postgreSQL (more details [below](#postgreSQL)).
 
+All databases and commands to include them in your computer's postgreSQL are [here](sql_tutorial.rar).
+
 How to access a postgreSQL database using R:
 
 ```{r, warning=FALSE, message=FALSE}
@@ -311,7 +313,7 @@ To deal with conditional statements, SQL uses `CASE WHEN ... THEN ... ELSE ... E
 
 ```{r}
 query <- "SELECT
-            player,
+            name,
             year,
             CASE WHEN year = 'SR'   -- create a new column where only senior players have a 'yes' values
               THEN 'yes'
@@ -328,7 +330,7 @@ It's possible to have a sequence of conditionals:
 
 ```{r}
 query <- "SELECT
-            player,
+            name,
             weight,
             CASE WHEN weight > 250 THEN 'over 250'
                  WHEN weight > 200 THEN '200-250'
@@ -711,7 +713,8 @@ Operations besides select using `RPostgreSQL`
 library(RPostgreSQL)
  
 drv <- dbDriver("PostgreSQL")
-db <- dbConnect(drv, dbname="tests", user="postgres", password="admin")
+# before this, need to CREATE DATABASE tests;
+db <- dbConnect(drv, dbname="tests", user="postgres", password="admin") 
 
 # delete if exists
 if (dbExistsTable(db, "books"))

@@ -1,31 +1,21 @@
-```{r, message = FALSE, tidy = FALSE, echo = FALSE}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = TRUE, echo = TRUE, dev='svg',
-               fig.width = 5, fig.height = 5, fig.align='center')
-```
+---
+title: "Statistical Computation and Simulation"
+author: "João Neto"
+date: "May 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: TRUE
+---
 
-```{r set-options, echo=FALSE, cache=FALSE}
-options(width = 300)
-```
-
-<!-- Includes \cancel latex command -->
-<script type="text/x-mathjax-config">
-MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
-  MathJax.Hub.Insert(MathJax.InputJax.TeX.Definitions.macros,{
-    cancel: ["Extension","cancel"],
-    bcancel: ["Extension","cancel"],
-    xcancel: ["Extension","cancel"],
-    cancelto: ["Extension","cancel"]
-  });
-});
-</script>
-
-Statistical Computation and Simulation
 ========================================================
 
-Professor: Maria Isabel Fraga Alves
+Notes from course given by professor Maria Isabel Fraga Alves.
 
+<!--
 Index:
 
 + [Inverse Transformation](#invTransf)
@@ -37,15 +27,19 @@ Index:
 + [Maximum Likelihood Estimation](#mle)
 + [Exercises](#lab)
 
+-->
+
 Refs:
 
 + Slides of the course.
+
 + Rizzo - [Statistical Computing with R](http://www.crcpress.com/product/isbn/9781584885450) (2007)
+
 + Secondini - [Introduction to Markov chain and Monte Carlo simulation](http://www.ircphonet.it/staff/members/secondini/)
+
 + Robert & Casella - [Introducing Monte Carlo Methods with R](http://www.springer.com/statistics/computational+statistics/book/978-1-4419-1575-7) (2010)
 
-<a name="invTransf">Inverse Transformation
----------------------
+# Inverse Transformation
 
 This is a method to generate random samples of distributions.
 
@@ -165,8 +159,7 @@ lines(density(new_xs), col="red")
 legend("topleft",c("empirical pdf","new sampling"), col=c("blue","red"), lwd=2) 
 ```
 
-<a name="acceptReject">Acceptance-Rejection Method
----------------------
+# Acceptance-Rejection Method
 
 Problem: Generate $X \sim f$ from an arbitray pdf $f$ (especially when it's hard to sample from $f$).
 
@@ -299,8 +292,7 @@ xs <- seq(0, 1, len=100)
 curve(3*x^2, 0, 1, col="red", lwd=2, add=T)
 ```
 
-<a name="mcint">Monte Carlo Integration
------------------------
+# Monte Carlo Integration
 
 Monte Carlo integration is an estimation of the true integration based on random sampling and in the [Strong Law of Large Numbers](http://mathworld.wolfram.com/StrongLawofLargeNumbers.html).
 
@@ -355,8 +347,7 @@ The variance of this estimator is:
 $$var(\hat{\theta}) = var \Big( \frac{1}{n} \sum_i~g(X_i) \Big) =
 \frac{1}{n^2}  \sum_i var (g(X_i)) = \frac{var(g(X))}{n}$$
 
-<a name="isampling">Importance Sampling
--------------------
+# Importance Sampling
 
 There are two problems with the previous method:
 
@@ -446,7 +437,7 @@ Another sampling choosing a pareto distribution for $h$:
 library(VGAM)
 
 h <- function(x) {
-  dpareto(x, location=4.5, shape=10)
+  dpareto(x, scale=4.5, shape=10)
 }
 
 xs <- seq(4.5,20,by=0.05)
@@ -457,8 +448,7 @@ rh <- function(n) rpareto(n, 4.5, 10)
 i.sampling(f,g,h,rh)
 ```
 
-<a name="mcinf">MC in Inference
----------------
+# MC in Inference
 
 In statistical inference there is a sample $x_1,\ldots,x_n$ taken from a certain probabilistic model.
 
@@ -537,8 +527,7 @@ lines(xs,cdf.hat, col="red", lwd=2)
 legend("topleft",c(expression(F[T](x)),expression(hat(F[T])(x))), col=c("blue","red"), lwd=2) 
 ```
 
-<a name="mcmc">Markov Chain Monte Carlo (MCMC) Integration
--------------------------
+# Markov Chain Monte Carlo (MCMC) Integration
 
 When we want to estimate $E[g(\theta)]$ we can find the sample mean 
 
@@ -708,8 +697,7 @@ plot(1:3000,X3[1:3000], lwd=2,type="l",ylim=c(-4,4))
 
 The plateau's above show repeated rejections, making the chain stay at the last change of $x_t$.
 
-<a name="mle">Maximum Likelihood Estimation
-----------------
+# Maximum Likelihood Estimation
 
 Maximum Likelihood Estimation (MLE) is a method of estimating the parameters of a statistical model.
 
@@ -946,8 +934,7 @@ gamma.mle.NR <- function(x, theta.0, epsilon=1e-6) {
 gamma.mle.NR(x, c(1,1))
 ```
 
-<a name="lab"></a>Exercises
-------------
+# Exercises
 
 **Using the Accept Reject Method**
 
@@ -1090,7 +1077,7 @@ The analytical solution of $I_2$ is to subtract $0.5$ from $F_{\mathcal{N}}(2)$ 
 (pnorm(2) - 0.5)*sqrt(2*pi) # the true value
 ```
 
-<a name="impsamp_exps">**Use of Importance Sampling to compute an integral**
+## Use of Importance Sampling to compute an integral
 
 We wish to estimate by simulation the value of $$I(b) = \int_b^{\infty} e^{-x}e^{-e^{-x}}~dx$$
 
@@ -1186,7 +1173,7 @@ The true value:
 pnorm(-20)
 ```
 
-<a name="joint_triang">**Simulation of Expected Values of a Joint Distribution**
+## Simulation of Expected Values of a Joint Distribution
 
 Let the joint pdf of $X$ and $Y$ be uniform in the triangle area:
 
@@ -1268,7 +1255,7 @@ $$E[XY] = \int_0^{0.5} \int_0^x xy \times f_{X,Y}(x,y)~dy~dx = \int_0^{0.5} \int
 
 The first simulation computed the theoretical value of this second model!
 
-<a name="joint_2">**Simulation of Expected Values of a Joint Distribution II**
+## Simulation of Expected Values of a Joint Distribution II
 
 Program an algorithm that generates pairs from the joint pdf
 

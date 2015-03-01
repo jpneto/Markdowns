@@ -1,3 +1,7 @@
+CREATE DATABASE stocks;
+
+\c stocks;
+
 CREATE TABLE stocks (
   DATE_STOCK varchar(8), 
   YEAR integer,
@@ -10,4 +14,4 @@ CREATE TABLE stocks (
   id integer PRIMARY KEY
 );
 
-\COPY stocks FROM 'C:\Users\jpn\Downloads\stocks.csv' DELIMITER ',' CSV HEADER;
+\COPY stocks FROM 'C:\Users\jpn.INFORMATICA\Downloads\stocks.csv' DELIMITER ',' CSV HEADER;
