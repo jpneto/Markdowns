@@ -1,0 +1,365 @@
+---
+title: "Mapping stuff"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+Refs:
+
++ [Maps in R: Introduction - Drawing the map of Europe](http://www.milanor.net/blog/?p=534)
+
++ [Maps in R: Plotting data points on a map](http://www.milanor.net/blog/?p=594)
+
++ [Maps in R: choropleth maps](http://www.milanor.net/blog/?p=634)
+
+```{r}
+# download from http://cran.r-project.org/web/packages/rworldmap/index.html
+# and high def map from http://cran.r-project.org/web/packages/rworldxtra/index.html
+library(rworldmap)
+newmap <- getMap(resolution = "low")
+plot(newmap)
+```
+
+## Defining map limits
+
+```{r}
+library(ggmap)
+
+europe.limits <- geocode(c(
+  "CapeFligely,RudolfIsland,Franz Josef Land,Russia",
+  "Gavdos,Greece",
+  "Faja Grande,Azores",
+  "SevernyIsland,Novaya Zemlya,Russia")
+)
+europe.limits
+```
+
+```{r}
+plot(newmap,
+  xlim = range(europe.limits$lon),
+  ylim = range(europe.limits$lat),
+  asp = 1.0
+)
+```
+
+## Adding information on map
+
+Get some data, in this case a dataset including airport coordinates:
+
+```{r}
+# from http://openflights.org/data.html
+airports <- read.csv("airports.dat", header = FALSE)
+colnames(airports) <- c("ID", "name", "city", "country", "IATA_FAA", "ICAO", "lat", "lon", "altitude", "timezone", "DST")
+head(airports)
+```
+
+Now place them in the map
+
+```{r, fig.height=8, fig.width=12}
+plot(newmap, xlim = range(europe.limits$lon), ylim = range(europe.limits$lat), asp = 1.0)
+points(airports$lon, airports$lat, col = "red", cex = .25)
+```
+
+## Using ggmap
+
+Get a map from Google Maps (there's also other servers)
+
+```{r}
+library(ggmap)
+library(mapproj)
+map <- get_map(location = 'Europe', zoom = 4)
+ggmap(map)
+```
+
+Get arrival and departure info to attach to the airpot data:
+
+```{r}
+# Also from http://openflights.org/data.html
+routes <- read.csv("routes.dat", header=F)
+colnames(routes) <- c("airline", "airlineID", "sourceAirport", "sourceAirportID", "destinationAirport", "destinationAirportID", "codeshare", "stops", "equipment")
+head(routes)
+```
+
+Compute how many arrivals and departures from each airport (the joining key is ID)
+
+```{r}
+library(plyr)
+departures <- ddply(routes, .(sourceAirportID), "nrow")
+names(departures)[2] <- "flights"
+head(departures)
+arrivals <- ddply(routes, .(destinationAirportID), "nrow")
+names(arrivals)[2] <- "flights"
+head(arrivals)
+```
+
+```{r}
+airportD <- merge(airports, departures, by.x = "ID", by.y = "sourceAirportID")
+head(airportD)
+airportA <- merge(airports, arrivals,   by.x = "ID", by.y = "destinationAirportID")
+```
+
+A ggmap is an object of class ggplot, so typical ggplot operations work with it
+
+```{r}
+mapPoints <- ggmap(map) +
+             geom_point(aes(x = lon, y = lat, size = sqrt(flights)), data = airportD, alpha = .5) +
+             scale_size_area(breaks = sqrt(c(1, 5, 10, 50, 100, 500)), 
+                             labels = c(1, 5, 10, 50, 100, 500), name = "departing routes")
+mapPoints
+```
+
+## Using shapefiles with maptools
+
+```{r}
+library(maptools) # read shapefiles (.shp)
+library(ggplot2)
+library(ggmap)
+
+# from http://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units
+# read administrative boundaries (change folder appropriately)
+eurMap <- readShapePoly(fn="NUTS_2010_60M_SH/data/NUTS_RG_60M_2010")
+plot(eurMap)
+# convert shp data to data frame for ggplot
+eurMapDf <- fortify(eurMap, region='NUTS_ID')
+
+# read downloaded data (change folder appropriately)
+eurEdu <- read.csv("educ_thexp_1_Data.csv", stringsAsFactors = F)
+eurEdu$Value <- as.double(eurEdu$Value) #format as numeric
+
+# merge map and data
+eurEduMapDf <- merge(eurMapDf, eurEdu, by.x="id", by.y="GEO")
+eurEduMapDf <- eurEduMapDf[order(eurEduMapDf$order),]
+
+eurEduMapDf <- subset(eurEduMapDf, 
+                      long > min(europe.limits$lon) & long < max(europe.limits$lon) & 
+                      lat  > min(europe.limits$lat) & lat  < max(europe.limits$lat))
+
+# ggplot mapping
+# data layer
+m0 <- ggplot(data=eurEduMapDf)
+# empty map (only borders)
+m1 <- m0 + geom_path(aes(x=long, y=lat, group=group), color='gray') + coord_equal()
+
+# fill with education expenditure data
+m2 <- m1 + geom_polygon(aes(x=long, y=lat, group=group, fill=Value))
+
+# inverse order (to have visible borders)
+m0 <- ggplot(data=eurEduMapDf)
+m1 <- m0 + geom_polygon(aes(x=long, y=lat, group=group, fill=Value)) + coord_equal()
+m2 <- m1 + geom_path(aes(x=long, y=lat, group=group), color='black')
+m2
+
+# over a GoogleMap (not working if not correctly projected)
+map <- get_map(location = 'Europe', zoom=4)
+m0 <- ggmap(map)
+m1 <- m0 + geom_polygon(aes(x=long, y=lat, group=group, fill=Value), data=eurEduMapDf, alpha=.9)
+m2 <- m1 + geom_path(aes(x=long, y=lat, group=group), data=eurEduMapDf, color='black')
+
+# add text
+library(doBy) # from http://cran.r-project.org/web/packages/doBy/index.html
+txtVal <- summaryBy(long + lat + Value ~ id, data=eurEduMapDf, FUN=mean, keep.names=T)
+m3 <- m2 + geom_text(aes(x=long, y=lat, label=Value), data=txtVal, col="yellow", cex=3)
+m3
+```
+
+## Maps and functions for Portugal
+
+```{r}
+PT_limits <- geocode(c(    # from http://pt.wikipedia.org/wiki/Pontos_extremos_de_Portugal
+  "Cristoval,Portugal",                     # mais setentrional
+  "Paradela,Portugal",                      # mais oriental
+  "Cabo da Roca, Sintra,Portugal",          # mais ocidental
+  "Cabo de Santa Maria,Algarve,Portugal")   # mais meridional
+)
+
+plot(eurMap, xlim = range(PT_limits$lon), ylim = range(PT_limits$lat), asp = 1.0)
+```
+
+```{r, echo=FALSE}
+# ptMap <- readShapePoly(fn="Cont_AAD_CAOP2014")
+# plot(ptMap)
+# 
+# ptMapDf <- fortify(ptMap)
+# tail(ptMapDf)
+# 
+# 
+# ptMapTroco <- readShapeLines(fn="Cont_Troco_CAOP2014")
+# plot(ptMapTroco)
+# ptMapTrocoDf <- fortify(ptMapTroco)
+# head(ptMapTrocoDf)
+```
+
+
+
+```{r}
+# pt_map <- get_map(location = 'Portugal', zoom = 7, language = "PT-pt")
+# this is a better fit:
+pt_map <- get_map(location = c(lon=mean(PT_limits$lon), lat= mean(PT_limits$lat)), zoom = 7, language = "PT-pt", maptype="satellite")
+
+ggmap(pt_map)
+
+# http://www.dgterritorio.pt/cartografia_e_geodesia/cartografia/carta_administrativa_oficial_de_portugal__caop_/caop_em_vigor/
+  
+  
+```
+
+```{r}
+freguesias <- read.csv("freguesias.csv", header = TRUE)
+head(freguesias)
+municipios <- read.csv("municipios.csv", header = TRUE)
+head(municipios)
+```
+
+
+##############################################
+
+Functions for mapping dstrict and municipe information of Portugal
+
+The maps from Portugal were from [Global Administrative Areas](http://gadm.org/country) datafiles. Zip file with shapefiles from [Portugal](http://biogeo.ucdavis.edu/data/gadm2/shp/PRT_adm.zip)
+
+Ref: [http://statisticaconr.blogspot.it/2009/12/choropleth-map-in-r-coloriamo-le-mappe.html](http://statisticaconr.blogspot.it/2009/12/choropleth-map-in-r-coloriamo-le-mappe.html) (In Italian)
+
+```{r, fig.height=12, fig.width=8}
+library(maptools) # read shapefiles (.shp)
+
+# district_data is a data frame with two columns, district and value
+pt_distritos <- function(district_data, breaks, palette = "hot", 
+                         show_label=TRUE, 
+                         # the next args define how to handle non-available datapoints
+                         show.NA=FALSE, val.NA=-1, col.NA="black", label.NA="NA") {
+  
+  # read shapefile file for districts
+  library(maptools)
+  ptMap <- readShapePoly(fn="PRT_adm1")
+  
+  init <- ifelse(show.NA,val.NA,min(municipe_data[,2]))
+
+  df <- data.frame(districts = ptMap$NAME_1,
+                   value     = rep(init,length(ptMap$NAME_1)))
+
+  # populate df with district_data (the districts might be in different sorting order)
+  for(i in 1:nrow(df)) {
+    query <- as.character(district_data[,1])==as.character(df[i,1])
+    if (any(query))
+      df[i,2] = district_data[which(query),2]
+  }
+  
+  if (any(df==-1))
+    breaks = c(0,breaks)
+  
+  library(Hmisc)
+  lev <- cut2(df$value, cuts=breaks)
+  n.cols <- length(breaks)+1
+
+  if(show_label && length(breaks)>3) { # does not work with small number of breaks (?)
+    label_names <- levels(lev)
+    if (show.NA && any(df==-1))
+      label_names[1] <- "NA"
+  } else
+    label_names <- ""
+  
+  if (palette=="hot") {
+    cols <- heat.colors(n.cols)
+    if (show.NA && any(df==-1))
+      cols <- c(col.NA,cols)
+  }
+  else if (palette == "grey")
+    cols <- grey(seq(0, 1, length = n.cols))
+  else if (palette == "rainbow") {
+    cols <- rainbow(n.cols)
+    if (show.NA && any(df==-1))
+      cols <- c(col.NA,cols)
+  }
+ 
+  ptMap$value <- as.factor( as.character(as.numeric(lev)) )
+  
+  library(sp)
+  spplot(ptMap, "value", col.regions=cols, 
+         xlim = range(-10,-6), ylim = range(36.9,42.2), asp = 1.0,
+         colorkey = list(labels = list(labels = label_names, width = 1, cex = 1),
+                         space = "bottom"))
+}
+
+# Use eg:
+library(maptools)
+ptMap <- readShapePoly(fn="PRT_adm1")
+district_data <- data.frame(district = ptMap$NAME_1, 
+                            value    = rpois(20,10)) # make some fake data
+district_data <- district_data[1:19,] # remove one district, for testing
+
+pt_distritos(district_data, breaks=c(3,6,11,15), palette="rainbow", show.NA=TRUE)
+```
+
+And the same for the municipal areas:
+
+```{r, fig.height=12, fig.width=8}
+# district_data is a data frame with two columns, municipe and value
+pt_municipios <- function(municipe_data, breaks, palette = "hot", 
+                          show_label=TRUE, 
+                          # the next args define how to handle non-available datapoints
+                          show.NA=FALSE, val.NA=-1, col.NA="black", label.NA="NA") {
+  
+  # read shapefile file for districts
+  library(maptools)
+  ptMap <- readShapePoly(fn="PRT_adm2")
+  
+  init <- ifelse(show.NA,val.NA,min(municipe_data[,2]))
+  
+  df <- data.frame(municipios = ptMap$NAME_2,
+                   value      = rep(init,length(ptMap$NAME_2)))
+
+  # populate df with municipe_Data (the municipes might be in different sorting order)
+  for(i in 1:nrow(df)) {
+    query <- as.character(municipe_data[,1])==as.character(df[i,1])
+    if (any(query))
+      df[i,2] = municipe_data[which(query),2]
+  }
+  
+  if (any(df==-1))
+    breaks = c(0,breaks)
+  
+  library(Hmisc)
+  lev <- cut2(df$value, cuts=breaks)
+  n.cols <- length(breaks)+1
+
+  if(show_label && length(breaks)>3) { # does not work with small number of breaks (?)
+    label_names <- levels(lev)
+    if (show.NA && any(df==-1))
+      label_names[1] <- "NA"
+  } else
+    label_names <- ""
+  
+  if (palette=="hot") {
+    cols <- heat.colors(n.cols)
+    if (show.NA && any(df==-1))
+      cols <- c(col.NA,cols)
+  }
+  else if (palette == "grey")
+    cols <- grey(seq(0, 1, length = n.cols))
+  else if (palette == "rainbow") {
+    cols <- rainbow(n.cols)
+    if (show.NA && any(df==-1))
+      cols <- c(col.NA,cols)
+  }
+  
+  ptMap$value <- as.factor( as.character(as.numeric(lev)) )
+  
+  library(sp)
+  spplot(ptMap, "value", col.regions=cols, 
+         xlim = range(-10,-6), ylim = range(36.9,42.2), asp = 1.0,
+         colorkey = list(labels = list(labels = label_names, width = 1, cex = 1),
+                         space = "bottom"))
+}
+
+# Use eg:
+municipe_data <- read.csv("passivos.csv", header = TRUE)
+head(municipe_data)
+
+pt_municipios(municipe_data, breaks=c(1e2,1e3,5e3,1e4,2e4), palette="hot", show.NA=TRUE)
+```
+
+Also check [https://procomun.wordpress.com/2012/02/18/maps_with_r_1/](https://procomun.wordpress.com/2012/02/18/maps_with_r_1/)
+and [https://procomun.wordpress.com/2012/02/20/maps_with_r_2/](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/).
