@@ -1,0 +1,360 @@
+---
+title: "Bishop's PRML, Chapter 6"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+This page contains source code relating to chapter 6 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This chapter is about Kernel Methods.
+
+Kernels are functions in the form
+
+$$k(x,z) = \phi(x)^T \phi(z)$$
+
+where $\phi$ is a basis function (cf. chapter 3).
+
+A _radial basis function_ is a kernel which depends only on the distance between datapoints, ie, $k(x,z) = f(\|x-z\|)$. 
+
+An example:
+
+$$k(x,z) = \exp(-\gamma \|x-z\|^2)$$
+
+```{r}
+make_gaussian_kernel <- function(gamma=1.0) {
+
+  function(x,z) {
+    exp(-gamma * norm(as.matrix(x-z),"F")^2 )
+  }
+}
+
+gaussian_kernel <- make_gaussian_kernel(0.2)
+gaussian_kernel(x=c(1,1), z=c(2,2))
+```
+
+
+## Constructing Kernels (section 6.2)
+
+The hard way is to check if a given expression can be described as a product of basis.
+
+Eg, $k(x,z) = (x^Tz)^2$ can be defined using basis $\phi(x) = (x_1^2, \sqrt{2}x_1x_2,x_2^2)^T$.
+
+A simpler way is to build kernels from previous ones using rules like:
+
++ $k(x,z) = f(x) k_1(x,z) f(z)$
+
++ $k(x,z) = q(k_1(x,z))$, $q$ is a polynomial with nonnegative coefficients
+
++ $k(x,z) = k_1(x,z) + k_2(x,z)$
+
++ $k(x,z) = k_1(x,z) k_2(x,z)$
+
++ $k(x,z) = \exp( k_1(x,z) )$
+
++ $k(x,z) = x^T A z$, $A$ is a symmetric positive semidefinite matrix
+
+where $k_1,k_2$ are already known kernels.
+
+## Radial Basis Function Networks (section 6.3)
+
+The RBF network originally was used for exact interpolation of the training dataset $X=(x_1,\ldots,x_N), Y=(y_1,\ldots,y_N)$.
+
+The task was to find $W=(w_1,w_2,\ldots,w_N)$ such that
+
+$$y(x,W) = \sum_{i=1}^N w_i \times \exp(-\gamma \|x-x_i\|^2)$$
+
+gave a perfect match for all the initial datapoints $(x_i,y_i)$, ie, $y_i = y(x_i,W)$.
+
+The design matrix $\Phi$ is (with a bias parameter $w_0$),
+
+$$
+\Phi = \left\lbrack
+\begin{matrix}
+1 & exp(-\gamma \|x_1-x_1\|^2) & \cdots & exp(-\gamma \|x_1-x_N\|^2) \cr
+1 & exp(-\gamma \|x_2-x_1\|^2) & \cdots & exp(-\gamma \|x_2-x_N\|^2) \cr
+\vdots & \vdots & \ddots & \vdots \cr
+1 & exp(-\gamma \|x_N-x_1\|^2) & \cdots & exp(-\gamma \|x_N-x_N\|^2) \cr
+\end{matrix}
+\right\rbrack
+$$
+
+And so $$W = (\Phi^T \Phi)^{-1} \Phi^T Y$$ which is an exact interpolation of the dataset (it's the pseudo inverse $(\Phi^T \Phi)^{-1} \Phi^T$ instead of the inverse $\Phi^{-1}$, because, by including the bias, $\Phi$ is no longer a square matrix).
+
+However, if $N$ is large, the need to use all in-sample datapoints is exagerated and might overfit. A variant is to choose $K$ representatives ($K\lt\lt N$) that can do the interpolation. Choose the best $K$ centers among the possible $x_i \in X$ is NP-hard, so a possible option is to select $K$ centers using a clustering algorithm, namely a K-means clustering. Let's name those centers $\mu_1, \ldots, \mu_K$. These $\mu_k$ define the set of _basis functions_.
+
+Thus, the matrix form reduces the design matrix $\Phi$ from a $N \times (N+1)$ matrix to a smaller $N \times (K+1)$ matrix:
+
+$$
+\Phi = \left\lbrack
+\begin{matrix}
+1 & exp(-\gamma \|x_1-\mu_1\|^2) & \cdots & exp(-\gamma \|x_1-\mu_K\|^2) \cr
+1 & exp(-\gamma \|x_2-\mu_1\|^2) & \cdots & exp(-\gamma \|x_2-\mu_K\|^2) \cr
+\vdots & \vdots & \ddots & \vdots \cr
+1 & exp(-\gamma \|x_N-\mu_1\|^2) & \cdots & exp(-\gamma \|x_N-\mu_K\|^2) \cr
+\end{matrix}
+\right\rbrack
+$$
+
+In R:
+
+```{r}
+# returns a rbf model given the:
+# * observations X=(x1, ..., xN)
+# * output value for each observation Y = (y1, ..., yN)
+# * number of centers K
+# * gamma value
+
+rbf <- function(X, Y, K=12, gamma=1.0) {
+  library(corpcor)   # include pseudoinverse()
+  library(stats)     # include kmeans()
+  
+  N     <- dim(X)[1] # number of observations
+  ncols <- dim(X)[2] # number of variables
+
+  repeat {
+    km <- kmeans(X, K)  # let's cluster K centers out of the dataset
+    if (min(km$size)>0) # only accept if there are no empty clusters
+      break
+  }
+
+  mus <- km$centers # the clusters points
+
+  Phi <- matrix(rep(NA,(K+1)*N), ncol=K+1)
+  for (lin in 1:N) {
+    Phi[lin,1] <- 1    # bias column
+    for (col in 1:K) {
+      Phi[lin,col+1] <- exp(-gamma * norm(as.matrix(X[lin,]-mus[col,]),"F")^2)
+    }
+  }
+
+  w <- pseudoinverse(t(Phi) %*% Phi) %*% t(Phi) %*% Y  # find RBF weights
+
+  list(weights=w, centers=mus, gamma=gamma)  # return the rbf model
+}
+```
+
+And also an implementation for the prediction function:
+
+```{r}
+rbf.predict <- function(model, X, classification=FALSE) {
+  gamma   <- model$gamma
+  centers <- model$centers
+  w       <- model$weights
+  N       <- dim(X)[1]    # number of observations
+  
+  pred <- rep(w[1],N)  # we need to init to a value, so let's start with bias
+
+  for (j in 1:N) {  
+    # find prediction for point xj
+    for (k in 1:length(centers[,1])) {
+      # the weight for center[k] is given by w[k+1] (because w[1] is the bias)
+      pred[j] <- pred[j] + w[k+1] * exp( -gamma * norm(as.matrix(X[j,]-centers[k,]),"F")^2 )
+    }
+  }
+  
+  if (classification) {
+    pred <- unlist(lapply(pred, sign))
+  }
+  pred
+}
+```
+
+Let's see an example:
+
+```{r, fig.width = 8, fig.height = 8}
+target <- function(x1, x2) {
+  2*(x2 - x1 + .25*sin(pi*x1) >= 0)-1
+}
+
+N <- 100
+X <- data.frame(x1=runif(N, min=-1, max=1),
+                x2=runif(N, min=-1, max=1))
+Y <- target(X$x1, X$x2)
+plot(X$x1, X$x2, col=Y+3)
+```
+
+Now let's learn the dataset using the RBFs:
+
+```{r}
+rbf.model <- rbf(X, Y) # using default values for K and gamma
+rbf.model
+```
+
+And make a prediction over a new test set:
+
+```{r, fig.width = 8, fig.height = 8}
+N.test <- 200
+X.out <- data.frame(x1=runif(N.test, min=-1, max=1),
+                    x2=runif(N.test, min=-1, max=1))
+Y.out <- target(X.out$x1, X.out$x2)
+
+rbf.pred <- rbf.predict(rbf.model, X.out, classification=TRUE)
+binary.error <- sum(rbf.pred != Y.out)/N.test
+binary.error
+
+plot(X.out$x1, X.out$x2, col=Y.out+3, pch=0)
+points(X.out$x1, X.out$x2, col=rbf.pred+3, pch=3)
+points(rbf.model$centers, col="black", pch=19) # draw the model centers
+legend("topleft",c("true value","predicted"),pch=c(0,3),bg="white")
+```
+
+# Gaussian Processes (section 6.4)
+
+Consider a model as a linear combination of some fixed basis $\phi$,
+
+$$y(x,W) = W^T \phi(x)$$
+
+Now let's assume this prior distribution for W 
+
+$$p(W) = \mathcal{N}(W|0,\alpha^{-1} I)$$
+
+where the hyparameter $\alpha$ defines the precision of the distribution.
+
+This distribution over $W$ induces a distribution over $y(x,W)$. Notice however that $y(x,W)$ is now a _distribution over functions_, where each has its own set of values for $W$.
+
+The next code is based on James Keirstead's [post](http://www.jameskeirstead.ca/blog/gaussian-process-regression-with-r/).
+
+```{r, fig.width=10, warning=FALSE}
+require(MASS)
+
+# make the gaussian kernel
+# gaussian_kernel <- make_gaussian_kernel(0.5)
+
+# compute covariance matrix Sigma for the Gaussian process, ie,
+# the distribution of functions (eqs. 6.53 & 6.54)
+get_sigma <- function(X1, X2, kernel=make_gaussian_kernel(0.5)) {
+  Sigma <- matrix(rep(0, length(X1)*length(X2)), nrow=length(X1))
+  for (i in 1:nrow(Sigma)) 
+    for (j in 1:ncol(Sigma))
+       Sigma[i,j] <- kernel(X1[i], X2[j])
+  Sigma
+}
+
+# The points at which we want to define the functions
+X <- seq(-5,5,len=50)
+ 
+# Calculate the covariance matrix
+sigma <- get_sigma(X,X)
+means <- rep(0, length(X))
+ 
+# Generate sample functions from the Gaussian process
+set.seed(101)
+n_samples <- 5
+y_sample  <- matrix(rep(0,length(X)*n_samples), ncol=n_samples)
+for (i in 1:n_samples) {
+  # each column represents a sample from a multivariate normal distribution
+  # with zero mean and covariance sigma
+  y_sample[,i] <- mvrnorm(1, means, sigma)
+}
+
+plot(X, y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)), ylab="sample functions")
+for(i in 1:n_samples)
+  points(X, y_sample[,i], type="l", col=i, lwd=2)
+```
+
+Usually, we wish these functions to evaluate to specific values at $y_i = y(x_i,W)$
+
+```{r}
+# dataset:  two-column dataframe with col x for input, and col y for output
+# kernel:   the kernel in use
+# sd_noise: the standard deviation of the noise of the dataset samples
+gp_samples <- function(X, dataset, kernel, n_samples, sd_noise=0, seed=101) {
+  
+  k.dd <- get_sigma(dataset$x, dataset$x, kernel)
+  k.dx <- get_sigma(dataset$x, X,         kernel)
+  k.xd <- get_sigma(X,         dataset$x, kernel)
+  k.xx <- get_sigma(X,         X,         kernel)
+ 
+  # These matrix calculations correspond to equation (2.19) in the 
+  # Rasmussen and Williams's book 'Gaussian Processes for ML'
+  noise_part <- sd_noise^2 * diag(1, ncol(k.dd))
+  
+  d.star.bar <- k.xd %*% solve(k.dd + noise_part) %*% d$y
+  cov.d.star <- k.xx - k.xd %*% solve(k.dd + noise_part) %*% k.dx
+ 
+  # generate the samples
+  set.seed(seed)
+  y_sample <- matrix(rep(0,length(X)*n_samples), ncol=n_samples)
+  for (i in 1:n_samples)
+    y_sample[,i] <- mvrnorm(1, d.star.bar, cov.d.star)
+
+  list(y_sample=y_sample, mean_est=d.star.bar)
+}
+```
+
+Let's try to fit some data:
+
+```{r, fig.width=8}
+d <- data.frame(x=c(-4,-3,-1,0 ,2),
+                y=c(-2, 0 ,1,2,-1))
+n_samples <- 50
+
+result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples)
+
+plot(X, result$y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)), ylab="sample functions")
+for(i in 1:n_samples)
+  points(X, result$y_sample[,i], type="l", col="lightgrey")
+points(X, result$mean_est, type="l", col="red", lwd=2)
+```
+
+We can estimate the output for each value that defined the functions.
+
+```{r}
+# get more samples
+result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples=5e3)
+
+i  <- 23 # eg: check the 23th value of X
+ys <- result$y_sample[i,]
+library(coda)
+hpd <- HPDinterval(as.mcmc(ys), prob=0.95) # compute highest density interval
+
+hist(ys, breaks=50, freq=FALSE, xlab="", main=paste("Estimate for x=",round(X[i],2)))
+lines(density(ys),col="red",lwd=2)
+text(2.1,1.5,paste("mean: ",round(mean(ys),2)))
+text(2.0,2.0,paste("95% HPD: [",round(hpd[1],2),",",round(hpd[2],2),"]"))
+```
+
+Also, we can assume that our data is noisy:
+
+```{r}
+result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples, sd_noise=0.1)
+
+plot(X, result$y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)),
+        ylab="sample functions")
+for(i in 1:n_samples)
+  points(X, result$y_sample[,i], type="l", col="lightgrey")
+points(X, result$mean_est, type="l", col="red", lwd=2)
+
+# get more samples
+result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples=5e3, sd_noise=0.1)
+
+i  <- 23 # eg: check the 23th value of X
+ys <- result$y_sample[i,]
+library(coda)
+hpd <- HPDinterval(as.mcmc(ys), prob=0.95) # compute highest density interval
+
+hist(ys, breaks=50, freq=FALSE, xlab="", main=paste("Estimate for x=",round(X[i],2)))
+lines(density(ys),col="red",lwd=2)
+text(2.1,1.5,paste("mean: ",round(mean(ys),2)))
+text(2.0,2.0,paste("95% HPD: [",round(hpd[1],2),",",round(hpd[2],2),"]"))
+```
+
+Notice how the HPD is now larger!
+
+This procedure can also be used with other kernels. The next one corresponds to the _Ornstein-Uhlenbeck process_ useful to model Brownian motion.
+
+```{r}
+exponential_kernel <- function(x,z) exp(-0.1*abs(x-z)) # parameter theta=0.1
+
+result2 <- gp_samples(X, d, exponential_kernel, n_samples)
+
+plot(X, result2$y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)),
+        ylab="sample functions")
+for(i in 1:n_samples)
+  points(X, result2$y_sample[,i], type="l", col="lightgrey")
+points(X, result2$mean_est, type="l", col="red", lwd=2)
+
+```

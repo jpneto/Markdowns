@@ -1,0 +1,422 @@
+---
+title: "Bishop's PRML, Chapter 4"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+This page contains source code relating to chapter 4 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This chapter is about linear models for classification.
+
+Bishop describes three methods for classification:
+
++ *Discriminant functions* which takes an input $x$ and assigns it to one of $K$ classes, $C_k$.
+
++ *Probabilistic Discriminative Models* that model $p(C_k|x)$ and use that distribution to perform optimal decisions
+
++ *Probabilistic Generative Models* that model $p(x,C_k)$, ie, find $p(x|C_k)$ and $p(C_k)$ in order to compute $p(C_k|x)$.
+
+# Discriminant Functions (section 4.1)
+
+This is the simplest procedure for classification, where inference and decision are merged in a single step performed by the discriminant function.
+
+To create an eg, we will use the function `gen.mix` that generates a dataset from a mixture of Gaussians:
+
+```{r}
+# generating n datapoints from a mixture of K Gaussians with dimensions d
+# k  : the respective datapoint classes
+# mu : kxd matrix with means
+# sig: kxdxd matrix with dxd covariate matrices
+gen.mix <- function(n, k, mu, sig) {
+  library(MASS)
+
+  d <- length(mu[1,])  # number of dimensions
+  result <- matrix(rep(NA,n*d), ncol=d)
+  colnames(result) <- paste0("X",1:d)
+  
+  for(i in 1:n) {
+    result[i,] <- mvrnorm(1, mu = mu[k[i],], Sigma=sig[,,k[i]])
+  }
+  
+  result
+}
+```
+
+Let's make some data:
+
+```{r}
+set.seed(101)
+n <- 100
+
+mu <- matrix(c(4.0,4.0,
+               6.5,  5), ncol=2, byrow=T)
+
+sigs <- array(rep(NA,2*2*2), c(2,2,2))  # 3D matrix
+sigs[,,1] <- matrix(c(.25, .21, .21,.25), nrow=2, byrow=TRUE)
+sigs[,,2] <- matrix(c(.25, .21, .21,.25), nrow=2, byrow=TRUE)
+
+pi <- c(.6,.4) # mixing coeffs
+classes <- sample(1:2, n, replace=TRUE, prob=pi)
+
+mydata <- gen.mix(n, classes, mu, sigs)
+mydata <- cbind(mydata, C=classes)
+head(mydata)
+plot(mydata, col=c("red","blue")[classes], xlab="X1", ylab="X2", pch=19)
+```
+
+## Least Squares for Classification (section 4.1.3)
+
+Each class $C_k$ is described by its own linear model
+
+$$y_k(x) = w_k^Tx$$
+
+where $k=1,\ldots,K$. We can group everything in vector notation:
+
+$$y(x) = W^TX$$
+
+where $W$ is the matrix where the i-th column is $w_k$ (also, remember the convention that $x_0=1$).
+
+Then, for least squares
+
+$$W = (X^TX)^{-1} X^T C$$
+
+where $C$ is the class values of the training set.
+
+```{r}
+compute_W <- function(X, C) {
+  solve(t(X) %*% X) %*% t(X) %*% C
+}
+
+X <- matrix(cbind(rep(1,length(mydata[,1])), mydata[,1:2]), ncol=3)
+C <- matrix(mydata[,3], ncol=1)
+W <- compute_W(X, C)
+```
+
+With the parameters set, we can define a discriminant function:
+
+```{r}
+# given a W, create a discriminant function defined by it
+discriminant_factory <- function(W) {
+  function(x) t(W) %*% c(1,x)
+}
+
+f <- discriminant_factory(W)  # this problem's discriminant function
+```
+
+Let's draw some more points and classify them. The threshold will be 1.5, ie, if the prediction gives less than 1.5, the output will be class $C_1$, otherwise, it will be $C_2$:
+
+```{r}
+set.seed(231)
+n <- 200
+unknown_class <- sample(1:2, n, replace=TRUE, prob=pi)
+newdata <- gen.mix(n, unknown_class, mu, sigs)
+plot(newdata, pch=19)
+prediction <- ifelse(apply(newdata, 1, f)<=1.5, 1, 2) # apply threshold
+plot(newdata, col=c("red","blue")[prediction], xlab="X1", ylab="X2", pch=19)
+# draw decision line: w0 + w1x1 + w2x2 == 1.5
+abline((1.5-W[1])/W[3], -W[2]/W[3], lty=2)  
+```
+
+We can make a contingency table to check that the classification went ok:
+
+```{r}
+table(unknown_class, prediction)
+```
+
+## Fisher's linear discriminant (Section 4.1.4)
+
+This is a dimensionality reduction technique, where we take the D-dimensional input vector $x$ and project it to one dimension using
+
+$$y = W^TX$$
+
+and then use a threshold on $y$ to classify between two classes (this procedure can the extended to more than two classes, check the book).
+
+This implies is lots of information loss, but that can be minimized if the projection is chosen to maximize class separation. Using Fisher's method this is done by (a) maximizing mean distance between the two classes, and (b) giving small variance within each class.
+
+The Fisher criterion is 
+
+$$J(W) = \frac{(m_2 - m_1)^2}{s_1^2 + s_2^2}$$
+
+where $m_i$ and $s_i$ are the mean and variance of class $C_i$.
+
+The Fisher's linear discriminant is given by
+
+$$W \propto S_W^{-1} (m_2-m_1)$$
+
+where
+
+$$S_W = \sum_k \sum_{n \in C_k} (x_n - m_k)(x_n - m_k)^T$$
+
+```{r}
+C_1 <- mydata[mydata[,3]==1,1:2]
+C_2 <- mydata[mydata[,3]==2,1:2]
+
+m_1 <- apply(C_1,2,mean)
+m_2 <- apply(C_2,2,mean)
+
+S_W <- matrix(rep(0,length(m_1)^2), ncol=2)
+
+for(x_n in C_1)
+  S_W <- S_W + (x_n - m_1) %*% t(x_n - m_1)
+for(x_n in C_2)
+  S_W <- S_W + (x_n - m_1) %*% t(x_n - m_1)
+
+W <- solve(S_W) * (m_2-m_1)
+W <- W / max(W)
+```
+
+If we project the datapoints into one dimension using $W$:
+
+```{r}
+projection <- apply(mydata[,1:2],1,function(x) t(W)%*%x)
+plot(0,0,type="n", xlim=c(1,6), ylim=c(-6,0))
+points(projection[1,], projection[2,], col=mydata[,3], pch=3)
+```
+
+This process give the direction of the projection. It does not give us which is the threshold we should pick. For this we can use several criteria.
+
+In the following eg, we selected a point that, when use as a threshold, minimizes the square error for classifying the training set:
+
+```{r}
+library(stats)
+
+# make it flat using the 1st component of its pca
+pca <- prcomp(t(projection))
+proj_pca <- apply(projection, 2, function(x) pca$rotation[,1] %*% x)
+# plot(proj_pca, col=mydata[,3])
+
+# get best point by optimize via minimization of square errors
+f_optim <- function(x) {
+  pred <- ifelse(proj_pca<x,1,2) # predicted classes
+  sum((pred-mydata[,3])^2)       # compare with true classes
+}
+
+report <- optim(4.0, f_optim) # use optimization to get a solution
+threshold_pca <- report$par
+threshold <- pca$rotation[,1] * threshold_pca # unproject from the 1st component
+
+plot(0,0,type="n", xlim=c(1,6), ylim=c(-6,0))
+points(projection[1,], projection[2,], col=mydata[,3], pch=3)
+points(threshold[1], threshold[2], col="blue", pch=24, lwd=2)
+```
+
+Not briliant... but that threshold is a possible solution that really minimizes what we asked.
+
+Now, if we get some new points:
+
+```{r}
+classify <- function(d) {
+  proj1 <- apply(d, 1, function(x) t(W)%*%x)
+  proj2 <- apply(proj1, 2, function(x) pca$rotation[,1] %*% x)
+  ifelse(proj2<threshold_pca, 1, 2)
+}
+
+
+newdata <- expand.grid(seq(2,8,len=20),seq(3,6,len=20))
+pred_new <- classify(newdata)
+
+plot(mydata, col=c("red","blue")[mydata[,3]], xlab="X1", ylab="X2", pch=18)
+# the new points are shown as crosses
+points(newdata[,1], newdata[,2], col=c("red","blue")[pred_new], pch=3, lwd=2)
+```
+
+## Perceptron (Section 4.1.7)
+
+The perceptron is a grand daddy of several ML techniques, like backpropagation and SVM. The idea is to apply an update rule to the linear discriminant each time we find an error between what the model estimates, $y$, and its true value, $d$. The update rule for a datapoint $x,y$ is,
+
+$$W^{new} = W + \eta (d-y) x$$
+
+where $\eta$ is the step size, $0 < \eta < 1$.
+
+The algorithm iterates until no errors are found, or the changes fall below a given convergence value $\epsilon<<0$.
+
+The following function
+
+```{r}
+perceptron <- function(X, Y, eta=1, epsilon=1e-3) {
+  n <- nrow(X)
+  W <- rnorm(ncol(X)+1)  # init values are small random numbers
+
+  for(i in 1:1e4) {
+    
+    W_start <- W                 # keep W for convergence comparisation
+    for (k in 1:n) {             # update W using all samples
+      
+      x <- c(1,X[k,])            # the data point
+      y <- sign(W %*% x)         # what the model estimates for x
+      d <- Y[k]                  # what we desire for x
+      W <- W + eta * (d-y) * x   # if d-y>0 then an error was found
+    }
+    
+    if (norm(as.matrix(W_start  - W), "F")<epsilon)
+      return(W)                  # convergence achieved
+
+  } # for(i)
+  
+  return(NA)                     # non convergence, give up
+}
+```
+
+Let's test with the previous dataset.
+
+```{r}
+X <- mydata[,1:2]
+Y <- ifelse(mydata[,3]==1,-1,1)  # convert to classes -1 & 1
+
+W <- perceptron(X, Y)
+
+plot(X, col=c("red","blue")[classes], xlab="X1", ylab="X2", pch=19)
+# draw decision line: w0 + w1x1 + w2x2 == 0
+abline(-W[1]/W[3], -W[2]/W[3], lty=2)  
+```
+
+Notice that if the dataset is not linearly separated, the perceptron will not converge.
+
+# Probabilistic Generative Models (section 4.2)
+
+Generative models models both likelihoods $p(x|C_k)$ and priors $p(C_k)$ that can be used, via Bayes theorem, to compute posteriors $p(C_k|x)$.
+
+For two classes, $C_1, C_2$:
+
+$$
+\begin{array}{lclr}
+p(C_1|x) & = & \frac{p(x|C_1)p(C_1)}{p(x|C_1)p(C_1)+p(x|C_2)p(C_2)} & \\
+         & = & \frac{1}{1+\exp(-a)} & \color{blue}{a=\ln \frac{p(x|C_1)p(C_1)}{p(x|C_2)p(C_2)}} \\
+         & = & \sigma(a) & \\
+\end{array}
+$$
+
+$\sigma(x)$ is called the _sigmoid function_ due to its S-shaped curve:
+
+```{r}
+sigmoid <- function(x) { 1/(1+exp(-x)) }
+curve(sigmoid, -5, 5, col="red", lwd=2)
+```
+
+For $K>2$ classes
+
+$$
+\begin{array}{lclr}
+p(C_k|x) & = & \frac{p(x|C_k)p(C_k)}{\sum_j p(x|C_j)p(C_j)} & \\
+         & = & \frac{\exp(a_k)}{\sum_j \exp(a_j)} & \color{blue}{a_i=\ln(p(x|C_i)p(C_i))} \\
+\end{array}
+$$
+
+This normalized exponential is also called _softmax function_.
+
+Let's see what happens with certain choices of $p(x|C_k)$.
+
+## Continuous inputs (section 4.2.1)
+
+Let's assume $K$ classes, $x$ is a D-dimensional vector, and the classes share the same covariance matrix $\Sigma$,
+ 
+$$p(x|C_k) = \frac{1}{(2\pi)^{D/2}} \frac{1}{|\Sigma|^{1/2}}
+\exp \left\{ -\frac{1}{2} (x-\mu_k)^T \Sigma^{-1} (x-\mu_k) \right\}$$
+
+After some math, we have:
+
+$$p(C_k|x) = \frac{\exp(a_k)}{\sum_j \exp(a_j)}$$
+
+with
+
+$$a_k(x) = w_k^T x + w_{k0}$$
+
+$$w_k = \Sigma^{-1} \mu_k$$
+$$w_{k0} = -\frac{1}{2} \mu_k^T \Sigma^{-1} \mu_k + \ln p(C_k)$$
+
+$a_k$ is a linear function of $x$ because the shared covariances cancel the quadratic terms. If the classes do not share covariance matrices, then it's called a _quadratic discriminant_.
+
+The following function returns the posterior probabilities of a given datapoint $x$ given the required values of the priors, $\mu_k$ and $\Sigma$:
+
+```{r}
+get_posteriors <- function(x, priors, mus, Sigma) {
+  K <- length(priors)
+  S_inv <- solve(Sigma)
+  
+  a_k <- rep(NA,K)
+  for (k in 1:K) {
+    w_k    <- S_inv %*% mus[k,]
+    w_k0   <- -0.5 * t(mus[k,]) %*% S_inv %*% mus[k,] + log(priors[k])
+    a_k[k] <- t(w_k) %*% x + w_k0
+  }
+  sum_posteriors <- sum(sapply(1:K, function(k) exp(a_k[k])))
+  sapply(1:K, function(k) exp(a_k[k]))/sum_posteriors
+}
+```
+
+One thing that still is missing is how to estimate $\mu_k$ and $\Sigma$. The next section presents one possibility:
+
+## Maximum likelihood solution (section 4.2.2)
+
+The MLE solution is given by:
+
+$$\mu_k = \frac{N_k}{N}$$
+
+where $N_k$ is the number of datapoints $x$ belonging to class $C_k$, and having a total of $N$ datapoints.
+
+The MLE for the covariance matrix $\Sigma$,
+
+$$\Sigma = \sum_k \frac{N_k}{N} S_k$$
+
+$$S_k = \frac{1}{N_k} \sum_{n\in C_k} (x_n - \mu_k)(x_n - \mu_k)^T$$
+
+which is a weighted average of the covariance matrices for each class.
+
+```{r}
+mle_mus <- function(X, Y) {
+  N_k <- table(Y)
+  K   <- length(N_k)
+  
+  t(sapply(1:K, function(k) apply(X[Y==k,],2,sum)/N_k[k]))
+}
+
+mle_Sigma <- function(X, Y, mus) {
+  N_k <- table(Y)
+  K   <- length(N_k)
+  N   <- nrow(X)
+  D   <- ncol(X)
+  Sigma <- matrix(rep(0,D^2), D)
+  
+  for(k in 1:K) {                  # for a given class C_k
+    S_k <- matrix(rep(0,D^2), D) 
+    X_k <- X[Y==k,]                # select all x's from class C_k
+    for(i in 1:nrow(X_k)) {        # for each x in C_k
+      S_k <- S_k + (X_k[i,] - mus[k,]) %*% t(X_k[i,] - mus[k,])
+    }
+    Sigma <- Sigma + S_k
+  }
+  
+  Sigma/N
+}
+```
+
+So, let's use the previous dataset, specify the model based on the max-likelihood estimates and then classify some new data:
+
+```{r}
+X <- mydata[,1:2]
+Y <- mydata[,3]
+
+# get maximum likelihood estimates
+mus   <- mle_mus(X,Y)
+Sigma <- mle_Sigma(X,Y,mus)
+
+# define equal priors for C_1 and C_2
+priors <- c(0.5,0.5)
+
+# get a classifier function for this dataset
+classifier <- function(x) { get_posteriors(x, priors, mus, Sigma) }
+
+# create some new data and classify them 
+X_new <- matrix(c(4.0,5.0,  
+                  6.0,3.0,  
+                  5.3,4.5), ncol=2, byrow=T)
+
+round(t(apply(X_new, 1, classifier)), 2)
+```
+
+This probabilities would then be judged against a decision criterion to select the best choice. So, contrary to a discriminative approach, here the inference step is decoupled from the decision step.
+
+
