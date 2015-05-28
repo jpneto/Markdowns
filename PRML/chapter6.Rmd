@@ -255,13 +255,17 @@ for(i in 1:n_samples)
   points(X, y_sample[,i], type="l", col=i, lwd=2)
 ```
 
-Usually, we wish these functions to evaluate to specific values at $y_i = y(x_i,W)$
+## Gaussian Processes for Regression (section 6.4.2)
+
+Usually, we wish these functions to evaluate to specific values at $y_i = y(x_i,W)$.
+
+The next function receives $X$, which is a set of $X_i$ we wish to estimate, and output the estimations:
 
 ```{r}
 # dataset:  two-column dataframe with col x for input, and col y for output
 # kernel:   the kernel in use
 # sd_noise: the standard deviation of the noise of the dataset samples
-gp_samples <- function(X, dataset, kernel, n_samples, sd_noise=0, seed=101) {
+gp_samples <- function(X, dataset, kernel, n_samples, sd_noise=0, seed=121) {
   
   k.dd <- get_sigma(dataset$x, dataset$x, kernel)
   k.dx <- get_sigma(dataset$x, X,         kernel)
@@ -294,59 +298,57 @@ n_samples <- 50
 
 result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples)
 
-plot(X, result$y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)), ylab="sample functions")
+plot(X, result$y_sample[,1], type="n", ylim=c(min(y_sample)-.5, max(y_sample)+.5), ylab="sample functions")
 for(i in 1:n_samples)
   points(X, result$y_sample[,i], type="l", col="lightgrey")
 points(X, result$mean_est, type="l", col="red", lwd=2)
 ```
 
-We can estimate the output for each value that defined the functions.
+We can estimate the output for a given value, say $2.3$.
 
-```{r}
-# get more samples
-result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples=5e3)
+```{r, fig.width=8}
+value  <- 2.3
+result <- gp_samples(value, d, make_gaussian_kernel(0.5), n_samples=5e3)
 
-i  <- 23 # eg: check the 23th value of X
-ys <- result$y_sample[i,]
+# i  <- 23 # eg: check the 23th value of X
+ys <- result$y_sample[1,]
 library(coda)
 hpd <- HPDinterval(as.mcmc(ys), prob=0.95) # compute highest density interval
 
-hist(ys, breaks=50, freq=FALSE, xlab="", main=paste("Estimate for x=",round(X[i],2)))
+hist(ys, breaks=50, freq=FALSE, xlab="", main=paste("Estimate for x=",round(value,2)))
 lines(density(ys),col="red",lwd=2)
-text(2.1,1.5,paste("mean: ",round(mean(ys),2)))
-text(2.0,2.0,paste("95% HPD: [",round(hpd[1],2),",",round(hpd[2],2),"]"))
+text(-0.2,1.1,paste("mean: ",round(result$mean_est,2)))
+text(-0.4,1.3,paste("95% HPD: [",round(hpd[1],2),",",round(hpd[2],2),"]"))
 ```
 
 Also, we can assume that our data is noisy:
 
-```{r}
-result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples, sd_noise=0.1)
+```{r, fig.width=8}
+result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples, sd_noise=0.2)
 
-plot(X, result$y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)),
-        ylab="sample functions")
+plot(X, result$y_sample[,1], type="n", ylim=c(min(y_sample)-.5, max(y_sample)+.5), ylab="sample functions")
 for(i in 1:n_samples)
   points(X, result$y_sample[,i], type="l", col="lightgrey")
 points(X, result$mean_est, type="l", col="red", lwd=2)
 
-# get more samples
-result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples=5e3, sd_noise=0.1)
+# estimate for value
+value <- 2.3
+result <- gp_samples(value, d, make_gaussian_kernel(0.5), n_samples=5e3, sd_noise=0.2)
 
-i  <- 23 # eg: check the 23th value of X
-ys <- result$y_sample[i,]
-library(coda)
+ys <- result$y_sample[1,]
 hpd <- HPDinterval(as.mcmc(ys), prob=0.95) # compute highest density interval
 
-hist(ys, breaks=50, freq=FALSE, xlab="", main=paste("Estimate for x=",round(X[i],2)))
+hist(ys, breaks=50, freq=FALSE, xlab="", main=paste("Estimate for x=",round(value,2)))
 lines(density(ys),col="red",lwd=2)
-text(2.1,1.5,paste("mean: ",round(mean(ys),2)))
-text(2.0,2.0,paste("95% HPD: [",round(hpd[1],2),",",round(hpd[2],2),"]"))
+text(-0.2,0.8,paste("mean: ",round(result$mean_est,2)))
+text(-0.3,1.0,paste("95% HPD: [",round(hpd[1],2),",",round(hpd[2],2),"]"))
 ```
 
-Notice how the HPD is now larger!
+Notice how the HPD is now larger.
 
 This procedure can also be used with other kernels. The next one corresponds to the _Ornstein-Uhlenbeck process_ useful to model Brownian motion.
 
-```{r}
+```{r, fig.width=8}
 exponential_kernel <- function(x,z) exp(-0.1*abs(x-z)) # parameter theta=0.1
 
 result2 <- gp_samples(X, d, exponential_kernel, n_samples)
@@ -356,5 +358,25 @@ plot(X, result2$y_sample[,1], type="n", ylim=c(min(y_sample), max(y_sample)),
 for(i in 1:n_samples)
   points(X, result2$y_sample[,i], type="l", col="lightgrey")
 points(X, result2$mean_est, type="l", col="red", lwd=2)
-
 ```
+
+Check [library](http://artax.karlin.mff.cuni.cz/r-help/library/kernlab/html/gausspr.html) `gausspr` for regression and classification with Gaussian Processes. For more information, check [http://www.gaussianprocess.org/](http://www.gaussianprocess.org/).
+
+<!-- ## Gaussian Processes for Regression (section 6.4.5) 
+
+```{r}
+sigmoid <- function(x) 1/(1+exp(-x))
+```
+
+```{r, fig.width=8}
+d <- data.frame(x=c(-4,-3,-1,0 ,2),
+                y=c(-1,-1 ,1,1,-1))
+n_samples <- 50
+
+d$y <- d$y*10
+result <- gp_samples(X, d, make_gaussian_kernel(0.5), n_samples)
+
+plot(X, result$y_sample[,1], type="n", ylim=c(0,1))
+points(X, sigmoid(result$mean_est), type="l", col="red", lwd=2)
+```
+-->
