@@ -1,12 +1,14 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T,
-               fig.width = 10, fig.height = 5)
-```
-
-Graphical Tools
-========================================================
+---
+title: "Graphical Tools"
+author: "João Neto"
+date: "May 2014"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+---
 
 ```{r, eval=FALSE}
 # par is used to specify global graphics parameters
@@ -192,6 +194,25 @@ head(another.data)
 barplot(table(another.data$value),xlab="frequency", ylab="value",
         horiz=TRUE,xlim=c(0,5+max(table(another.data$value))))
 ```
+
+## Labels with Math
+
+```{r}
+plot(1:5,1:5,pch=19,xlab="",
+     main=expression(
+       paste(
+         'exp', 
+         bgroup("[", frac(- n * bar(x) ** 2, 2 * sigma ** 2),"]")) <= c ),
+     sub=expression(
+       paste(
+         "1 - ", 
+         Phi, 
+         bgroup("[", c + frac(mu[0]-mu, lambda/sqrt(n)), "]"), 
+         sep = ""))
+
+)
+```
+
 
 3D perspectives
 ---------------

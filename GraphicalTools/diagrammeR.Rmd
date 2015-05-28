@@ -1,0 +1,133 @@
+---
+title: "DiagrammeR examples"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+Refs: 
+
++ [http://rich-iannone.github.io/DiagrammeR/graphs.html](http://rich-iannone.github.io/DiagrammeR/graphs.html)
+
++ [http://www.graphviz.org/pdf/dotguide.pdf](http://www.graphviz.org/pdf/dotguide.pdf)
+
+```{r}
+library(DiagrammeR)
+```
+
+Some complex eg to show several types of tools:
+
+```{r}
+grViz("
+  digraph boxes_and_circles {
+  
+    # a 'graph' statement
+    graph [overlap = true, fontsize = 10]
+  
+    # several 'node' statements
+    node [shape = box,
+          fontname = Helvetica]
+    A; B; C; D; E; F
+  
+    node [shape = circle,
+          fixedsize = true,
+          width = 0.9] // sets as circles
+    2; 3; 4; 5; 6; 7
+
+    node [shape = oval,
+          fixedsize = true,
+          peripheries = 2,
+          width = 0.9,
+          fontname = 'Courier New',
+          style=filled,
+          fillcolor = red]
+    8
+
+    node [label =<<table border='0' cellborder='1' cellpadding='3' bgcolor='white'>
+                    <tr><td bgcolor='black' align='center' colspan='2'><font color='white'>header</font> </td></tr>
+                    <tr><td align='left' port='r2'>&#40;2&#41; &#188; &bull;</td>
+                        <td bgcolor='grey' align='right'>$</td>
+                    </tr>
+                  </table>>
+          ] // sets as circles
+    1
+
+    # several 'edge' statements
+    A->1 B->2 B->3 B->4 C->A
+    1->D E->A 2->4 1->5 1->F
+    E->6 [label='x &#x2208; 3']
+    4->6 [label='&#946;&#x2082;=0.85']
+    5->7 [penwidth = 5]
+    6->7 [style=dotted,label='dotted']
+    3->8 [headport = 'e', tailport = 'e', color=blue]
+  }
+")
+```
+
+The greek letters (Cf. [here](http://www.wizcity.com/Computers/Characters/GreekUTF8.php):
+
+`&Alpha;  &Beta;  &Gamma;  &Delta;  &Epsilon; &Zeta;  &Eta;  &Theta;  &Iota;  &Kappa;`  
+`&Lambda; &Mu;  &Nu;  &Xi;  &Omicron; &Pi;  &Rho;  &Sigma;  &Tau;  &Upsilon; &Phi; `
+`&Chi;  &Psi;  &Omega;  &alpha;  &beta;  &gamma;  &delta;  &epsilon; &zeta;  &eta; `
+`&theta;  &iota;  &kappa;  &lambda; &mu;  &nu;  &xi;  &omicron; &pi;  &rho;  &sigmaf;`
+`&sigma;  &tau;  &upsilon; &phi;  &chi;  &psi;  &omega;  &thetasym &upsih;  &piv;`
+
+Superscripts and Subscripts are the block U+2070 to U+209F
+
+More symbols: [http://csbruce.com/software/utf-8.html](http://csbruce.com/software/utf-8.html). To translate, eg, `u+2208` is `&#x2208;`.
+
+This is a eg for a probabilistic graphical model description:
+
+```{r}
+grViz("
+  digraph dot {
+
+    graph [compound = true, nodesep = .5, ranksep = .25,
+           color = crimson, label='Polynomial Regression Model'
+           /*, rankdir='LR', style=filled, fillcolor = blue*/
+          ]
+
+    subgraph cluster1 {
+      node [shape = diamond, 
+            color = black]
+      xi
+
+      node [shape = circle,
+            style = filled,
+            fillcolor = grey] 
+      ti
+      
+      edge [color = black] 
+      xi -> ti
+
+      label='N'
+    }  
+  
+    node [shape = circle]
+    w
+
+    node [shape = diamond,
+          color = black,
+          label = '&alpha;']
+    alpha
+
+    node [shape = diamond,
+          color = black,
+          label = '&sigma;&#x00B2;']
+    sigma
+
+    edge [color = black]
+    alpha -> w
+    w -> ti
+    sigma -> ti 
+
+  }
+  ",
+engine = "dot")
+```
+
+where diamonds describe deterministic parameters; shaded circles describe observed values; and boxes describe multiple variables (in this case $x_1 \ldots x_n$ and $t_1 \ldots t_n$).
+
+

@@ -1,0 +1,296 @@
+---
+title: "Bishop's PRML, Chapter 7"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+This page contains source code relating to chapter 7 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This chapter is about Sparse Kernel Methods.
+
+The previous chapter presents kernel methods that require kernel evaluation over all datapoints of the training set. Here, Bishop presents two methods, support vector machines (SVM) and relevance vector machines (RVM) that are able to select a subset from the available datapoints to perform classification/regression. This means that evaluating new data is faster, especially when using large training sets.
+
+
+
+# Relevant Vector Machines (Section 7.2)
+
+Given each data input $x$ and output $y$, this bayesian model uses uses the following conditional distribution for the likelihood of $y$
+
+$$p(y|x,w,\beta) = \mathcal{N}(y|y(x), \beta^{-1})$$
+
+where $\beta$ is the 'noise' precision.
+
+The mean $y(x)$ is the usual linear model with nonlinear basis $\phi$
+
+$$y(x) = \sum_{i=1}^M w_i \phi_i(x) + b = w^T \phi(x)$$
+
+where the bias $b$ is seen as $w_0$ with $\phi_0(x)=1$, as usual.
+
+Or using a kernel notation,
+
+$$y(x) = \sum_{n=1}^N w_n k(x,x_n) + b$$
+
+Given all input $X$ where $x_i^T$ is its i-th row, the likelihood is
+
+$$p(Y|X,w,\beta) = \prod_{n=1}^N p(y_n|x_n,w,\beta)$$
+
+And give a prior distribution for $w$,
+
+$$p(w|\alpha) = \prod_{i=1}^M \mathcal{N}(w_i|0,\alpha_i^{-1})$$
+
+where $\alpha_i$ represents the precision for $w_i$.
+
+This priors also serve to control complexity, acting like regularization in a bayesian framework.
+
+Applying some math (check p.347 and/or [Tristan Fletcher's RVM Explained](chp7/Fletcher_RVM_Explained.pdf)) we get the posterior
+
+$$p(w|Y,X,\alpha,\beta) = \mathcal{N}(w|m,\Sigma)$$
+
+where
+
+$$m = \beta \Sigma \Phi^T Y$$
+
+$$\Sigma = (\text{diag}(\alpha) + \beta \Phi^T \Phi)^{-1}$$
+
+in this case, the design matrix $\Phi$ is also the $N+1 \times N+1$ symmetric kernel matrix $K$, with $K_{ij} = k(x_n,x_m)$.
+
+```{r}
+compute_Phi <- function(X, Y, phi) {
+  sapply(phi, function(base) base(X))
+}
+```
+
+We also assume uniform priors for $\alpha_i$ and $\beta$.
+
+The only values to be known are the vector $\alpha$ and $\beta$ which can be estimated using a method called _evidence estimation_ (cf. book or article for details).
+
+Let's denote $\gamma_i$ as a measure of how well $w_i$ is determined by the data, $\gamma_i = 1 - \alpha_i \Sigma_{ii}$.
+
+Then, the re-estimate values for $\alpha$ and $\beta$ are
+
+$$\alpha_i^{\text{new}} = \frac{\gamma_i}{m_i^2}$$
+
+$$\beta^{\text{new}} = \frac{N - \sum_i \gamma_i}{\| Y - \Phi m \|^2}$$
+
+and with those new parameters, evaluate $m$ and $\Sigma$ again. We iterate this process until some convergence criterion is achieved:
+
+```{r}
+rvm_model <- function(X, Y, phi, alpha_thres=1e3, epsilon=0.1) {
+
+  # auxiliary functions
+  calc_mean  <- function(beta, Sigma, Phi, Y) {
+    beta * Sigma %*% t(Phi) %*% Y
+  }
+  
+  calc_Sigma <- function(alpha, beta, Phi) {
+    if (length(alpha)==1)
+      solve(diag(as.matrix(alpha)) + beta * t(Phi) %*% Phi)
+    else 
+      solve(diag(alpha) + beta * t(Phi) %*% Phi)
+  }
+  
+  Phi <- compute_Phi(X, Y, phi) # design matrix with all basis functions
+  N   <- length(Y)
+  M   <- length(phi)            # w1, w2, ..., wM
+  
+  alpha_prev <- runif(M, 0.1, 0.2)  # random init, each wi has a alpha_i
+  beta_prev  <- runif(1, 0.1, 0.2)  # random init
+  
+  Sigma <- calc_Sigma(alpha_prev, beta_prev, Phi) 
+  m     <- calc_mean(beta_prev, Sigma, Phi, Y) 
+    
+  repeat {
+    
+    gamma <- sapply(1:M, function(i) 1 - alpha_prev[i]*Sigma[i,i])
+    
+    alpha <- gamma / m^2
+    beta  <- (N - sum(gamma)) / norm(Y-Phi%*%m, "F")^2
+    
+    keep_basis <- (1:M)[alpha < alpha_thres] # index of basis below threshold
+    
+    if (length(keep_basis) < M) {            # are there basis to remove?
+      alpha_prev <- alpha_prev[keep_basis]
+      alpha      <- alpha[keep_basis]
+      phi        <- phi[keep_basis]
+      Phi        <- compute_Phi(X, Y, phi)  
+      M          <- length(phi)
+    }
+    
+    Sigma <- calc_Sigma(alpha, beta, Phi) 
+    m     <- calc_mean(beta, Sigma, Phi, Y) 
+
+    if (sum(abs(alpha-alpha_prev)) < epsilon) # convergence criterium
+      break
+    
+    alpha_prev <- alpha
+  }
+  # return model parameters
+  list(m=m, Sigma=Sigma, alpha=alpha, beta=beta, phi=phi)
+}
+```
+
+An $\alpha_i$ that gets large means a very tiny variance around its mean, and its influence is irrelevant for the inference. So, everytime an $\alpha_i$ reaches a certain threshold, it can be pruned (the `rvm_model` function does that). The basis that remain, after the iteration ends, are called _relevance vectors_.
+
+To estimate a new value $x$, we use the relevance vectors:
+
+$$y = m^T \phi(x)$$
+
+The variance of this estimate is
+
+$$\sigma^2(x) = \beta^{-1} + \phi(x)^T\Sigma\phi(x)$$
+
+```{r}
+rvm_predict <- function(x, model) {
+  t(model$m) %*% sapply(model$phi, function(base) base(x))
+}
+
+rvm_sd_predict <- function(x, model) {  # returns the associated stand.dev.
+  phix <- sapply(model$phi, function(base) base(x))
+  sqrt(1/model$beta + t(phix) %*% model$Sigma %*% phix)
+}
+```
+
+An eg:
+
+```{r, fig.width=8}
+one <- function(x) rep(1,length(x))
+id  <- function(x) x
+sq  <- function(x) x^2
+cb  <- function(x) x^3
+phi <- c(one, id, sq, cb) # the initial basis
+
+X <- c(1, 3, 5, 6, 7,  8,8.5, 9) # some data
+Y <- c(3,-2, 3, 8,20, 12,7.0,10)
+
+model <- rvm_model(X, Y, phi)
+
+plot(X,Y,xlim=c(-2,10), ylim=c(-20,30), pch=19)
+xs <- seq(-2,10,len=50)
+ys <- sapply(xs, function(x) rvm_predict(x,model))
+# include 95% credible interval (since it's a normal, 95% is 2 standard devs)
+p.95 <- 2*sapply(xs, function(x) rvm_sd_predict(x,model))
+polygon(c(rev(xs), xs), c(rev(ys-p.95), ys+p.95), col = 'grey80', border = NA)
+points(X,Y,pch=19)
+points(xs, ys, type="l", col="red", lwd=1)
+```
+
+<!-- Not working...
+
+## RVM for classification
+
+
+We adapt the previous code for multimensional $x$ and also for classification.
+
+```{r, eval=FALSE}
+compute_Phi <- function(X, Y, phi) {
+  sapply(phi, function(base) apply(X,1,base))
+}
+```
+
+```{r, eval=FALSE}
+sigmoid <- function(x) 1/(1+exp(-x))
+
+rvm_model_class <- function(X, Y, phi, alpha_thres=1e2, epsilon=0.1) {
+
+  # auxiliary functions
+
+  calc_Sigma <- function(alpha, B, Phi) {
+    if (length(alpha)==1)
+      solve(diag(as.matrix(alpha)) + t(Phi) %*% B %*% Phi)
+    else 
+      solve(diag(as.numeric(alpha)) + t(Phi) %*% B %*% Phi)
+  }
+   
+#   calc_w <- function(alpha, Phi, Y, Y_hat) {
+#     if (length(alpha)==1)
+#       solve(diag(as.matrix(alpha))) %*% (Y-Y_hat)
+#     else 
+#       solve(diag(as.numeric(alpha))) %*% t(Phi) %*% (Y-Y_hat)
+#   }
+   
+  calc_w <- function(Sigma, Phi, Y, B) {
+    Sigma %*% t(Phi) %*% B %*% Y
+  }
+  # y(x,w) = sigmoid(w^T phi(x))
+  y_x <- function(x, w, phi) { 
+    sigmoid( t(w) %*% sapply(phi, function(base) base(x)) ) 
+  }
+  
+  Phi <- compute_Phi(X, Y, phi) # design matrix with all basis functions
+  N   <- length(Y)
+  M   <- length(phi)            # w1, w2, ..., wM
+  
+  alpha_prev <- runif(M, 0.1, 0.2)  # random init, each wi has a alpha_i
+  w_prev <- runif(M, 0.1, 0.2)  # random init, each wi has a alpha_i
+  
+  Y_hat  <- sigmoid( apply(X, 1, function(x) y_x(x,w_prev, phi)) )
+  B      <- diag(Y_hat * (1-Y_hat))
+
+  Sigma <- calc_Sigma(alpha_prev, B, Phi) 
+  #w     <- calc_w(alpha_prev, Phi, Y, Y_hat)
+   w <- calc_w(Sigma, Phi, Y, B)
+  
+  repeat {
+    
+    gamma <- sapply(1:M, function(i) 1 - alpha_prev[i]*Sigma[i,i])
+    
+    alpha <- gamma / w^2
+
+    keep_basis <- (1:M)[alpha < alpha_thres] # index of basis below threshold
+    
+    if (length(keep_basis) < M) {            # are there basis to remove?
+      alpha_prev <- alpha_prev[keep_basis]
+      alpha      <- alpha[keep_basis]
+      w          <- w[keep_basis]
+      phi        <- phi[keep_basis]
+      Phi        <- compute_Phi(X, Y, phi)  
+      M          <- length(phi)
+    }
+    
+    Y_hat  <- sigmoid( apply(X, 1, function(x) y_x(x,w,phi)) )
+    B      <- diag(Y_hat * (1-Y_hat))
+
+    Sigma  <- calc_Sigma(alpha, B, Phi) 
+#    w      <- calc_w(alpha, Phi, Y, Y_hat)
+   w <- calc_w(Sigma, Phi, Y, B)
+
+    if (sum(abs(alpha-alpha_prev)) < epsilon) # convergence criterium
+      break
+    
+    alpha_prev <- alpha
+  }
+  # return model parameters
+  list(w=w, Sigma=Sigma, alpha=alpha, phi=phi)
+}
+```
+
+An eg:
+
+```{r, fig.width=8, eval=FALSE}
+one <- function(x) rep(1,length(x[1]))
+px1 <- function(x) x[1]
+px2 <- function(x) x[2]
+int <- function(x) prod(x)
+phi <- c(one, px1, px2, int) # the initial basis
+
+X <- data.frame(x1 = c(1,2,3,4,5),
+                x2 = c(1,2,3,3,5))
+Y <- c(1,1,1,-1,-1)
+
+model <- rvm_model_class(X, Y, phi)
+
+plot(X,Y,xlim=c(-2,10), ylim=c(-20,30), pch=19)
+xs <- seq(-2,10,len=50)
+ys <- sapply(xs, function(x) rvm_predict(x,model))
+# include 95% credible interval (since it's a normal, 95% is 2 standard devs)
+p.95 <- 2*sapply(xs, function(x) rvm_sd_predict(x,model))
+polygon(c(rev(xs), xs), c(rev(ys-p.95), ys+p.95), col = 'grey80', border = NA)
+points(X,Y,pch=19)
+points(xs, ys, type="l", col="red", lwd=1)
+```
+
+-->
+
