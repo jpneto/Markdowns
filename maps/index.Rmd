@@ -1,6 +1,6 @@
 ---
 title: "Maps"
-author: "Joao Neto"
+author: "João Neto"
 date: "Saturday, October 04, 2014"
 output: html_document
 ---
@@ -119,5 +119,58 @@ colorCountry <- sapply(countryMatch, function(c) {
 map("world", proj = "azequalarea", orient = c(25, 10, 0), boundary = TRUE, col = colorCountry, fill = TRUE)
 map.grid(m, col = "lightblue", label = FALSE, lty = 2, pretty = TRUE)
 map.scale()
+```
+
+
+Ref: [http://blog.corynissen.com/2015/05/creating-styled-google-maps-in-ggmap.html](http://blog.corynissen.com/2015/05/creating-styled-google-maps-in-ggmap.html)
+
+
+```{r}
+library("RJSONIO")
+library("ggmap")
+library("magrittr")
+
+# You can define a style here:
+# http://gmaps-samples-v3.googlecode.com/svn/trunk/styledmaps/wizard/index.html
+
+style <- '[
+  {
+    "featureType": "poi.park",
+    "elementType": "geometry",
+    "stylers": [
+        { "visibility": "on" },
+        { "gamma": 0.61 },
+        { "color": "#284180" },
+        { "hue": "#00ff44" },
+        { "saturation": 46 }
+    ]
+  }
+]'
+
+style_list <- fromJSON(style, asText=TRUE)
+
+create_style_string<- function(style_list){
+  style_string <- ""
+  for(i in 1:length(style_list)){
+    if("featureType" %in% names(style_list[[i]])){
+      style_string <- paste0(style_string, "feature:", 
+                             style_list[[i]]$featureType, "|")      
+    }
+    elements <- style_list[[i]]$stylers
+    a <- lapply(elements, function(x)paste0(names(x), ":", x)) %>%
+      unlist() %>%
+      paste0(collapse="|")
+    style_string <- paste0(style_string, a)
+    if(i < length(style_list)){
+      style_string <- paste0(style_string, "&style=")       
+    }
+  }  
+  # google wants 0xff0000 not #ff0000
+  style_string <- gsub("#", "0x", style_string)
+  return(style_string)
+}
+
+style_string <- create_style_string(style_list)
+ggmap(get_googlemap("lisbon", size=c(800,800), style=style_string, zoom=14), extent="device")
 ```
 
