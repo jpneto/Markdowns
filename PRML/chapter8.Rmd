@@ -1,0 +1,445 @@
+---
+title: "Bishop's PRML, Chapter 8"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(DiagrammeR)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(BRugs)
+
+run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.10, 
+                      init.func, n.chains=1, thin=1) {
+  
+  writeLines(model, con="model.txt")  # Write the modelString to a file
+  modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
+  if (length(data)>0)                 # If there's any data available...
+    modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
+  modelCompile(n.chains)              # BRugs command tells BUGS to compile the model
+  
+  if (missing(init.func)) {
+    modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain
+  } else {
+    for (chain in 1:n.chains) {       # otherwise use user's init data
+      modelInits(bugsInits(init.func))
+    }
+  }
+  
+  modelUpdate(chainLength*burnin)     # Burn-in period to be discarded
+  samplesSet(samples)                 # BRugs tells BUGS to keep a record of the sampled values
+  samplesSetThin(thin)                # Set thinning
+  modelUpdate(chainLength)            # BRugs command tells BUGS to randomly initialize a chain
+}
+```
+
+This page contains source code relating to chapter 8 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This chapter is about Probabilistic Graphical Models.
+
+## Polynomial Regression eg (section 8.1.1)
+
+The model can be stated has:
+
+$$p(y,w|x,\alpha,\sigma^2) = p(w|\alpha) \prod_{i=1}^N p(y_i|w,x_i,\sigma^2)$$
+
+where $\alpha$ is the precision for the normal prior of $w \sim \mathcal{N}(0,\alpha^{-1}I)$, and $\sigma^2$ is the noise variance of $x$,
+
+$$y_i \sim \mathcal{N}(\mu,\sigma^2)$$
+
+where $\mu$ is a polynomial expression over $x$ (or basis of $x$) using the weigths $w$, ie, $\mu=y(x,w)$.
+
+Here's the respective probabilistic graphical model:
+
+<center>
+
+```{r echo=FALSE, fig.width=4, fig.height=4}
+grViz("
+  digraph dot {
+
+    graph [compound = true, nodesep = .5, ranksep = .25,
+           color = crimson, label='Polynomial Regression Model']
+
+    subgraph cluster1 {
+      node [shape = diamond, 
+            color = black]
+      xi
+
+      node [shape = circle,
+            style = filled,
+            fillcolor = grey] 
+      yi
+      
+      edge [color = black] 
+      xi -> yi
+
+      label='N'
+    }  
+  
+    node [shape = circle]
+    w
+
+    node [shape = diamond,
+          color = black,
+          label = '&alpha;']
+    alpha
+
+    node [shape = diamond,
+          color = black,
+          label = '&sigma;&#x00B2;']
+    sigma
+
+    edge [color = black]
+    alpha -> w
+    w -> yi
+    sigma -> yi 
+
+  }
+  ",
+engine = "dot")
+```
+
+</center>
+
+Herein diamonds describe deterministic parameters; shaded circles describe observed values; and boxes describe multiple variables (in this eg, $x_1 \ldots x_N$ and $t_1 \ldots t_N$).
+
+I will use openbugs to specify a model example (Bishop does not talk about MCMC in this chapter) and execute it to give a polynomial fit for a dataset.
+
+In this eg we use a cubic polynomial, so
+
+$$\mu = w_0 + w_1 x + w_2 x^2 + w_3 x^3$$
+
+and we need to estimate the values of the weights $w$, given $x$ and $y$:
+
+```{r}
+modelString = "
+  model {
+      for(i in 1:4) {
+         w[i] ~ dnorm(0, alpha_1)       # prior for each w[i], w ~ N(0,1/alpha)
+      }
+
+      for(i in 1:N) {
+          mu[i] <- w[1] + w[2]*x[i] + w[3]*pow(x[i],2) + w[4]*pow(x[i],3) 
+          y[i] ~ dnorm(mu[i], sigma2)   # likelihood, y ~ N(mu, sigma^2)
+      }
+  }
+"
+```
+
+This is our data, a noisy sin wave:
+
+```{r}
+N  <- 50
+xs <- seq(-pi,pi,len=N)
+d  <- data.frame(x=xs,
+                 y=sin(xs)+rnorm(N,0,0.1))
+plot(d,pch=19)
+```
+
+Let's try to fit a polynomial cube on it:
+
+```{r}
+data.list <- list(
+    N  = N,
+    alpha_1 = 10,
+    sigma2 = 10,
+    x = d$x,
+    y = d$y
+)
+
+run.model(modelString, samples=c("w"), data=data.list, chainLength=10000)
+# get posterior mean of p(w|data)
+w_hat  <- samplesStats( "w" )$mean  
+# hot to compute estimates for new values of y's based on a given w
+compute_mu <- function(w,x) {
+  w[1] + w[2]*x + w[3]*x^2 + w[4]*x^3
+}
+# for each x, estimate y given the posterior mean of p(w|data)
+ys_hat <- sapply(xs, function(x) compute_mu(w_hat,x))
+
+plot(d,pch=19)
+points(xs,ys_hat,type="l", col="red",lwd=2)
+```
+
+We can also produce a confidence interval. For that we need the values of $w$ computed by the mcmc:
+
+```{r}
+w_samples <- data.frame(w11=samplesSample("w[1]"))
+for(i in 2:4)
+  w_samples <- cbind(w_samples, samplesSample( paste0('w[',i,']') ))
+names(w_samples) <- paste0("w",1:4)
+head(w_samples,4)
+```
+
+With these samples, we can produce several instances of fitting polynomials:
+
+```{r}
+plot(d,pch=19,type="n")
+for(i in 1:20) {
+  w <- w_samples[i,]
+  y <- sapply(xs, function(x) compute_mu(w,x))
+  points(xs,y,type="l", col="lightgrey", lwd=1)
+}
+points(d,pch=19)
+```
+
+And use those to get highest posterior density intervals for each value $x$:
+
+```{r}
+library(coda)
+prob <- 0.9
+hpd  <- matrix(rep(NA,N*2),ncol=2)
+for(i in 1:N) {
+  ys      <- apply(w_samples, 1, function(w) compute_mu(w,xs[i]))
+  hpd[i,] <- HPDinterval(as.mcmc(ys), prob=prob)
+}
+
+plot(d,pch=19,type="n", xlab=paste0(100*prob,"% credible interval"), ylab="")
+polygon(c(rev(xs), xs), c(rev(hpd[,1]), hpd[,2]), col = 'grey80', border = NA)
+points(xs,ys_hat,type="l", col="red",lwd=2)
+points(d,pch=19)
+```
+
+
+
+## Naive Bayes eg (section 8.2.2)
+
+Naive Bayes is a model that assumes a very strong restriction, all features $x_i$ are independent between themselves given the class label:
+
+$$p(x,y) = p(y) \prod_{i=1}^D p(x_i,y)$$
+
+In graphical terms:
+
+<center>
+
+```{r echo=FALSE, fig.width=3, fig.height=3}
+grViz("
+  digraph dot {
+
+    graph [compound = true, nodesep = .5, ranksep = .25,
+           color = crimson, label='Na&#x00EF;ve Bayes']
+
+    subgraph cluster1 {
+      node [shape = circle,
+            style = filled,
+            fillcolor = grey] 
+      xi
+
+      label='           N'
+    }  
+  
+    node [shape = circle]
+    yi
+
+    edge [color = black] 
+    yi -> xi
+
+  }
+  ",
+engine = "dot")
+```
+
+</center>
+
+The next eg is taken from the Stan's [GitHub ](https://github.com/stan-dev/example-models/tree/master/misc/cluster/naive-bayes) and is about classifying words $w$ of a certain vocabulary in a given topic $z$ (more details in section 13.3 of 
+[Stan Modeling Manual](http://mc-stan.org/manual.html)).
+
+There are $M$ documents, each consisting of a bag of words (here there's no order in the words), where the m-th document has $N_m$ words, $w_{m1} \ldots w_{mN_m}$, with a total of $N$ words. There are $K$ different categories/topics of documents (eg, spam, personal, work, news...).
+
+The word data is organized in two vectors, one, $w$, with all the words (identified by a numeric id) and another, $doc$ with the id of the document the word belongs to.
+
+```{r collapse=TRUE}
+source("chp8/data.R") # get data
+K # number of topics
+V # number of words in the vocabulary
+N # total number of words in the data
+M # number of documents
+head(z) # the classification of each document, ie, the topic of doc m is in z[m]
+head(doc,20)
+head(w,20)
+```
+
+There's a category $z_m$ for each document $m \in 1:M$ with categorical distribution
+
+$$z_m \sim \text{Categorical}(\theta)$$
+
+where $\theta$ is a K-simplex (ie, a vector of K elements summing to one) that represents the prevalence of each category for that document.
+
+Each word $w_{m,n}$, the n-th word of the m-tm document is generated by
+
+$$w_{m,n} \sim \text{Categorical}(\phi_{z_m})$$
+
+where $\phi_{z_m}$ is a V-simplex representing the probability of each word in the
+vocabulary inside documents of category $z_m$.
+
+The priors for $\phi,\theta$ have Dirichlet distributions with symmetric values which are given by vectors $\alpha$ and $\beta$,
+
+```{r, collapse=TRUE}
+alpha # there are K topics
+beta  # there are V words in the vocabulary
+```
+
+Graphically:
+
+<center>
+
+```{r echo=FALSE, fig.width=6, fig.height=6}
+grViz("
+  digraph dot {
+
+    graph [compound = true, nodesep = .5, ranksep = .25,
+           color = crimson, label='Na&#x00EF;ve Bayes for text classification']
+
+    subgraph cluster1 {
+      node [shape = circle,
+            style = filled,
+            fillcolor = grey] 
+      zm
+      
+      label='          M'
+    }  
+
+    subgraph cluster2 {
+      node [shape = circle,
+            label = '&phi;k'] 
+      phik
+
+      label='          K'
+    }  
+
+    subgraph cluster3 {
+      node [shape = circle,
+            style = filled,
+            fillcolor = grey] 
+      wn
+
+      label='N'
+    }  
+
+    node [shape = diamond,
+          color = black,
+          label = '&alpha;']
+    alpha
+
+    node [shape = diamond,
+          color = black,
+          label = '&beta;']
+    beta
+
+    node [shape = circle,
+          color = black,
+          label = '&theta;']
+    theta
+
+    edge [color = black]
+    alpha -> theta
+    beta -> phik
+    theta -> zm
+    zm -> wn
+    phik -> wn
+  }
+  ",
+engine = "dot")
+```
+
+</center>
+
+The model in Stan:
+
+```{r}
+model <- '
+  data {
+    // training data
+    int<lower=1> K;               // num topics
+    int<lower=1> V;               // num words, vocabulary
+    int<lower=0> M;               // num docs
+    int<lower=0> N;               // total word instances
+    int<lower=1,upper=K> z[M];    // topic for doc m
+    int<lower=1,upper=V> w[N];    // word n
+    int<lower=1,upper=M> doc[N];  // doc ID for word n
+    // hyperparameters
+    vector<lower=0>[K] alpha;     // topic prior
+    vector<lower=0>[V] beta;      // word prior
+  }
+
+  parameters {
+    simplex[K] theta;   // topic prevalence
+    simplex[V] phi[K];  // word dist for topic k
+  }
+
+  model {
+    // priors
+    theta ~ dirichlet(alpha);
+    for (k in 1:K)  
+      phi[k] ~ dirichlet(beta);
+
+    // likelihood, including latent category
+    for (m in 1:M)
+      z[m] ~ categorical(theta);
+    for (n in 1:N)
+      w[n] ~ categorical(phi[z[doc[n]]]);
+  }
+'
+```
+
+So, let's give the model and the data to Stan and wait for the results:
+
+```{r message=FALSE, warning=FALSE}
+library(rstan)
+
+fit <- stan(model_code = model, 
+            data = list(K=K,V=V,M=M,N=N,z=z,w=w,doc=doc,alpha=alpha,beta=beta), 
+            iter = 10000, chains=1, verbose=FALSE, seed=101, warmup=1000)
+```
+
+Here are the mean results for parameters $\phi_{z_m}$:
+
+```{r}
+phi_means <- matrix(as.numeric(get_posterior_mean(fit, pars="phi")), ncol=4)
+colnames(phi_means) <- paste0("K",1:4)  # i-th topic
+rownames(phi_means) <- paste0("V",1:10) # i-th word in the vocabulary
+phi_means
+```
+
+Let's select the words of a document:
+
+```{r}
+doc_id <- 4
+words <- w[doc==doc_id]
+words
+```
+
+And find the likelihood of this document (ie, of its words) of belonging on each topic (we compute the log-likelihoods to prevent underflows):
+
+```{r}
+predict_topic <- function(words, phi_means) {
+  log_lik <- rep(NA,K)
+  for(topic in 1:K) {
+    log_lik[topic] <- sum(log(phi_means[words,topic]))
+  }
+  which.max(log_lik)
+}
+
+predict_topic(words, phi_means)
+```
+
+And we see that the `r doc_id`-th document is classified as being of topic `r predict_topic(words, phi_means)`.
+
+This corresponds to its initial classification:
+
+```{r}
+z[doc_id] # the known topic of this document
+```
+
+If we had a new document, we could classify it:
+
+```{r}
+words <- c(1,5,4,1,2)            # the words id of the new document
+predict_topic(words, phi_means)  # the model's prediction
+```
+
