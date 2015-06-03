@@ -1,0 +1,642 @@
+---
+title: "Using ggplot2"
+date: "July 2015"
+output: 
+  html_document:
+    fig_width: 12
+    toc: true
+    toc_depth: 3
+---
+
+Refs:
+
++ Hadley Wichham - *ggplot2, Elegant Graphics for Data Analysis*
+
++ Winston Chang - [R Graphics Cookbook](http://www.cookbook-r.com/Graphs/index.html)
+
++ [ggplot2 online documentation](http://docs.ggplot2.org/current/)
+
+ggplot2 implements Wilkinson grammar of graphics that describes and conceptually organizes the features that underlie statistical graphics.
+
+The most important concepts are:
+
++ The **data** (duh!)
+
++ **Aesthetic** mappings describing how the data is mapped to aesthetic atributes (eg, shape, color, horizontal and vertical position)
+
++ Geometric objects, **geoms**, that we see on the graphic (eg, points, lines)
+
++ Statistical mappings, **stats**, summarizing the data (eg, binning, counting)
+
++ Scaling mappings, **scales**, the map the data space into aesthetic space (eg, linear or log axis, legends, how to map colors), there should be a scale for each aesthetic
+
++ Coordinate systems, **coord**, a map from the data coordinates to the graph coordinates (eg, cartesian, log-log, polar)
+
++ **Facets** describing how to plit the data into subsets
+
+```{r, comment=FALSE}
+library(ggplot2)
+library(gridExtra)  # for presenting plots side by side
+
+set.seed(101)
+d <- diamonds[sample(nrow(diamonds), 100), ]  # read some data for next examples
+head(d)
+```
+
+
+## `qplot`
+
+`qplot` is ggplot2's plot function.
+
+```{r}
+plot1 <- qplot(carat,      price,      data = d)
+plot2 <- qplot(log(carat), log(price), data = d)
+plot3 <- qplot(carat,      x * y * z,  data = d)  # x*y*z gives the volume
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+`qplot` automates some aesthetics like how to assign colors and shapes to data:
+
+```{r}
+plot1 <- qplot(carat, price, data = d, colour = color, size= carat)
+plot2 <- qplot(carat, price, data = d, shape  = cut)
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+Notice that the plots also come with a legend. For each aesthetic attribute there is a scale function mapping the data values to the aesthetic values. Eg, in the left plot, the attribute D was associated with red.
+
+`qplot` accepts different types of geometric objects, geoms, which will make it produce different types of graphics. The default is `geom="point"`, ie, the scatterplots we've seen. Other objects are possible:
+
+```{r}
+plot1 <- qplot(carat, price, data = d, geom=c("point", "smooth")) # default smooth by loess regression
+plot2 <- qplot(carat, price, data = d, geom=c("point", "boxplot"))
+plot3 <- qplot(carat, price, data = d, geom=c("point", "line")) 
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+Geoms for 1D data:
+
+```{r}
+plot1 <- qplot(carat, data = d, geom="histogram") # continuous values
+plot2 <- qplot(color, data = d, geom="bar")       # discrete values
+grid.arrange(plot1, plot2, ncol=2)  
+plot1 <- qplot(carat, data = d, geom="freqpoly")
+plot2 <- qplot(carat, data = d, geom="density") 
+grid.arrange(plot1, plot2, ncol=2)  
+```
+
+### Smooth geoms
+
+The smooth geom can be used with different regression methods:
+
+```{r}
+plot1 <- qplot(carat, price, data = d, geom=c("point", "smooth"), method="lm")
+plot2 <- qplot(carat, price, data = d, geom=c("point", "smooth"), method="lm", formula=y~poly(x,3)) # polynomial regression
+grid.arrange(plot1, plot2, ncol=2)
+library(splines) # using natural splines
+plot3 <- qplot(carat, price, data = d, geom=c("point", "smooth"), method="lm", formula=y~ns(x,5)) 
+library(MASS) # for robust regression
+plot4 <- qplot(carat, price, data = d, geom=c("point", "smooth"), method="rlm") 
+grid.arrange(plot3, plot4, ncol=2)
+```
+
+### Jitter and opacity
+
+Sometimes the datapoints are too many and a direct plot is unable to transmit an appropriate perspective of the data. One tool is to jitter the points (add small random noise so that many equal data points are spread around its center) and/or define an amount of opacity, ie, stating how many points there must be at area so that the graphic plots without transparency.
+
+```{r}
+plot1 <- qplot(carat, price, data = diamonds)
+plot2 <- qplot(carat, price, data = diamonds, alpha=I(1/50)) # 100 pts for total opacity
+grid.arrange(plot1, plot2, ncol=2)
+
+plot1 <- qplot(color, price/carat, data = diamonds)
+plot2 <- qplot(color, price/carat, data = diamonds, geom = "jitter")
+plot3 <- qplot(color, price/carat, data = diamonds, geom = "jitter", alpha = I(1/10))
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+### Histograms and density plots
+
+For the histogram geom we can define the bin size:
+
+```{r}
+plot1 <- qplot(carat, data = diamonds, geom = "histogram", binwidth = 1)
+plot2 <- qplot(carat, data = diamonds, geom = "histogram", binwidth = 0.1)
+plot3 <- qplot(carat, data = diamonds, geom = "histogram", binwidth = 0.05)
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+For density plots we have the adjust parameter:
+
+```{r}
+plot1 <- qplot(carat, data = diamonds, geom = "density", adjust = 4)
+plot2 <- qplot(carat, data = diamonds, geom = "density", adjust = 1)
+plot3 <- qplot(carat, data = diamonds, geom = "density", adjust = 0.5)
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+Applying a color aesthetic:
+
+```{r}
+plot1 <- qplot(carat, data = diamonds, geom = "histogram", fill = color)
+plot2 <- qplot(carat, data = diamonds, geom = "density", colour = color)
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+### Time series
+
+```{r, comment=FALSE}
+head(economics)
+year <- function(x) as.POSIXlt(x)$year + 1900
+economics$year <- year(economics$date)
+head(economics)
+```
+
+We can use geom line for standard time series:
+
+```{r}
+plot1 <- qplot(date, unemploy / pop, data = economics, geom = "line")
+plot2 <- qplot(date, uempmed,        data = economics, geom = "line")
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+The geom path that joins points adjacent in time (when scatterplots does not provide enough information):
+
+```{r}
+plot1 <- qplot(unemploy/pop, uempmed, data = economics, geom = c("point", "path"))
+plot2 <- qplot(unemploy/pop, uempmed, data = economics, geom = c("point", "path"), color=year)
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+### Faceting
+
+Faceting splits the data into subsets which are present at different graphs for easier comparisation.
+
+```{r, warning=FALSE}
+plot1 <- qplot(carat, data = diamonds, facets = color ~ ., geom = "histogram", binwidth = 0.1,  xlim = c(0, 3))
+plot2 <- qplot(carat, data = diamonds, facets = cut ~ .,   geom = "density",   binwidth = 0.05, xlim = c(0, 3))
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+```{r, warning=FALSE}
+plot1 <- qplot(displ, hwy, data = mpg, facets = . ~ drv)
+plot2 <- qplot(hwy,        data = mpg, facets = drv ~ ., binwidth = 2)
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+
+### Other options
+
+Here's the use of some other parameters for `qplot`:
+
+```{r, warning=FALSE}
+qplot(carat, price, data=d, 
+      xlim=c(0.5,1.5), ylim=c(0,5e3),
+      main="Main Title",
+      xlab=expression(beta[1] == 1), ylab="some stuff")
+```
+
+## `ggplot` and Layers
+
+Layers are responsible for creating the objects that we perceive on the plot. A layer is composed of four parts:
+
++ data and aesthetic mapping,
+
++ a statistical transformation (stat),
+
++ a geometric object (geom)
+
++ a position adjustment.
+
+`qplot` does everything inside its parameters. If we like to have more control in the creation of the graphic, we need to use `ggplot`.
+
+`ggplot` receives two arguments, the data which must be a data frame and which aesthetics mappings we want. An eg:
+
+```{r, error=TRUE}
+p <- ggplot(d, aes(carat, price, colour=cut))
+p
+```
+
+It gave an error because we still not defined geoms so that there is something to see.
+To add new layers we should use operator `+`:
+
+```{r}
+plot1 <- p + layer(geom="point")
+plot2 <- p + layer(geom="line")
+grid.arrange(plot1, plot2, ncol=2)  
+```
+
+`ggplot2` has a series of specialized functions that simplify the use of `layer` with prefixes `geom_XXX` or `stat_XXX`
+
+```{r}
+p <- ggplot(diamonds, aes(x=carat)) 
+plot1 <- p + layer(geom="bar", 
+                   geom_params = list(fill = "steelblue"), 
+                   stat = "bin", 
+                   stat_params = list(binwidth = 0.25))
+plot2 <- p + geom_histogram(binwidth = 0.25, fill = "steelblue")  # same graph
+grid.arrange(plot1, plot2, ncol=2)  
+```
+
+We can add multiple layers:
+
+```{r, warning=FALSE}
+ggplot(msleep, aes(sleep_rem / sleep_total, awake)) +
+  geom_point() + 
+  geom_smooth()
+```
+
+### Data
+
+iIt's possible to use the same graph objet with another data using operator `%+%`:
+
+```{r}
+head(mtcars)
+plot1 <- ggplot(mtcars, aes(mpg, wt, colour = cyl)) + geom_point()
+mtcars2 <- transform(mtcars, wt = wt ^ 2)
+plot2 <- plot1 %+% mtcars2 
+grid.arrange(plot1, plot2, ncol=2)  
+```
+
+### Aesthetics
+
+Function `aes` describes which data values are assigned to things we see in the graph.
+The first two parameters are to define which should be considered as `x` and `y`. Other mappings can be stated, like colour like in the previous eg `aes(mpg, wt, colour = cyl)`.
+
+```{r}
+p <- ggplot(mtcars) 
+plot1 <- p + aes(wt,   hp)  + geom_point(colour="darkblue")             # set colors
+plot2 <- p + aes(disp, mpg) + geom_point() + aes(colour = factor(cyl))  # map colors
+grid.arrange(plot1, plot2, ncol=2) 
+```
+
+### Grouping
+
+We can split the data into distinct groups, ie, datapoints that share something in common, and then plot them differently. This is done with the `group` mapping.
+
+```{r}
+plot1 <- ggplot(mtcars, aes(wt, hp, colour=factor(cyl), group=cyl)) + 
+           geom_smooth(method="lm")
+plot2 <- ggplot(mtcars, aes(wt, hp, colour=factor(cyl), group=cyl)) + 
+           geom_boxplot() + theme(legend.position="none") # removes legend
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+### Geoms
+
+These dtermine the rendering of the graph. Each geom has a set of aesthetics it understands and a default statistic.
+
+Some egs:
+
+```{r}
+p <- ggplot(mtcars) + aes(wt, hp) + geom_point()
+plot1 <- p + 
+         geom_abline(intercept=2, slope=20, colour="red", size=1.5, linetype="dashed") +
+         geom_hline(yintercept=seq(100, 150, by=15)) +
+         geom_text(label="    A", angle=30)
+plot2 <- p + geom_path(size = 0.5, lineend = "round")
+plot3 <- p + geom_rect(xmin=2, xmax=3, ymin=200, ymax=300, fill="lightblue")
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+```{r}
+df <- data.frame(x = c(3, 1, 5), y = c(2, 4, 6), label = c("a","b","c"))
+p <- ggplot(df, aes(x, y, label = label)) + xlab(NULL) + ylab(NULL)
+plot1 <- p + geom_point()   + ggtitle("geom_point")
+plot2 <- p + geom_bar(stat="identity") + ggtitle("geom_bar(stat=\"identity\")")
+plot3 <- p + geom_line()    + ggtitle("geom_line")
+plot4 <- p + geom_area()    + ggtitle("geom_area")
+plot5 <- p + geom_path()    + ggtitle("geom_path")
+plot6 <- p + geom_text()    + ggtitle("geom_text")
+plot7 <- p + geom_tile()    + ggtitle("geom_tile")
+plot8 <- p + geom_polygon() + ggtitle("geom_polygon")
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, plot7, plot8, nrow=2, ncol=4)
+```
+
+### Positions
+
+Position adjustments modify the position of elements within a layer.
+
+```{r}
+p <- ggplot(data = diamonds) + aes(x=clarity, fill=cut)
+plot1 <- p + geom_bar(position="fill") 
+plot2 <- p + geom_bar(position="dodge") 
+plot3 <- p + geom_bar(position="stack")
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+### Stats
+
+It's possible to connect geoms to other statistics. Values computed by statistics are surrounded by double points, like `..count..`
+
+```{r, warning=FALSE}
+p <- ggplot(diamonds, aes(carat)) + xlim(0, 3)
+plot1 <- p + stat_bin(aes(ymax = ..count..),   binwidth = 0.1, geom = "area")
+plot2 <- p + stat_bin(aes(size = ..density..), binwidth = 0.1, geom = "point", position="identity")
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+```{r, warning=FALSE}
+p <- ggplot(diamonds, aes(carat, price)) + xlim(1,3) 
+plot1 <- p + stat_bin2d(bins = 25)
+plot2 <- p + stat_binhex(bins = 10)
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+```{r, warning=FALSE}
+p <- ggplot(diamonds, aes(carat, price)) + xlim(1,3) 
+plot1 <- p + geom_point() + geom_density2d()
+plot2 <- p + stat_density2d(geom = "point", aes(size = ..density..), contour = F) +
+             scale_size_area(0.2, 1.5)
+plot3 <- p + stat_density2d(geom = "tile", aes(fill = ..density..), contour = F)
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+### Annotating plots
+
+```{r}
+presdts <- presidential[-(1:3),] # remove the first 3 presidents
+presdts$start <- as.Date(presdts$start)
+head(presdts,4)
+head(economics,4)
+```
+
+```{r}
+p <- qplot(date, unemploy, data=economics, geom="line", 
+           xlab = "", ylab = "No. unemployed (1000s)")
+
+p + geom_vline(aes(xintercept = as.numeric(start)), data = presdts) +
+    scale_x_date()
+
+yrng <- range(economics$unemploy)
+xrng <- range(economics$date)
+
+library(scales) # use: alpha()
+p + geom_rect(aes(NULL, NULL, xmin = start, xmax = end, fill = party), 
+              ymin = yrng[1], ymax = yrng[2], data = presidential) +
+    scale_fill_manual(values = alpha(c("blue", "red"), 0.2))
+
+highest <- subset(economics, unemploy == max(unemploy))
+p + geom_point(data = highest, size = 3, colour = alpha("red", 0.5))
+
+p + geom_text(aes(x, y, label = "Unemployment rates of the last 40 years"), 
+              data = data.frame(x = xrng[2], y = yrng[2]), 
+              hjust = 1, vjust = 1, size = 4)
+```
+
+### Transformations
+
+> Transformations carried out by the coordinate system change the appearance of the geoms: in polar coordinates a rectangle becomes a slice of a doughnut; in a map
+projection, the shortest path between two points will no longer be a straight line -- Wickham
+
+```{r, warning=FALSE}
+p <- ggplot(data=data.frame(x=c(1,200),y=c(1,100))) + aes(x,y)
+plot1 <- p + geom_hline(yintercept=seq(20, 60, by=15)) +
+             geom_rect(xmin=20, xmax=40, ymin=20, ymax=60)
+             
+plot2 <- plot1 + coord_polar()              # x position mapped to angle
+plot3 <- plot1 + coord_polar(theta="y")     # y position mapped to angle
+plot4 <- plot1 + coord_flip()               # flip coordinates
+plot5 <- plot1 + coord_equal()  
+plot6 <- plot1 + coord_trans(x = "log10")
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, nrow=2, ncol=3)
+```
+
+Eg with map coordinates:
+
+```{r, message=FALSE}
+library("maps")
+
+m <- map_data("italy")
+p <- ggplot(m, aes(x=long, y=lat, group=group)) +
+            geom_polygon(fill="white", colour="black")
+plot1 <- p                # Use cartesian coordinates
+plot2 <- p + coord_map()  # With default mercator projection
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+### Some more complex egs
+
+```{r, include=FALSE}
+## Summarizes data.
+## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+##   data: a data frame.
+##   measurevar: the name of a column that contains the variable to be summariezed
+##   groupvars: a vector containing names of columns that contain grouping variables
+##   na.rm: a boolean that indicates whether to ignore NA's
+##   conf.interval: the percent range of the confidence interval (default is 95%)
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+    library(plyr)
+
+    # New version of length which can handle NA's: if na.rm==T, don't count them
+    length2 <- function (x, na.rm=FALSE) {
+        if (na.rm) sum(!is.na(x))
+        else       length(x)
+    }
+
+    # This does the summary. For each group's data frame, return a vector with
+    # N, mean, and sd
+    datac <- ddply(data, groupvars, .drop=.drop,
+      .fun = function(xx, col) {
+        c(N    = length2(xx[[col]], na.rm=na.rm),
+          mean = mean   (xx[[col]], na.rm=na.rm),
+          sd   = sd     (xx[[col]], na.rm=na.rm)
+        )
+      },
+      measurevar
+    )
+
+    # Rename the "mean" column    
+    datac <- rename(datac, c("mean" = measurevar))
+
+    datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+
+    # Confidence interval multiplier for standard error
+    # Calculate t-statistic for confidence interval: 
+    # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+    ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+    datac$ci <- datac$se * ciMult
+
+    return(datac)
+}
+```
+
+Let's see an example with error bars (`summarySE` is defined in the R markdown)):
+
+```{r}
+# from http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+tgc <- summarySE(ToothGrowth, measurevar="len", groupvars=c("supp","dose"))
+head(tgc)
+
+pd <- position_dodge(0.1) # move errorbars to the left and right
+
+ggplot(tgc, aes(x=dose, y=len, colour=supp, group=supp)) + 
+    geom_errorbar(aes(ymin=len-se, ymax=len+se), colour="black", width=.1, position=pd) +
+    geom_line(position=pd) +
+    geom_point(position=pd, size=3, shape=21, fill="white") + # 21 is filled circle
+    xlab("Dose (mg)") +
+    ylab("Tooth length") +
+    scale_colour_hue(name="Supplement type",    # Legend label, use darker colors
+                     breaks=c("OJ", "VC"),
+                     labels=c("Orange juice", "Ascorbic acid"),
+                     l=40) +                    # Use darker colors, lightness=40
+    ggtitle("The Effect of Vitamin C on\nTooth Growth in Guinea Pigs") +
+    expand_limits(y=0) +                        # Expand y range
+    scale_y_continuous(breaks=0:20*4) +         # Set tick every 4
+    theme_bw() +
+    theme(legend.justification=c(1,0),
+          legend.position=c(1,0))               # Position legend in bottom right
+```
+
+Eg of a population pyramid taken from Kyle Walker's  [example](https://rpubs.com/walkerke/pyramids_ggplot2):
+
+```{r, include=FALSE}
+library(XML)
+library(reshape2)
+library(plyr)
+
+
+get_data <- function(country, year) {
+  c1 <- "http://www.census.gov/population/international/data/idb/region.php?N=%20Results%20&T=10&A=separate&RT=0&Y="  
+  c2 <- "&R=-1&C="
+  url <- paste0(c1, year, c2, country)
+  df <- data.frame(readHTMLTable(url))
+  keep <- c(2, 4, 5)
+  df <- df[,keep]  
+  names(df) <- c("Age", "Male", "Female")
+  cols <- 2:3
+  df[,cols] <- apply(df[,cols], 2, function(x) as.numeric(as.character(gsub(",", "", x))))
+  df <- df[df$Age != 'Total', ]  
+  df$Male <- -1 * df$Male
+  df$Age <- factor(df$Age, levels = df$Age, labels = df$Age)
+  
+  df.melt <- melt(df, 
+                   value.name='Population', 
+                   variable.name = 'Gender', 
+                   id.vars='Age' )
+  
+  return(df.melt)
+}
+
+portugal <- get_data("PO", 2014)
+```
+
+```{r, warning=FALSE}
+# males are counted with negative numbers, while females are with positive numbers
+head(portugal) # check R markdown for code to produce this data frame
+
+ggplot(portugal, aes(x = Age, y = Population, fill = Gender)) + 
+  geom_bar(subset = .(Gender == "Female"), stat = "identity") + 
+  geom_bar(subset = .(Gender == "Male"),   stat = "identity") + 
+  scale_y_continuous(breaks = seq(-5e5, 5e5, 1.25e5), 
+                     labels = paste0(as.character(c(seq(0.5, 0, -.125), seq(0.125, 0.5, .125))), "m")) + 
+  coord_flip() +   # rotates 90º
+  scale_fill_brewer(palette = "Set1") + 
+  theme_bw()
+```
+
+## Using with maps
+
+This next eg in taken from *ggmap, Spatial Visualization with ggplot2* vignette:
+
+```{r, warning=FALSE, message=FALSE}
+library(ggmap)
+
+head(crime)  # compiled from Houston Police Department's website
+murders <- crime[crime$offense == "murder",]
+
+# get map of Houston (this is also a ggplot object)
+houstonMap <- qmap("houston", zoom = 11, color = "bw", legend = "topleft")
+
+plot1 <- houstonMap +
+          geom_point(aes(x = lon, y = lat, colour = "red", size = 2), data = murders) +
+          theme(legend.position="none")
+
+plot2 <- houstonMap +
+          stat_bin2d(aes(x = lon, y = lat, colour = offense, fill = offense),
+                     size = .5, bins = 30, alpha = 1/2, data = murders)
+
+plot3 <- houstonMap +
+          stat_density2d(aes(x = lon, y = lat, fill = ..level.., alpha = ..level..),
+                         size = 2, bins = 4, data = murders, geom = "polygon") +
+          guides(alpha=FALSE) # remove alpha legend
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+This next eg is based on Robin Lovelace and James Cheshire's [tutorial](http://www.r-bloggers.com/introduction-to-spatial-data-and-ggplot2/) 
+(the Rpubs page is [here](http://rpubs.com/m_dev/Intro-to-Spatial-Data-and-ggplot2)
+and also [here](https://rpubs.com/RobinLovelace/ggmap)).
+
+```{r, message=FALSE, message=FALSE}
+library(rgdal)
+
+sport <- readOGR(dsn = "files", "london_sport") # open files/london_sport
+# sport.f <- fortify(sport, region = "ons_label") # format shapefile to plot
+# head(sport.f)
+# # add back attribute information associated with sport object (merge is a data join)
+# sport.f <- merge(sport.f, sport@data, by.x = "id", by.y = "ons_label")
+# head(sport.f)
+
+sport <- SpatialPolygonsDataFrame(Sr = spTransform(sport, 
+                                                   CRSobj = CRS("+init=epsg:4326")),
+                                  data = sport@data)
+sport.f  <- fortify(sport)    # format shapefile to be ploted
+sport$id <- row.names(sport)  # provide same column names for join
+sport.f  <- join(sport.f, sport@data)
+head(sport.f)
+```
+
+With a well defined dataframe, gglopt can plot it using polygons (each London borough is called group):
+
+```{r, fig.width=6, fig.height=6}
+p <- ggplot(sport.f, aes(long, lat, group = group, fill = Partic_Per)) +
+      geom_polygon() + 
+      coord_equal() + 
+      labs(x = "Easting (m)", y = "Northing (m)", fill = "% Sport Partic.") + 
+      ggtitle("London Sports Participation")
+p + scale_fill_gradient(low = "white", high = "black") # black&white version
+# ggsave("plot.png", scale = 3, dpi = 400) # to save image
+```
+
+Several operations over the London map:
+
+```{r}
+p <- ggplot() + 
+       geom_polygon(data = sport.f, aes(x = long, y = lat, group = group)) +
+       coord_map() # this line of code ensures the plot is to scale
+plot1 <- p
+plot2 <- p + geom_point(aes(x = coordinates(sport)[, 1], y = coordinates(sport)[,2]))
+plot3 <- plot2 + 
+  geom_path(data = sport.f, aes(x = long, y = lat, group = group), color = "white") + 
+  theme_classic()  # this line removes the distracting grey background
+
+new_theme <- theme(axis.line = element_blank(), axis.ticks = element_blank(), 
+                   axis.title.x = element_blank(), axis.title.y = element_blank(),
+                   axis.text.y = element_blank(), axis.text.x = element_blank(),
+                   axis.text.y = element_blank(), axis.text.y = element_blank(), 
+                   panel.background = element_rect(fill = "lightgreen"))
+plot4 <- p + new_theme
+grid.arrange(plot1, plot2, plot3, plot4, nrow=2, ncol=2)
+```
+
+These objects can also be layered in ggmap objects:
+
+```{r, warning=FALSE, fig.height=8, message=FALSE}
+library(ggmap) 
+b <- bbox(sport)
+p <- ggmap(get_map(location = b))
+plot1 <- p
+plot2 <- p + 
+  geom_polygon(data=sport.f, aes(x=long, y=lat, group=group, fill=Partic_Per), alpha=0.5) + 
+  scale_fill_continuous(low = "green", high = "red") 
+
+# using a new map source
+p <- ggmap(get_map(location = b, source = "stamen", maptype = "toner", crop = T))
+plot3 <- p + geom_polygon(data = sport.f, 
+                     aes(x=long, y=lat, group=group, fill=Partic_Per), alpha = 0.5)
+grid.arrange(plot1, plot2, plot3, nrow=2, ncol=2)
+```
+
+
+
