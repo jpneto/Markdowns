@@ -17,7 +17,7 @@ $$p(z) = \frac{1}{Z} f(z)$$
 
 The approximation is done with a normal distribution $q$. To determine $q$ we need to find the mode/mean and the variance.
 
-The mode is the same has the mode of $p$. We can find this mode, $z_0$, by just knowing the shape of $p$, this is possible by applying the first derivative and set it to zero:
+The approximation states that the mode is the same as the mode of $p$. We can find this mode, $z_0$, by just knowing the shape of $p$. This is possible by applying the first derivative, set it to zero and solve it:
 
 $$\frac{df}{dz} \rvert_{z=z_0} = 0$$
 
@@ -59,7 +59,7 @@ In R:
 d2f_dz2 <- D(D(expression(log(theta^y * (1-theta)^(n-y))),"theta"),"theta")
 A       <- -eval(d2f_dz2, envir=list(theta=z0, y=y, n=n))
 
-q <- function(z) {
+q_z <- function(z) {
   sqrt(A/(2*pi)) * exp(-(A/2) * (z-z0)^2)
 }
 ```
@@ -69,14 +69,14 @@ To check, let's compare it with the true posterior $\text{Beta}(11,9)$ assuming 
 ```{r}
 curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2,
       xlab=expression(theta), ylab="posterior") # true posterior is a beta
-curve(q, 0, 1, lwd=2, col="red", add=T)         # laplace approximation is a normal
+curve(q_z, 0, 1, lwd=2, col="red", add=T)         # laplace approximation is a normal
 legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
 ```
 
 Let's wrap this eg into a function:
 
 ```{r}
-# returns approximating normal distribution
+# returns approximating normal distribution of a beta
 lap_approx_beta <- function(y, n) {
   
   df_dz   <- D(expression(theta^y * (1-theta)^(n-y)), "theta")
@@ -92,19 +92,18 @@ lap_approx_beta <- function(y, n) {
 }
 ```
 
-The method does not work near the edges:
+Notice that the approximation not always work well (more about this below):
 
 ```{r}
-y <- 4
-n <- 6
-q <- lap_approx_beta(y,n)
+y   <- 4
+n   <- 6
+q_z <- lap_approx_beta(y,n)
 
 curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2,
       xlab=expression(theta), ylab="posterior") 
-curve(q, 0, 1, lwd=2, col="red", add=T)         
+curve(q_z, 0, 1, lwd=2, col="red", add=T)         
 legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
 ```
-
 
 ```{r, eval=FALSE, include=FALSE}
 logit <- function(x) log(x/(1-x))
@@ -137,9 +136,9 @@ curve(q, 0, 1, lwd=2, col="red", add=T)
 legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
 ```
 
-### Laplace Approximation with Bayesian Models
+## Approximating Bayesian Models
 
-+ Ref: [Easy Laplace Approximation of Bayesian Models in R](http://www.sumsar.net/blog/2013/11/easy-laplace-approximation/)
+This section is based on Rasmus Bååth's [Easy Laplace Approximation of Bayesian Models in R](http://www.sumsar.net/blog/2013/11/easy-laplace-approximation/)
 
 Let's assume the following model:
 
@@ -151,7 +150,7 @@ $$\mu \sim \mathcal{N}(0, 100)$$
 
 $$\sigma \sim \text{LogNormal}(0,4)$$
 
-This means that the posterior is:
+The posterior is:
 
 $$
 \begin{array}{lclr}
@@ -191,7 +190,7 @@ laplace_approx <- function(model, inits, ...) {
   fit <- optim(inits, model, 
                control = list(fnscale = -1), # maximize
                hessian = TRUE, ...)          # Hessian matrix defines curvature at max
-  param_mean    <- fit$par                   # the posterior modes are the maximum
+  param_mean    <- fit$par                   # the posterior modes are the mode
   param_cov_mat <- solve(-fit$hessian)       # this gives the co-variance matrix
   
   list(param_mean=param_mean, param_cov_mat=param_cov_mat)
@@ -207,8 +206,10 @@ report <- laplace_approx(model, inits=c(mu=0, sigma=1), y=y)
 
 library(coda)
 library(mvtnorm)
+# using sampling to approx density
 samples <- mcmc(rmvnorm(1e4, report$param_mean, report$param_cov_mat))
 plot(samples[,1], trace=FALSE, main="density of mean")
+# compare posterior with approximation
 curve(dnorm(x,10,5), from=-10, to=30, col="blue", lwd=2, xlab="", ylab="posterior")
 curve(dnorm(x,report$param_mean["mu"],report$param_mean["sigma"]), from=-10, to=30, col="red", lwd=2, add=T)
 legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
@@ -275,20 +276,85 @@ model2 <- function(p, y, n) {
 }
 ```
 
-Let's compare this method from Bååth's with Bishop's:
+Let's also compare Bååth's method with Bishop's:
 
 ```{r, warning=FALSE}
 n <- 18
 y <- 10 # 10 heads and 8 tails
 
-report <- laplace_approx(model2, inits=c(theta=0.5), y=y, n=n)
+report <- laplace_approx(model2, inits=c(theta=0.5), y=y, n=n) # using Bååth's method
 z0  <- report$param_mean["theta"]
 sd0 <- sqrt(report$param_cov_mat)
 
-q <- lap_approx_beta(y,n) # using Bishop's method
+q_z <- lap_approx_beta(y,n)                                    # using Bishop's method
 
 curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2, xlab=expression(theta), ylab="posterior") 
-curve(q,              0, 1, lwd=4, col="red", add=T)    
+curve(q_z,            0, 1, lwd=4, col="red", add=T)    
 curve(dnorm(x,z0,sd0),0, 1, lwd=2, col="yellow", add=T)
 legend("topleft",c("true posterior","Bishop", "Bååth"), col=c("blue","red", "yellow"), lty=1, lwd=2)
 ```
+
+As expected, they gave the same result :-)
+
+## Reparametrization
+
+We've seen that some approximations are not very good:
+
+```{r, warning=FALSE}
+y <- 4
+n <- 6
+
+report <- laplace_approx(model2, inits=c(theta=0.5), y=y, n=n)
+z0     <- report$param_mean["theta"]
+sd0    <- sqrt(report$param_cov_mat)
+
+thetas    <- seq(0,1,len=100)
+post_like <- dbeta(thetas,y+1,n-y+1)
+plot(thetas, post_like, col="blue", lwd=2, xlab=expression(theta), ylab="posterior", type="l")
+
+laplace_like <- dnorm(thetas, z0, sd0)
+dist_diff    <- max(laplace_like) / max(post_like)
+points(thetas, laplace_like/dist_diff, col="red", lwd=2, type="l")
+legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
+```
+
+When the posterior starts to skew, the normal cannot fit properly. This sometimes happen due to parameter boundaries (here, $\theta \in [0,1]$). We can try to reparametrize $\theta$ so to remove the boundary. Two typical transformations are $\log$, that translates positive numbers to the reals, and $\text{logit}$, that translates the interval $[0,1]$ to the reals.
+
+In this eg let's remake the computation applying $\text{logit}$ to parameter $\theta$. We will not optimize over $\theta$ but over $\text{logit}(\theta)$. This implies that the parameter that 'feeds' the model distributions is $\text{sigmoid}(\text{logit}(\theta))$:
+
+```{r}
+logit   <- function(x) log(x/(1-x))
+sigmoid <- function(x) 1/(1+exp(-x))  # logit & sigmoid are inverses
+
+model3 <- function(p, y, n) {
+
+  log_lik         <- sum(log(dbinom(y, n, sigmoid(p["logit_theta"]))))
+  log_prior_theta <- dbeta(sigmoid(p["logit_theta"]), 1, 1)
+  
+  log_lik + log_prior_theta
+}
+```
+
+Let's test the model with the same data:
+
+```{r, warning=FALSE}
+n <- 6
+y <- 4
+
+report <- laplace_approx(model3, inits=c(logit_theta=0.5), y=y, n=n)
+z0     <- report$param_mean["logit_theta"]
+sd0    <- sqrt(report$param_cov_mat)
+
+thetas    <- seq(0,1,len=100)
+post_like <- dbeta(thetas,y+1,n-y+1)
+plot(thetas, post_like, col="blue", lwd=2, xlab=expression(theta), ylab="posterior", type="l")
+
+# since the approx was made on a logit scale, we need to rescale thetas to logit
+thetas_logit <- logit(thetas)
+laplace_like <- dnorm(thetas_logit, z0, sd0)
+dist_diff    <- max(laplace_like) / max(post_like)
+points(thetas, laplace_like/dist_diff, col="red", lwd=2, type="l")
+legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
+```
+
+The results are now much better!
