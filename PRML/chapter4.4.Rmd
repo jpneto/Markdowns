@@ -1,0 +1,294 @@
+---
+title: "Bishop's PRML, section 4.4"
+date: "June, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+This page contains source code relating to section 4.4 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This section is about Laplace Approximation.
+
+This technique tries to approximate a distribution $p$ that we only know the shape $f$ but not the normalization constant $Z$:
+
+$$p(z) = \frac{1}{Z} f(z)$$
+
+The approximation is done with a normal distribution $q$. To determine $q$ we need to find the mode/mean and the variance.
+
+The mode is the same has the mode of $p$. We can find this mode, $z_0$, by just knowing the shape of $p$, this is possible by applying the first derivative and set it to zero:
+
+$$\frac{df}{dz} \rvert_{z=z_0} = 0$$
+
+Let's use a small eg to clarify what we are doing here.
+
+Let's say that our distribution $p$ is a beta, then:
+
+$$p(\theta|y,n) = \frac{1}{Z} \theta^y (1-\theta)^{n-y}$$
+
+assuming we are unable to find $Z$ (in this case, $Z$ is [available](http://en.wikipedia.org/wiki/Beta_distribution)).
+
+Eg: find the posterior of $\theta$ given $n=18, y=10$.
+
+Shape $f$ is 
+
+$$p(\theta) \propto f(\theta) = \theta^{10} (1-\theta)^8$$
+
+So, we calculate $df/dz$ and find its root $z_0$:
+
+```{r}
+n <- 18
+y <- 10 # 10 heads and 8 tails
+
+df_dz   <- D(expression(theta^y * (1-theta)^(n-y)), "theta")
+f_df_dz <- function(theta) eval(df_dz, envir=list(theta=theta, y=y, n=n))
+z0      <- uniroot(f_df_dz, c(.001,.999))$root
+z0
+```
+
+With $z_0$, the normal approximation $q(z)$ is given by 
+
+$$q(z) = \left( \frac{A}{2\pi} \right)^{1/2} \exp\{ -\frac{A}{2} (z-z_0)^2 \}$$
+
+$$A = -\frac{d^2}{dz^2} \log f(z) \rvert_{z=z_0}$$
+
+In R:
+
+```{r}
+d2f_dz2 <- D(D(expression(log(theta^y * (1-theta)^(n-y))),"theta"),"theta")
+A       <- -eval(d2f_dz2, envir=list(theta=z0, y=y, n=n))
+
+q <- function(z) {
+  sqrt(A/(2*pi)) * exp(-(A/2) * (z-z0)^2)
+}
+```
+
+To check, let's compare it with the true posterior $\text{Beta}(11,9)$ assuming prior $$\theta \sim \text{Beta(1,1)}$$
+
+```{r}
+curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2,
+      xlab=expression(theta), ylab="posterior") # true posterior is a beta
+curve(q, 0, 1, lwd=2, col="red", add=T)         # laplace approximation is a normal
+legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
+```
+
+Let's wrap this eg into a function:
+
+```{r}
+# returns approximating normal distribution
+lap_approx_beta <- function(y, n) {
+  
+  df_dz   <- D(expression(theta^y * (1-theta)^(n-y)), "theta")
+  f_df_dz <- function(theta) eval(df_dz, envir=list(theta=theta, y=y, n=n))
+  z0      <- uniroot(f_df_dz, c(.001,.999))$root
+  
+  d2f_dz2 <- D(D(expression(log(theta^y * (1-theta)^(n-y))),"theta"),"theta")
+  A       <- -eval(d2f_dz2, envir=list(theta=z0, y=y, n=n))
+
+  function(z) {
+    sqrt(A/(2*pi)) * exp(-(A/2) * (z-z0)^2)
+  }
+}
+```
+
+The method does not work near the edges:
+
+```{r}
+y <- 4
+n <- 6
+q <- lap_approx_beta(y,n)
+
+curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2,
+      xlab=expression(theta), ylab="posterior") 
+curve(q, 0, 1, lwd=2, col="red", add=T)         
+legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+logit <- function(x) log(x/(1-x))
+sigmoid <- function(x) 1/(1+exp(-x))
+
+lap_approx_beta_rep <- function(y, n) {
+  
+  df_dz   <- D(expression((log(theta/(1-theta)))^y *
+                          (1-(log(theta/(1-theta))))^(n-y)), "theta")
+  f_df_dz <- function(theta) eval(df_dz, envir=list(theta=theta, y=y, n=n))
+  z0      <- uniroot(f_df_dz, c(.001,.999))$root
+  
+  d2f_dz2 <- D(D(expression(log((log(theta/(1-theta)))^y *
+                                (1-(log(theta/(1-theta))))^(n-y))),"theta"),"theta")
+  A       <- -eval(d2f_dz2, envir=list(theta=z0, y=y, n=n))
+
+  function(z) {
+    sqrt(A/(2*pi)) * exp(-(A/2) * (z-z0)^2)
+  }
+}
+
+q <- lap_approx_beta_rep(y,n)
+
+curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2,
+      xlab=expression(theta), ylab="posterior") 
+xs <- seq(-10,10,len=100)
+ys <- q(sigmoid(xs))
+
+curve(q, 0, 1, lwd=2, col="red", add=T)         
+legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
+```
+
+### Laplace Approximation with Bayesian Models
+
++ Ref: [Easy Laplace Approximation of Bayesian Models in R](http://www.sumsar.net/blog/2013/11/easy-laplace-approximation/)
+
+Let's assume the following model:
+
+$$y_i \sim \mathcal{N}(\mu, \sigma^2)$$
+
+with priors
+
+$$\mu \sim \mathcal{N}(0, 100)$$
+
+$$\sigma \sim \text{LogNormal}(0,4)$$
+
+This means that the posterior is:
+
+$$
+\begin{array}{lclr}
+p(\mu, \sigma | y) & \propto & p(y | \mu, \sigma) p(\mu) p(\sigma)  & \color{blue}{\text{Bayes Theorem}~\&~\mu \perp \sigma}\\
+\log p(\mu, \sigma | y) & \propto & \log \left[ p(y | \mu, \sigma) p(\mu) p(\sigma) \right] & \\
+                   & = & \log \prod_i p(y_i | \mu, \sigma) + \log p(\mu) + \log p(\sigma)  & \color{blue}{y_i~\text{iid}} \\
+                   & = & \sum_i \log p(y_i | \mu, \sigma) + \log p(\mu) + \log p(\sigma) & \\
+\end{array}
+$$
+
+The next R function computes this log posterior:
+
+```{r}
+# Model
+#   y_i   ~ Normal(mu, sigma)
+#   mu    ~ Normal(0,100)
+#   sigma ~ LogNormal(0,4)
+
+# argument p receives the parameter values, it's a vector c(mu=..., sigma=...)
+# argument y is the available data
+
+model <- function(p, y) {
+  log_lik         <- sum(dnorm(y, p["mu"], p["sigma"], log = T))    # log likelihood
+  log_prior_mu    <- dnorm(p["mu"],     0, 100, log = T)
+  log_prior_sigma <- dlnorm(p["sigma"], 0,   4, log = T)
+  
+  log_lik + log_prior_mu + log_prior_sigma
+}
+```
+
+Now we wish the optimize the parameter values to maximize this log-posterior:
+
+```{r}
+# Laplace approximation
+laplace_approx <- function(model, inits, ...) {
+  
+  fit <- optim(inits, model, 
+               control = list(fnscale = -1), # maximize
+               hessian = TRUE, ...)          # Hessian matrix defines curvature at max
+  param_mean    <- fit$par                   # the posterior modes are the maximum
+  param_cov_mat <- solve(-fit$hessian)       # this gives the co-variance matrix
+  
+  list(param_mean=param_mean, param_cov_mat=param_cov_mat)
+}
+```
+
+Let's try with some data:
+
+```{r}
+y <- rnorm(n=50, mean=10, sd=5)
+
+report <- laplace_approx(model, inits=c(mu=0, sigma=1), y=y)
+
+library(coda)
+library(mvtnorm)
+samples <- mcmc(rmvnorm(1e4, report$param_mean, report$param_cov_mat))
+plot(samples[,1], trace=FALSE, main="density of mean")
+curve(dnorm(x,10,5), from=-10, to=30, col="blue", lwd=2, xlab="", ylab="posterior")
+curve(dnorm(x,report$param_mean["mu"],report$param_mean["sigma"]), from=-10, to=30, col="red", lwd=2, add=T)
+legend("topleft",c("true posterior","laplace approx"), col=c("blue","red"), lty=1, lwd=2)
+```
+
+Another example (`n` is known):
+
+$$y_i \sim \text{Binomial}(n,\theta)$$
+
+with prior
+
+$$\theta \sim \text{Beta}(1, 1)$$
+
+<!--
+
+and $n$ has a flat prior (being irrelevant for the maximization).
+
+The next log-likelihood uses a continuous approximation for the binomial, since the function `optim` cannot handle just discrete values (which would be needed to feed the `size` parameter of the binomial):
+
+```{r, include=FALSE}
+# continuous approx to the binomial, 
+# uses gamma() instead of factorial() in the definition, when dealing with size=n
+dbinom_app <- function(y,n,prob) {
+   gamma(n+1)/(factorial(y)*gamma(n+1-y)) * prob^y * (1-prob)^(n-y)
+}
+
+model2 <- function(p, y, n) {
+
+  log_lik <- sum(log(dbinom_app(y, p["n"], p["theta"])))
+  log_prior_theta <- dbeta(p["theta"], 1, 1)
+  
+  log_lik + log_prior_theta
+}
+```
+
+Let's apply this to some data:
+
+```{r, warning=FALSE, include=FALSE}
+set.seed(111)
+prob <- 0.5
+size <- 10
+y    <- rbinom(70, size=size, prob=prob) # real value of theta is given by 'prob'
+
+report <- laplace_approx(model2, inits=c(n=max(y), theta=0.5), y=y)
+report$param_mean
+
+plot(0:10, dbinom(0:10,size,prob), pch=19, col="blue", lwd=2)
+curve(dbinom_app(x,size,prob),0,10, col="lightblue", add=T)
+points(0:10, dbinom(0:10,round(report$param_mean["n"],0),report$param_mean["theta"]), col="red", pch=19)
+curve(dbinom_app(x,round(report$param_mean["n"],0),report$param_mean["theta"]),0,10, col="orange", lwd=2, add=T) ## continuous approx
+```
+
+Let's consider the previous model but with the single parameter `theta` (`n` is known):
+
+-->
+
+```{r}
+model2 <- function(p, y, n) {
+
+  log_lik         <- sum(log(dbinom(y, n, p["theta"])))
+  log_prior_theta <- dbeta(p["theta"], 1, 1)
+  
+  log_lik + log_prior_theta
+}
+```
+
+Let's compare this method from Bååth's with Bishop's:
+
+```{r, warning=FALSE}
+n <- 18
+y <- 10 # 10 heads and 8 tails
+
+report <- laplace_approx(model2, inits=c(theta=0.5), y=y, n=n)
+z0  <- report$param_mean["theta"]
+sd0 <- sqrt(report$param_cov_mat)
+
+q <- lap_approx_beta(y,n) # using Bishop's method
+
+curve(dbeta(x,y+1,n-y+1), 0 ,1, col="blue", lwd=2, xlab=expression(theta), ylab="posterior") 
+curve(q,              0, 1, lwd=4, col="red", add=T)    
+curve(dnorm(x,z0,sd0),0, 1, lwd=2, col="yellow", add=T)
+legend("topleft",c("true posterior","Bishop", "Bååth"), col=c("blue","red", "yellow"), lty=1, lwd=2)
+```
