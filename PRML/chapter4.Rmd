@@ -112,7 +112,7 @@ Let's draw some more points and classify them. The threshold will be 1.5, ie, if
 set.seed(231)
 n <- 200
 unknown_class <- sample(1:2, n, replace=TRUE, prob=pi)
-newdata <- gen.mix(n, unknown_class, mu, sigs)
+newdata       <- gen.mix(n, unknown_class, mu, sigs)
 plot(newdata, pch=19)
 prediction <- ifelse(apply(newdata, 1, f)<=1.5, 1, 2) # apply threshold
 plot(newdata, col=c("red","blue")[prediction], xlab="X1", ylab="X2", pch=19)
@@ -184,7 +184,7 @@ In the following eg, we selected a point that, when use as a threshold, minimize
 library(stats)
 
 # make it flat using the 1st component of its pca
-pca <- prcomp(t(projection))
+pca      <- prcomp(t(projection))
 proj_pca <- apply(projection, 2, function(x) pca$rotation[,1] %*% x)
 # plot(proj_pca, col=mydata[,3])
 
@@ -215,7 +215,7 @@ classify <- function(d) {
 }
 
 
-newdata <- expand.grid(seq(2,8,len=20),seq(3,6,len=20))
+newdata  <- expand.grid(seq(2,8,len=20),seq(3,6,len=20))
 pred_new <- classify(newdata)
 
 plot(mydata, col=c("red","blue")[mydata[,3]], xlab="X1", ylab="X2", pch=18)
@@ -417,6 +417,96 @@ X_new <- matrix(c(4.0,5.0,
 round(t(apply(X_new, 1, classifier)), 2)
 ```
 
-This probabilities would then be judged against a decision criterion to select the best choice. So, contrary to a discriminative approach, here the inference step is decoupled from the decision step.
+These probabilities would then be judged against a decision criterion to select the best choice. So, contrary to a discriminative approach, here the inference step is decoupled from the decision step.
 
+# Iterative Reweighted Least Squares (Section 4.3.3)
+
+Let $f$ be a differentiable function and $x_0$ an initial guess for the solution of $f(x)=0$.
+
+The iterative formula
+
+$$x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}$$
+
+provides a sequence $x_0, x_1, \ldots$ of progressively better approximations of $f(x)=0$ 
+
+This is called the **Newton-Raphson update method**.
+
+In R:
+
+```{r}
+n_r_optim <- function(f, x0, epsilon=1e-5, max_iter=1e3) {
+  
+  h <- 1e-7 # step for numeric derivation
+  x <- x0
+  
+  for(i in 1:max_iter) {
+    old_x <- x
+    
+    df_dx <- (f(x+h) - f(x)) / h
+    x <- x - (f(x) / df_dx)
+    
+    if (abs(old_x-x) < epsilon) # achieved tolerance's threshold
+      break
+  }
+  
+  x
+}
+```
+
+An example. To find the square root of two we solve the function:
+
+$$f(x) = x^2 -2$$
+
+```{r, collapse=TRUE}
+options(digits=10)
+n_r_optim(function(x) x^2 - 2, x0=1)                # find sqrt(2)
+sqrt(2)                                             # compare with R function
+uniroot(function(x) x^2 - 2, c(1,8), tol=1e-7)$root # compare with R's root finder
+```
+
+More generally, the Newton-Raphson update method to minimize an error function $E(w)$ takes the form
+
+$$w^{\text{new}} = w^{\text{old}} - H^{-1} \nabla E(w)$$
+
+where $H$ is the hessian matrix, the second derivatives of $E(w)$, ie, $H = \nabla \nabla E(w)$.
+
+Eg, for linear regression, the error function is
+
+$$E(w) = \frac{1}{2} \sum_{n-1}^N \{ y_n - w^T \phi_n \}^2$$
+
+where $\phi_n = (\phi_1(x_n), \phi_2(x_n), \ldots)^T$ is the vector of the basis functions applied to a data point $x_n$.
+
+After the mathy part, we get
+
+$$\nabla E(w) = \Phi^T \Phi w - \Phi^t Y$$
+
+$$H = \nabla \nabla E(w) = \Phi^T \Phi$$
+
+where $\Phi$ is the design matrix.
+
+So, the Newton-Raphson update for linear regression becomes
+
+$$w^{\text{new}} = w^{\text{old}} - (\Phi^T \Phi)^{-1} \{ \Phi^T \Phi w^{\text{old}} - \Phi^t Y \} = (\Phi^T \Phi)^{-1} \Phi^T Y$$
+
+which is the standard least-square solution (meaning the Newton-Raphson finds the exact solution is one step!).
+
+A second example is logistic regression. Here the error function is more complex (called the cross entropy error function)
+
+$$E(w) = -\sum_{n-1}^N \{ y_n \log \sigma(w^T\phi_n) + (1-y_n) \log (1-\sigma(w^T\phi_n)) \}$$
+
+where $\sigma(\cdot)$ is the sigmoid function.
+
+This formula gives
+
+$$E(w) = \Phi^T ( \sigma(w^T\phi_{1:N}) - Y)$$
+
+$$H = \Phi^T R \Phi$$
+
+where $R$ is a diagonal matrix with entries $$R_{ii} = \sigma(w^T\phi_i) (1-\sigma(w^T\phi_i))$$
+
+The Newton-Raphson update becomes
+
+$$w^{\text{new}} = w^{\text{old}} - H^{-1} \nabla E(w) = w^{\text{old}} - (\Phi^T R \Phi)^{-1} \Phi^T ( \sigma(w^T\phi_{1:N}) - Y)$$
+
+In this case, the method does not solve in just one iteration, and the weights need to be updated iteratively. This is an eg of what's called **iteratively reweighted least squares (IRLS)**.
 

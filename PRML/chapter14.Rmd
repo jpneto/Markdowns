@@ -1,0 +1,131 @@
+---
+title: "Bishop's PRML, Chapter 14"
+date: "June, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+This page contains source code relating to chapter 14 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This chapter is about combining models
+
+# Bagging (Section 14.2)
+
+A *committee* is a combination os models. The simplest way to construct a committee is to average a set of different models. Ideally, we would have $M$ datasets and $M$ models to train, but usually we just have one dataset.
+
+One approach to this problem is to bootstrap the dataset, ie, resampling the original dataset into the required $M$ datasets.
+
+```{r}
+d <- iris
+head(d)
+
+M <- 12
+bootstrap_samples <- replicate(M,sample(1:nrow(d), nrow(d), replace=TRUE))
+head(bootstrap_samples)
+```
+
+The columns of `bootstrap_Samples` are resamples of the original dataset (in this case, each column keeps the indices that refer to the original dataset). They are going to be used to train $M$ models, $y_1, \ldots, y_m$ (herein, we will use linear regression has an eg):
+
+```{r}
+# models is a list with M linear regression models
+models <- apply(bootstrap_samples, 2, 
+                function(indices) lm(Petal.Length ~ Sepal.Length, data=d[indices,]))
+```
+
+THe committee prediction is given by
+
+$$y_{com}(x) = \frac{1}{M} \sum_{m=1}^M y_m(x)$$
+
+This technique is called **bagging**:
+
+```{r}
+bagging <- function(models, vals) {
+  M     <- length(models)
+  # each column (one per value in vals) will have M predictions
+  preds <- t(sapply(1:M, function(m) predict(models[[m]], vals)))
+  apply(preds, 2, mean)
+}
+```
+
+Let's predict the bagged linear regression:
+
+```{r}
+xs <- seq(4,8,len=50)
+ys <- bagging(models, data.frame(Sepal.Length=xs))
+
+plot(d$Sepal.Length, d$Petal.Length, pch=19)
+points(xs, ys, type="l", col="red", lwd=2)
+```
+
+# Boosting (section 14.3)
+
+**Boosting* is a more advanced technique  to form a committee. Here the $M$ models are trained in sequence, they depend on the results of the previous one. Datapoints that were wrongly classified will get more weigth in the next classification. After all the classifications end, we will do the mean of the models, as before.
+
+The next version is called AdaBoost (for adaptive boosting):
+
+```{r}
+# Adaboost using logistic regression (for classification, 2 classes named 0 and 1)
+# Just serves as an eg. To use an efficient adaboost check library 'adabag'
+lg_adaboost <- function(dataset, ab_formula, M) {
+  N <- nrow(dataset)
+  w <- rep(1/N, N)  # weights
+  models  <- list()
+  alpha_m <- rep(NA,M)
+  
+  for(m in 1:M) {
+    models[[m]] <- 
+      eval(substitute(
+        glm(ab_formula, family = binomial("logit"), data=dataset, weights=w)
+      ), list(w=w)) # weights are evaluated like variables in formula [glm's help]
+    
+    # get current classification
+    pred <- predict(models[[m]], dataset[,-ncol(dataset)], type="response")
+    pred <- (pred > 0.5)+0  # round to 0 and 1
+    
+    # updating weights (cf Bishop's pg. 658)
+    indicators <- 0+(pred!=dataset[,ncol(dataset)])  # I(y_m(x_n) != t_n)
+    epsilon_m  <- sum(w * indicators) / sum(w)
+    alpha_m[m] <- log((1-epsilon_m)/epsilon_m)
+
+    w <- w * exp(alpha_m[m] * indicators)
+  }
+  
+  list(models=models, alpha_m=alpha_m)
+}
+```
+
+The function `lg_adaboost` returns the models $y_m$ and a vector of weighting coefficients $\alpha_m$ which are used to define the committee prediction:
+
+$$y_{com}(x) = \text{sign}\left( \sum_{m=1}^M \alpha_m y_m(x) \right)$$
+
+```{r}
+# prediction of dataset using a committee produced by function 'lg_adaboost'
+pred_adaboost <- function(committee, dataset) {
+  N <- nrow(dataset)
+  M <- length(committee$models)
+  
+  committee_vote <- function(row) {
+    preds <- sapply(1:M, function(m) committee$alpha_m[m] * 
+                                     predict(committee$models[[m]], row))
+    (sum(preds)>0.5)+0 # return sign( sum(...) )
+  }
+  
+  sapply(1:N, function(n) committee_vote(dataset[n,]))
+}
+```
+
+Let's check the performance with a two class dataset:
+
+```{r, warning=FALSE}
+dataset <- iris[51:150,]                    # get just two flowers from iris dataset
+dataset[,5] <- (dataset[,5]=="virginica")+0 # convert classes to 0 and 1
+
+committee <- lg_adaboost(dataset, ab_formula=as.formula(Species ~ .), M)
+
+# compare true classification with prediction by the committee:
+table(dataset[,5], pred_adaboost(committee, dataset))
+```
+
+
