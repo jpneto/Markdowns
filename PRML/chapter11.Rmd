@@ -1,0 +1,519 @@
+---
+title: "Bishop's PRML, Chapter 11"
+date: "May, 2015"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+---
+
+This page contains source code relating to chapter 11 of Bishop's _Pattern Recognition and Machine Learning_ (2009)
+
+This section is about Sampling Algorithms.
+
+# Basic Sampling Algorithms (section 11.1)
+
+Inverse Transformation is a method to generate random samples of distributions.
+
+It is based on the following result called _Probability Integral Transformation_:
+
+$$X \sim F_X \Rightarrow U = F_X(X) \sim \mathcal{U}(0,1)$$
+
+We define the inverse transformation of $F_X$ as 
+
+$$F_X^{-1}(u) = \text{inf} \{ x : F_X(x)  = u \}, 0 < u < 1$$
+
+With $U \sim \mathcal{U}(0,1)$,
+
+$$P(F_X^{-1}(U) \le x) = P(\text{inf} \{ t : F_X(t)  = U \} \le x) = P(U \le F_X(x)) = F_U(F_X(x)) = F_X(x)$$
+
+meaning that $F_X^{-1}$ has the same distribution as $X$!
+
+So, the method needs the inverse function $F_X^{-1}(u)$ to work. 
+
+For each value required the method follows:
+
+1. Generate a random $u$ from $\mathcal{U}(0,1)$
+
+2. Return $F_X^{-1}(u)$
+
+Here's the algorithm in R:
+
+```{r}
+# return n samples based on the inverse of the target cdf
+inv.transform <- function(inv.f, n) {
+  
+# Non-vectorized version (for explanation purposes only)  
+#
+#   result.sample <- rep(NA,n)
+#   
+#   for (i in 1:n) {
+#     u <- runif(1,0,1)              # step 1
+#     result.sample[i] <- inv.f(u)   # step 2
+#   }
+#   
+#   result.sample
+  
+  # Vectorized version
+  inv.f(runif(n,0,1))
+}
+```
+
+Eg: used this method to simulate a random variable which pdf is $f_X(x) = 3x^2, 0 < x < 1$
+
+The cdf is given by
+
+$$F_X(x) = \int_0^x f_x(t) dt = x^3$$
+
+so, the inverse is $F_X^{-1}(u) = u^{1/3}$
+
+```{r}
+inv.f <- function(u) u^(1/3)
+
+vals <- inv.transform(inv.f, 5e4)
+
+# Checking if it went well
+hist(vals, breaks=50, freq=FALSE, main=expression("Sample vs true Density [ f(x)=" ~3*x^2~"]"))
+curve(3*x^2, 0, 1, col="red", lwd=2, add=T)
+```
+
+Let's change the previous problem a bit: let's assume the same shape but for $-1 < x < 2$. 
+
+We would get:
+
+$$f_X(x) = \frac{1}{3} x^2$$
+$$F_X(x) = \int_{-1}^x f_X(t) dt = \frac{x^3+1}{9}$$
+$$F_X^{-1}(u) = (9u-1)^{1/3}$$
+
+So we need a new inverse function in R:
+
+```{r}
+# The next R code is like this due to the fact that cubic squares of negative numbers also have complex roots
+# But basically this is 
+#   inv.f <- function(u) (9*u-1)^(1/3)
+inv.f <- function(u) ifelse((9*u-1)>=0,  (9*u-1)^(1/3),  -(1-9*u)^(1/3))
+
+vals <- inv.transform(inv.f, 5e4)
+
+# Checking if it went well
+hist(vals, breaks=50, freq=FALSE, main="Sample vs true Density")
+curve((1/3)*x^2, -1, 2, col="red", lwd=2, add=T)
+```
+
+## Rejection Sampling (section 11.1.2)
+
+Problem: Generate $X \sim f$ from an arbitray pdf $f$ (especially when it's hard to sample from $f$).
+
+We must find $Y \sim g$ under the only restriction that $\forall_{f(x)>0}: f(x) < c.g(x), c > 1$.
+
+Instead of sampling from $f(x)$ which might be difficult, we use $c.g(x)$ to sample instead.
+
+For each value required the method follows:
+
+1. Generate a random $y$ from $g$
+
+2. Generate a random $u$ from $U(0,1)$
+
+3. **If** $u < f(y)/(c.g(y))$ **then** return $y$ **else** reject $y$ and goto 1.
+
+The algorihtm in R:
+
+```{r}
+# generate n samples from f using rejection sampling with g (rg samples from g)
+accept.reject <- function(f, c, g, rg, n) { 
+  n.accepts     <- 0
+  result.sample <- rep(NA, n)
+  
+  while (n.accepts < n) {
+    y <- rg(1)               # step 1
+    u <- runif(1,0,1)        # step 2
+    if (u < f(y)/(c*g(y))) { # step 3 (accept)
+      n.accepts <- n.accepts+1
+      result.sample[n.accepts] = y
+    }
+  }
+  
+  result.sample
+}
+```
+
+From step 3,
+
+$$P(accept|Y) = P(U < \frac{f(Y)}{c g(Y)} | Y) = \frac{f(Y)}{c g(Y)}$$
+
+The total probability of acceptance is
+
+$$P(accept) = \sum_y P(accept|Y=y) P(Y=y) = \sum_y \frac{f(y)}{c g(y)} g(y) = \frac{1}{c}$$
+
+The number of rejections until acceptance has the geometric distribution with mean $c$. On average each sample of $X$ requires $c$ iterations.
+
+So, for this method to be efficient, $Y$ should be easy to sample, and $c$ should be as small as possible.
+
+Eg, generate samples from distribution Beta(2,2), where we use the uniform has $g$, since $f(x) < 2 \times g(x)$:
+
+```{r}
+f  <- function(x) 6*x*(1-x)     # pdf of Beta(2,2), maximum density is 1.5
+g  <- function(x) x/x           # g(x) = 1 but in vectorized version
+rg <- function(n) runif(n,0,1)  # uniform, in this case
+c  <- 2                         # c=2 since f(x) <= 2 g(x)
+
+vals <- accept.reject(f, c, g, rg, 10000) 
+
+# Checking if it went well
+hist(vals, breaks=30, freq=FALSE, main="Sample vs true Density")
+xs <- seq(0, 1, len=100)
+lines(xs, dbeta(xs,2,2), col="red", lwd=2)
+```
+
+Let's visualize the method accepting (green dots) or rejecting (red dots) at some specified segments :
+
+```{r}
+xs <- seq(0, 1, len=100)
+plot(xs, dbeta(xs,2,2), ylim=c(0,c*1.3), type="l", col="red", lwd=2, ylab="densities")
+lines(xs, c*g(xs), type="l", col="blue", lwd=2)
+legend("topleft",c("f(x)","c*g(x)"), col=c("red","blue"), lwd=2) 
+
+draw.segment <- function(begin.segment, end.segment) {
+  segments(c(begin.segment,end.segment,end.segment,begin.segment), c(0,0,c*1.025,c*1.025), 
+           c(end.segment,end.segment,begin.segment,begin.segment), c(0,c*1.025,c*1.025,0))
+  n.pts <- 100
+  us <- runif(n.pts, 0, 1)
+  ys <- begin.segment + rg(n.pts)*(end.segment-begin.segment)
+  accepted <- us < f(ys)/(c*g(ys))
+  points(ys, c*us, col=ifelse(accepted,"green","red"), pch=18)  
+}
+
+draw.segment(0.10, 0.20) 
+draw.segment(0.45, 0.55)
+draw.segment(0.90, 1.00)
+```
+
+The higher the density of $f$ the more points are accepted, as one would expect.
+
+However if $c g(x) >> f(x)$ we will have lots of rejections, which will decrease the quality of the simulation. Let's see what would happen, for the same amount of points, if $c=10$.
+
+```{r}
+c <- 10
+
+xs <- seq(0, 1, len=100)
+plot(xs, dbeta(xs,2,2), ylim=c(0,c*1.25), type="l", col="red", lwd=2, ylab="densities")
+lines(xs, c*g(xs), type="l", col="blue", lwd=2)
+legend("topleft",c("f(x)","c*g(x)"), col=c("red","blue"), lwd=2) 
+
+draw.segment(0.10, 0.20)
+draw.segment(0.45, 0.55)
+draw.segment(0.90, 1.00)
+```
+
+This number of points is not enough to get an estimate with the quality of the previous eg.
+
+## Monte Carlo Integration
+
+Monte Carlo integration is an estimation of the true integration based on random sampling and in the [Strong Law of Large Numbers](http://mathworld.wolfram.com/StrongLawofLargeNumbers.html).
+
+The estimator of $$\theta = \int_a^b~g(x)~dx$$ is computed as follows:
+
+1. Generate $X_1, X_2, \ldots, X_n$ iid from Unif(a,b)
+2. Compute $\overline{g(X)} = \frac{1}{n} g(X_i)$
+3. The estimation $\hat{\theta} = (b-a)\overline{g(X)}$
+
+$\hat{\theta}$ is itself a random variable, which by the Strong Law of Large Numbers: $\hat{\theta} \rightarrow \theta$ as $n \rightarrow \infty$
+
+in R:
+
+```{r}
+# pre-condition: a < b
+MC.simple.est <- function(g, a, b, n=1e4) {
+  xi <- runif(n,a,b)      # step 1
+  g.mean <- mean(g(xi))   # step 2
+  (b-a)*g.mean            # step 3
+}
+```
+
+The reason why this works:
+
+$$\begin{array}{lcll}
+\int_a^b~g(x)~dx  & = & \int_\mathbb{R} g(x) {\bf 1}_{[a,b]}(x)~dx & \color{blue}{ {\bf 1}_{[a,b]} = 1~\text{if}~x \in [a,b],~0~\text{otherwise} } \\
+                  & = & (b-a) \int_\mathbb{R} g(x) f_U(x)~dx & \color{blue}{ f_U(x) = \frac{1}{b-a}~{\bf 1}_{[a,b]}(x), U \sim \text{Unif}(a,b) } \\
+                  & = & (b-a)~E[g(U)] & \color{blue}{ E[g(X)] = \int g(x)f(x)~dx, X \sim f } \\
+\end{array}
+$$
+
+Eg: estimate $$\theta = \int_2^4 e^{-x}~dx = e^{-2} - e^{-4} = 0.1170$$
+
+```{r}
+g <- function(x) exp(-x)
+
+MC.simple.est(g, 2, 4)
+```
+
+More generally, with pdf $f$ over support $A$, to estimate the integral 
+
+$$\theta = \int_A g(x)f(x)~dx$$
+
+generate a random sample $x_1,\ldots,x_n$ from the pdf $f(x)$ and compute the mean of the sequence $g(x_i)$, ie, $\hat{\theta} = \frac{1}{n} \sum_i g(x_i)$.
+
+With probability 1, 
+
+$$\lim_{n \to \infty} E[\hat{\theta}] = \theta$$
+
+The variance of this estimator is:
+
+$$var(\hat{\theta}) = var \Big( \frac{1}{n} \sum_i~g(X_i) \Big) =
+\frac{1}{n^2}  \sum_i var (g(X_i)) = \frac{var(g(X))}{n}$$
+
+## Importance Sampling (section 11.1.4)
+
+There are two problems with the previous method:
+
++ It does not apply to unbounded intervals
++ It performs poorly if the pdf is not very uniform, namely at distribution tails
+
+Eg: $X \sim N(0,1)$, estimate $P(X > 4.5)$
+
+```{r}
+# True value:
+pnorm(4.5, lower.tail=FALSE)  # theta (could also be computed by 1-pnorm(4.5))
+# MC estimation:
+n <- 1e4
+indicators <- rnorm(n)>4.5
+sum(indicators)/n             # hat.theta
+```
+
+Simulating directly, there will be a positive hit only every 300k iterations!
+
+One way to solve this is to consider other more appropriate densities. 
+
+This leads to a general method called _importance sampling_.
+
+Instead of evaluate $E_f[g(X)] = \int_A g(x)f(x)~dx$ this method includes a candidate or auxiliar density $h(x)$,
+
+$$E_f[g(X)] = \int_A g(x)~\frac{f(x)}{h(x)}~h(x)~dx = E_h\Big[\frac{g(X)f(X)}{h(X)}\Big]$$
+
+So,
+
+$$E_f[g(X)] \approx \frac{1}{n} \sum_{i=1}^{n}~g(y_i)\frac{f(y_i)}{h(y_i)}$$
+
+where $y_1, y_2, \ldots, y_n$ are generated by pdf $h$.
+
+The candidate $h$ should be chosen as to satisfy as much as possible: $h(x) \approx |g(x)|f(x)$.
+
+The restrictions are:
+
++ The variance of $gf/h$ must be finite (the tails of $h$ must be higher than those of $f$)
++ The support of $h$ must include the support of $f$
+
+This is the same idea of the accept-reject method.
+
+The importance-sampling function in R:
+
+```{r}
+# rh generates samples from candidate pdf
+i.sampling <- function(f, g, h, rh, n=1e4) {
+  ys <- rh(n)
+  mean(g(ys)*f(ys)/h(ys))
+}
+```
+
+Let's use the previous eg of estimating $P(X > 4.5)$. 
+
+Our target function will be the exponential pdf truncated at $4.5$:
+
+$$h(x) = \frac{e^{-x}}{\int_{4.5}^{\infty} e^{-x}~dx} = e^{-(x-4.5)}$$
+
+```{r}
+xs <- seq(0.1,10,by=0.05)
+plot(xs,dexp(xs),col="blue", type="l")   # the exponential pdf
+lines(xs,exp(-(xs-4.5)),col="red",lwd=2) # the truncated pdf
+abline(v=4.5,lty=2)
+```
+
+Here's a plot of the target pdf $g$ (in blue) and the candidate pdf $h$ (in red):
+
+```{r}
+g <- dnorm
+h <- function(x) exp(-(x-4.5))
+
+xs <- seq(4.5,20,by=0.05)
+plot(xs,g(xs),col="blue", type="l", ylim=c(0,0.5e-4))
+lines(xs,h(xs),col="red",lwd=2)
+# True value:
+pnorm(4.5, lower.tail=FALSE)  # theta (could also be computed by 1-pnorm(4.5))
+
+# do the Importance Sampling
+f  <- function(x) x/x         # uniform pdf
+rh <- function(n) rexp(n)+4.5 # rexp() shifted to 4.5
+i.sampling(f,g,h,rh)
+```
+
+Another sampling choosing a pareto distribution for $h$:
+
+```{r}
+library(VGAM)
+
+h <- function(x) {
+  dpareto(x, scale=4.5, shape=10)
+}
+
+xs <- seq(4.5,20,by=0.05)
+plot(xs,g(xs),col="blue", type="l", ylim=c(0,0.25e-3))
+lines(xs,h(xs),col="red",lwd=2)
+rh <- function(n) rpareto(n, 4.5, 10)
+
+i.sampling(f,g,h,rh)
+```
+
+# Monte Chain Monte Carlo (section 11.2)
+
+hen we want to estimate $E[g(\theta)]$ we can find the sample mean 
+
+$$\overline{g} = \frac{1}{m} \sum_{i=1}^m g(x_i)$$
+
+where the sample $x_1,\ldots,x_m$ is sampled from an appropriate density. 
+
+If $x_1,\ldots,x_m$ are independent then by the laws of large numbers, the mean converges in probability to $E[g(\theta)]$. This can be done by regular Monte Carlo integration.
+
+However it can be difficult to implement a method to generate iid observations. But even if the observations are dependent, a MC integration can still be applied if the generated (dependent) observations have a joint density roughly the same of the joint density of a random, iid sample. To achieve this it is used [Markov Chains](http://en.wikipedia.org/wiki/Markov_chain), which provides the sampler that generates the dependent observations from the target distribution.
+
+The Metropolis-Hastings algorithm is a MCMC method that tries to achieve this task. The main idea is to generate a Markov Chain ${X_t|t=0,1,\ldots}$ such that its stationary distribution is the target distribution. The algorithm, given $X_t$, knows how to compute $X_{t+1}$. To do that it must be able to generate a candidate point $Y$ from a proposal distribution $g(\cdot|X_t)$ which (probably) depends on the previous state. This point $Y$ may or may not be accepted. If it is accepted, then $X_{t+1} = Y$, otherwise the chain remains in the same place $X_{t+1} = X_t$. 
+
+The proposal distribution $g$ must be chosen so that the generated chain will converge to a stationary distribution, in this case the target distribution $f$. The proposal distribution is the way we generate possible good points for the target distribution. If the proposal is not well chosen, the algorithm will produce lots of rejections and the time to converge to the target distribution might take more time than we have available.
+
+If the generation of candidates does not depend on the current region of the chain, the proposal distribution can be independent of $x_t$, and the algorithm will accept the new candidate $y$ if $f(y)/g(y) \geq f(x_t)/g(x_t)$
+
+Here's the R code:
+
+```{r}
+# cf. Rizzo - Statistical Computing with R (2007)
+metropolis.hastings <- function(f,  # the target distribution
+                                g,  # the proposal distribution
+                                rg, # a sample from the proposal distribution
+                                x0, # initial value for chain, in R it is x[1]
+                                chain.size=1e5,  # chain size
+                                burn.perc=0.1) { # burn in percentage
+  
+  x <- c(x0, rep(NA,chain.size-1))  # initialize chain
+  
+  for(i in 2:chain.size)   {
+    y <- rg(x[i-1])                 # generate Y from g(.|xt) using sampler rg
+    alpha <- min(1, f(y)*g(x[i-1],y)/(f(x[i-1])*g(y,x[i-1])))
+    x[i] <- x[i-1] + (y-x[i-1])*(runif(1)<alpha)  # update step
+  }
+  
+  # remove initial part of the chain before output result
+  x[(burn.perc*chain.size) : chain.size] 
+}
+```
+
+This first eg samples from an uniform distribution (the proposal distribution) to generate a sample from a Beta(2.7, 6.3) distribution:
+
+```{r, fig.width=8}
+a<-2.7; b<-6.3; size<-1e4
+
+f  <- function(x)   dbeta(x,a,b)
+rg <- function(x)   runif(1,0,1)
+g  <- function(x,y) 1 # i.e., dunif(x,0,1)
+
+X <- metropolis.hastings(f,g,rg,x0=runif(1,0,1),chain.size=size)
+
+par(mfrow=c(1,2),mar=c(2,2,1,1))
+hist(X,breaks=50,col="blue",main="Metropolis-Hastings",freq=FALSE)
+curve(dbeta(x,a,b),col="sienna",lwd=2,add=TRUE)
+hist(rbeta(size,a,b),breaks=50,col="grey",main="Direct Sampling",freq=FALSE)
+curve(dbeta(x,a,b),col="sienna",lwd=2,add=TRUE)
+```
+
+In this next eg we wish to compute the expected value of 
+
+$$f(x) = c * \Big( exp(-\frac{(x-2)^4-2x}{2}) + 5 exp (-\frac{(x+2)^4}{2}) \Big), x \in \mathcal{R} $$
+
+First let's plot it, and we see it's bimodal:
+
+```{r}
+#  c is 1/30.8636 necessary to make it a density, but we didn't need to know it
+f <- function(x) (exp(-((x-2)^4-2*x)/2) + 5*exp(-(x+2)^4/2)) / 30.8636 
+
+xs <- seq(-5,5,len=100)
+plot(xs,f(xs),type="l",col="red",lwd=2)
+```
+
+To find $E_f[X]$ we'll use the Metropolis-Hastings algorithm. In this case, the candidate function after $x_t$ will be $q(y|x_t) \sim \mathcal{N}(x_t,\sigma^2)$. In our first test we choose $\sigma=0.1$:
+
+```{r}
+g  <- function(x, y) dnorm(x,y,0.1)
+rg <- function(x)    rnorm(1,x,0.1)
+
+set.seed(101)
+X <- metropolis.hastings(f,g,rg,x0=1,chain.size=5e4)
+mean(X) # the answer?
+```
+
+This value seems wrong. Let's compare the histogram of chain $X$ with the true density:
+
+```{r}
+hist(X,breaks=50,col="blue",xlim=c(-5,5),main="Metropolis-Hastings",freq=FALSE)
+curve(f(x),col="red",lwd=2,add=TRUE)
+```
+
+What happened? Since the candidate function is a normal with a very short $\sigma$ the potential candidates that it produces are very close to the last $x_t$ which means the algorithm is unable to cross $0$ to the left side. We can check what happens if we start at a negative $x_0$:
+
+```{r}
+set.seed(101)
+X1 <- metropolis.hastings(f,g,rg,x0=-2,chain.size=5e4)
+mean(X1)
+hist(X1,breaks=50,col="blue",xlim=c(-5,5),main="Metropolis-Hastings",freq=FALSE)
+curve(f(x),col="red",lwd=2,add=TRUE)
+```
+
+Precisely what was expected, now the chain is unable to cross to the right side.
+
+Let's visualize a bit of both previous markov chains and see how they are unable to jump to the other side of the bimodal density:
+
+```{r}
+par(mfrow=c(2,1),mar=c(2,2,1,1))
+plot(1:3000,X[1:3000], lwd=2,type="l",ylim=c(-4,4))
+plot(1:3000,X1[1:3000], lwd=2,type="l",ylim=c(-4,4))
+```
+
+So let's try a higher sigma, say $\sigma=1$:
+
+```{r}
+g  <- function(x, y) dnorm(x,y,1)
+rg <- function(x)    rnorm(1,x,1)
+
+set.seed(101)
+X2 <- metropolis.hastings(f,g,rg,x0=runif(1,-4,4),chain.size=5e4)
+mean(X2) # the answer
+```
+
+It seems a more sensible answer. Let's check the histogram and the initial part of the chain:
+
+```{r}
+par(mfrow=c(2,1),mar=c(2,2,1,1))
+hist(X2,breaks=50,col="blue",xlim=c(-5,5),main="Metropolis-Hastings",freq=FALSE)
+curve(f(x),col="red",lwd=2,add=TRUE)
+plot(1:3000,X2[1:3000], lwd=2,type="l",ylim=c(-4,4))
+```
+
+Now the candidate function is able to make longer jumps, and both parts of the density are visited, providing a good estimate of the true density.
+
+An exagerated value of sigma will have another type of disadvantage: most candidates will be so far the interesting area that they will be simply rejected which will result in a poor estimate:
+
+```{r}
+g  <- function(x, y) dnorm(x,y,100) # sigma = 100 (!)
+rg <- function(x)    rnorm(1,x,100)
+
+set.seed(101)
+X3 <- metropolis.hastings(f,g,rg,x0=runif(1,-4,4),chain.size=5e4)
+mean(X3) 
+
+par(mfrow=c(2,1),mar=c(2,2,1,1))
+hist(X3,breaks=50,col="blue",xlim=c(-5,5),main="Metropolis-Hastings",freq=FALSE)
+curve(f(x),col="red",lwd=2,add=TRUE)
+plot(1:3000,X3[1:3000], lwd=2,type="l",ylim=c(-4,4))
+```
+
+The plateau's above show repeated rejections, making the chain stay at the last change of $x_t$.
+
