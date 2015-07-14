@@ -193,6 +193,10 @@ head(another.data)
 # to show a histogram of the frequency of values, we use barplot
 barplot(table(another.data$value),xlab="frequency", ylab="value",
         horiz=TRUE,xlim=c(0,5+max(table(another.data$value))))
+# another way to show it
+records <- matrix(c(2000:2019,sample(1:100,20)), nrow=2, byrow=TRUE)
+bp <- barplot(records[2,], names.arg=records[1,], las=3, ylim=c(0,max(records[2,])+20))
+text(bp, records[2,], labels = records[2,], pos = 3, cex=.7)
 ```
 
 ## Labels with Math
