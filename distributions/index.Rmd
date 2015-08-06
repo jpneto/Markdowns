@@ -369,19 +369,19 @@ this means that the number of failures does not enter in account to find the pro
 Negative Binomial Distribution
 -----------------
 
-The negative binomial distribution is a discrete probability distribution of the number of successes in a sequence of iid Bernoulli trials with probability of success $p$ before a _specified_ (non-random) number of failures (denoted $r$) occurs. It is also called Pascal Distribution (when $r$ is an integer).
+The negative binomial distribution is a discrete probability distribution of the number of failures in a sequence of iid Bernoulli trials with probability of success $p$ before a _specified_ (non-random) number of successes (denoted $r$) occurs. It is also called Pascal Distribution (when $r$ is an integer).
 
-For $x+r$ Bernoulli trials with success probability $p$, the negative binomial gives the probability of $x$ successes and $r$ failures, with a failure on the last trial.
+For $x+r$ Bernoulli trials with success probability $p$, the negative binomial gives the probability of $x$ failures and $r$ successes, with a success on the last trial.
 
-Its pmf: $$f(x|p,r) = {x+r-1 \choose x} (1-p)^r p^x$$
+Its pmf: $$f(x|p,r) = \frac{\Gamma(x+r)}{\Gamma(r) x!} p^r (1-p)^x$$
 
-Expected value: $$\frac{pr}{1-p}$$
+Expected value: $$\frac{r(1-p)}{p}$$
 
-Variance: $$\frac{pr}{(1-p)^2}$$
+Variance: $$\frac{r(1-p)}{p^2}$$
 
-For example, if we define a "1" as failure, and all non "1"s as successes. and we throw a die repeatedly until the third time "1" appears (r = three failures), then the probability distribution of the number of non-"1"s that had appeared will be negative binomial.
+For example, if we define a "1" as success, and all non "1"s as failures and we throw a die repeatedly until the third time "1" appears (r = three successes), then the probability distribution of the number of non-"1"s that had appeared will be negative binomial.
 
-R functions work in term of successess. The previous eg of throwing "1"s:
+R functions work in term of successes The previous eg of throwing "1"s:
 
 ```{r}
 p <- 1/6  # probability of success (eg, getting a 1 after a dice throw)
@@ -390,6 +390,11 @@ rnbinom(10,r,p) # get 10 random events
 xs <- seq(1,50)
 ys <- dnbinom(xs,r,p)
 plot(xs, ys, type="h", lwd=1, col="red", main="number of failures until success")
+
+# checking the pdf formula
+negbin_pdf <- function(x,r,p) {gamma(x+r)/(gamma(r)*factorial(x)) * p^r * (1-p)^x}
+ys_pdf <- negbin_pdf(xs,r,p)
+points(xs, ys_pdf, col="darkred", pch=20)
 ```
 
 + The geometric distribution is a special case of the Negative Binomial, $Geom(p) = NB(1,1-p)$
@@ -740,3 +745,7 @@ for(i in 1:n) {
 For $K=4$ the values could be projected into the next simplex, ie, a 3D tetrahedron (and so on...).
 
 This distribution is, in the Bayesian setting, the conjugate prior distribution of the multinomial distribution.
+
+<hr>
+
+Acknowledment: A thank you for Maciej Swat to spot an inconsistency between two different interpretations of the negative binomial distribution.
