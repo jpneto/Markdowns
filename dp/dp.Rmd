@@ -1,0 +1,252 @@
+---
+title: "Dirichlet Processes"
+author: "João Neto"
+date: Setember 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+---
+
+Refs:
+
++ Statistical Machine Learning course at CMU, [Lecture 11- Nonparametric Bayes](http://youtu.be/l0HQXtqnBZY) and [handout](http://www.stat.cmu.edu/~larry/=sml/nonparbayes.pdf)
+
+Prologue: sampling from a generic cdf
+-------------
+
+Afterwards we will need to sample from generic cdf functions. For that we use package `distr`. 
+
+```{r, message=FALSE, warning=FALSE}
+library(distr) 
+
+# emp_cdf is an object of class "DiscreteDistribution"
+cdf_sample <- function(emp_cdf, n=1e3) {
+  emp_cdf@r(n)
+}
+```
+
+An example:
+
+```{r}
+set.seed(101)
+# make empirical cdf from some samples
+X       <- rnorm(1e3)
+emp_cdf <- DiscreteDistribution(X)
+
+# get some points from this empirical cdf
+someXs <- cdf_sample(emp_cdf, 1e3)
+
+# check if it's near the original sample generator (norm(0,1))
+xs <- seq(-3,3,len=100)
+plot(xs, pnorm(xs), type="l", lwd=2)
+points(xs, ecdf(someXs)(xs), type="l", col="red")
+```
+
+This will slow stuff a bit, but makes the remaining code easier to read and understand, by focusing on the relevant parts concerning Dirichlet process.
+
+Dirichlet Processes
+--------------
+
+Instead of having a finite dimensional model $$\{f(y|\theta) : \theta \in \Theta\}$$ in **non-parametric Bayes** we deal with infinite dimensional models $$\mathcal{F} = \{ f : \text{some criteria over f} \}$$ because $f$ could be, in principle, any function.
+
+Let's see how we can use this concept to estimate a cdf.
+
+Assume we have data $X_1, X_2, \ldots, X_n$ from an unknown distribution $F$ which we want to infer.
+
+A frequentist estimate of $F$ is the empirical distribution function
+
+$$F_n(x) = \frac{1}{n} \sum_{i=1}^n I(X_i \leq x)$$
+
+which can be computed by R function `ecdf`.
+
+In the Bayesian setting we need to place a prior $\pi$ over the set of all distributions $\mathcal{F}$. This prior does not have a formula as it does in a parametric model. A way to solve this dilemma is to provide an algorithm to sample from the prior.
+
+The most common non-parametric method is using a **Dirichlet Process** prior. This distribution has two parameters, $\alpha$ and $F_0$ and is denoted by $DP(\alpha, F_0)$. $F_0$ is a distribution and can be interpreted as a prior guess at $F$. Parameter $\alpha$ is a number that controls how close the samples are from $F_0$.
+
+This way, the non-parametric model can be stated as:
+
+$$F \sim DP(\alpha,F_0)$$
+
+$$X_1, X_2, \ldots, X_n | F \sim F$$
+
+How to sample from the prior?
+
+The algorithm:
+
+1. draw $s_1, s_2, \ldots$ iid from $F_0$
+
+2. draw $V_1, V_2, \ldots$ iid from $Beta(1,\alpha)$
+
+3. let $w_1 = V_1$ and $w_j = V_j \prod_{i=1}^{j-1} (1-V_i)$ for $j = 2,3,\ldots$
+
+4. define $F$ as the dirac comb that puts mass $w_j$ at $s_j$
+
+The algorithm ideally uses an infinite number of samples. We approach the result by drawing a large number (say, 1000 samples $s_i$).
+
+In R:
+
+```{r}
+# Dirichlet process to draw a random distribution F from a prior F0
+#  alpha determines the similarity with the prior guess
+#  F0 is the cdf of the prior guess (an object of class "DiscreteDistribution")
+dp <- function(alpha, F0, n=1e3) { # n should be large since it's an approx for +oo
+  
+  s <- cdf_sample(F0,n)            # step 1: draw from F0
+  V <- rbeta(n,1,alpha)            # step 2: draw from beta(1,alpha)
+  w <- c(1, rep(NA,n-1))           # step 3: compute 'stick breaking process' into w[i]
+  w[2:n] <- sapply(2:n, function(i) V[i] * prod(1 - V[1:(i-1)]))
+
+  # return the sampled function F which can be itself sampled 
+  # this F is a probability mass function where each s[i] has mass w[i]
+  function (size=1e4) {
+    sample(s, size, prob=w, replace=TRUE)
+  }
+}
+```
+
+Here's an example of plotting a distribution sampled from prior guess $\mathcal{N}(0,1)$:
+
+```{r, echo=FALSE}
+set.seed(121)
+```
+
+```{r}  
+f0 <- function(n) rnorm(n, 0, 1)    # eg pdf of prior guess
+F0 <- DiscreteDistribution(f0(1e4)) # make its cdf
+
+# generate a prior from the Dirichlet process
+dpF <- dp(10, F0, n=1e4)
+
+# plot the pdf
+hist(dpF(), breaks=50, prob=T, ylab="", xlab="",
+     main=expression(paste("pmf of F ~ ",pi)))
+
+# plot the cdf
+plot(xs, pnorm(xs, 0, 1), type="l", col="blue", lwd=2, ylab="", xlab="",
+     main=expression(paste("cdf of F ~ ",pi)))
+points(xs, ecdf(dpF())(xs), type="l", col="red")
+legend("topleft",c("prior guess","sampled F"), 
+       col=c("blue","red"), lwd=c(2,1), bty = "n")
+```
+
+So, how to process data into the prior to obtain a posterior estimate?
+
+There is a theorem stating that with $X=X_1, X_2, \ldots, X_n \sim F$ and $F \sim DP(\alpha,F_0)$, the posterior $\pi|X$ is given by $DP(\alpha+n, \overline{F_n})$ where
+
+$$\overline{F_n} = \frac{n}{n+\alpha} F_n + \frac{\alpha}{n+\alpha} F_0$$
+
+Notice that if the size of data is large ($n>>\alpha$) the Bayesian solution approaches the empirical cdf given by the frequentist solution!
+
+Since the posterior is also a Dirichlet process, we can again sample from it using the `dp` function already defined:
+
+```{r}
+# X is the evidence (x1, x2, ..., xn)
+dp_posterior <- function(alpha, F0, X) {
+  n <- length(X)
+  F_n <- DiscreteDistribution(X) # compute empirical cdf
+  
+  F_bar <- n/(n+alpha) * F_n + alpha/(n+alpha) * F0
+  
+  dp(alpha+n, F_bar)
+}
+```
+
+The next eg uses a prior $\mathcal{N}(1,1)$ and computes the posterior after processing a set of data (which was generated by a $\mathcal{N}(3,1)$):
+
+```{r, echo=FALSE}
+set.seed(121)
+```
+
+```{r}
+f0 <- function(n) rnorm(n, 1, 1)    # the prior guess (in pdf format)
+F0 <- DiscreteDistribution(f0(1e3)) # the prior guess (in cdf format)
+
+data <- rnorm(30,3,1)               # the data
+
+# apply Dirichlet process
+runs  <- 50
+xs    <- seq(-2,6,len=50)
+y_hat <- matrix(nrow=length(xs), ncol=runs)
+for(i in 1:runs) {
+  Fpost <- dp_posterior(10, F0, data)  
+  y_hat[,i] <- ecdf(Fpost())(xs)    # just keeping values of cdf(xs), not the object
+}
+```
+
+After the runs, each column of `y_hat` represents a cdf sampled from the posterior (ie, the values of that cdf at the values given by vector `xs`). 
+
+Let's visualise the results:
+
+```{r}
+library(coda)
+
+# plot the black area
+plot(xs, pnorm(xs, 1, 1), type="n", ylim=c(-.1,1.1), col="blue", lwd=2, ylab="", xlab="")
+
+# plot each sample cdf
+# for(i in 1:runs)
+#   points(xs, y_hat[,i], type="l", col="red", lwd=1) 
+
+# compute & plot 95% credible interval of the posterior
+crebible_int <- apply(y_hat, 1, function(row) HPDinterval(as.mcmc(row), prob=0.95))
+polygon(c(rev(xs), xs), c(rev(crebible_int[1,]), 
+                              crebible_int[2,]), col = 'grey90')    
+
+# plot the prior cdf
+points(xs, pnorm(xs, 1, 1), type="l", col="blue", lwd=2)
+
+# plot mean estimate of the posterior
+means <- apply(y_hat, 1, mean)
+points(xs, means, type="l", col="red", lwd=2)                  
+
+# plot true data generator
+points(xs, pnorm(xs, 3, 1), type="l", col="darkgreen", lwd=2)
+legend("topleft",c("prior","posterior mean", "truth"), 
+       col=c("blue","red","darkgreen"), lwd=2, bty = "n") 
+```
+
+Notice that in the extremes the predictions are squashed because the prior guess, being a normal distribution, has very light tails. This means that for small values the prior states values very close to zero, while in the higher values, the prior states values very close to one. This is reflected in the posterior, where there's not enough data to change those prior probabilities.
+
+We can try to improve this by replacing the prior guess from a normal to a student-t distribution, which have heavy tails:
+
+```{r, echo=FALSE}
+set.seed(121)
+```
+
+```{r}
+df <- 2
+f0 <- function(n) rt(n, df=df, ncp=1) # the prior guess (in pdf format)
+F0 <- DiscreteDistribution(f0(1e3))   # the prior guess (in cdf format)
+
+y_hat <- matrix(nrow=length(xs), ncol=runs)
+for(i in 1:runs) {
+  Fpost <- dp_posterior(10, F0, data)  
+  y_hat[,i] <- ecdf(Fpost())(xs)    # just keeping values of cdf(xs), not the object
+}
+
+# plot the black area
+plot(xs, pt(xs, df=df, ncp=1), ylim=c(-.1,1.1), type="n", col="blue", lwd=2, ylab="", xlab="")
+
+# compute & plot 95% credible interval of the posterior
+crebible_int <- apply(y_hat, 1, function(row) HPDinterval(as.mcmc(row), prob=0.95))
+polygon(c(rev(xs), xs), c(rev(crebible_int[1,]), 
+                              crebible_int[2,]), col = 'grey90')    
+
+# plot the prior cdf
+points(xs, pt(xs, df=df, ncp=1), type="l", col="blue", lwd=2)
+
+# plot mean estimate of the posterior
+means <- apply(y_hat, 1, mean)
+points(xs, means, type="l", col="red", lwd=2)                  
+
+# plot true data generator
+points(xs, pnorm(xs, 3, 1), type="l", col="darkgreen", lwd=2)
+legend("topleft",c("prior","posterior mean", "truth"), 
+       col=c("blue","red","darkgreen"), lwd=2, bty = "n") 
+```
+
+The results are more reasonable around the extremes, the extra uncertainty seems even justified given the small amount of data (`r length(data)` samples) and there was only `r runs` runs.
+
