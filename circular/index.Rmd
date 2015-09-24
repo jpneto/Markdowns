@@ -121,6 +121,7 @@ approx.I0 <- function(x, nu=0, iter=20) {
 kappa <- 10
 approx.I0(kappa,0)
 I0(kappa)
+I.0(kappa)  # package 'circular' also has this function
 ```
 
 The next code creates a random sample at mean $\pi/4$:
@@ -994,3 +995,218 @@ points(as.circular(mixdata_plot[real_id=='b']), col="purple", pch=0, lwd=1.5)
 points(as.circular(mixdata_plot[estimated_id==0]), col="orange", pch=3, lwd=1.5)
 points(as.circular(mixdata_plot[estimated_id==1]), col="purple", pch=3, lwd=1.5)
 ```
+
+Jones and Pewsey distribution
+--------------
+
+Ref:
+
++ Arthur Pewsey et al., [Circular Statistics in R](http://circstatinr.st-andrews.ac.uk/); [google books](https://books.google.pt/books?id=qeadAAAAQBAJ&printsec=frontcover#v=onepage&q&f=false)
+
+This distribution has several known circular distributions has special cases.
+
+Its density is proportional to
+
+$$f(x|\mu,\kappa,\psi) \propto (1+\tanh(\kappa \psi) \cos(x-\mu))^{1/\psi}$$
+
+However the normalizing constant is more complex (details at their paper, [Jones and Pewsey: Symmetric Distributions on the Circle](http://www.jstor.org/stable/27590682)).
+
+The next function computes the normalizing constant value:
+
+```{r, collapse=TRUE}
+# compute the normalization constact of the Jones and Pewsey distribution
+# ref:   Circular Statistics in R, 
+# check: https://circstatinr.st-andrews.ac.uk/resources/Chap4-RCommands.txt
+JPNCon <- function(kappa, psi){
+  ncon<-0
+  
+  if (kappa < 0.001)
+    ncon <- 1/(2*pi) 
+  else {
+    eps <- 10 * .Machine$double.eps # the smallest positive floating-point x such that 1+x!=1
+    if (abs(psi) <= eps)
+      ncon <- 1/(2*pi*I.0(kappa))
+    else {
+      intgrnd <- function(x){ (cosh(kappa*psi)+sinh(kappa*psi)*cos(x))**(1/psi) }
+      
+      tryCatch(
+        {
+          ncon <- 1/integrate(intgrnd, lower=-pi, upper=pi)$value
+        },
+        error = function(c) {
+          # some pairs gave integration error at zero (?), so I split the integration in two
+          # however this does not solve all the problems...
+          sum1 <- integrate(intgrnd, lower=-pi, upper=0)$value
+          sum2 <- integrate(intgrnd, lower=0, upper=pi)$value
+          ncon <<- 1/(sum1+sum2)  # update variable from parent's environment
+        })
+    } 
+  }
+  
+  finally = {  # return whether there was an error or not
+    return(ncon)
+  }
+}
+
+JPNCon(kappa=2,psi=0)
+JPNCon(kappa=5,psi=-5) 
+```
+
+The `circular` package implements this distribution's density. 
+
+Let's see some special cases:
+
+```{r, warning=FALSE}
+ff <- function(x) djonespewsey(x, mu=0, kappa=0, psi=0)
+curve.circular(ff, col="blue", lwd=2, shrink = 2, 
+               main=expression(paste(kappa , " = 0 is the Uniform")))
+
+ff <- function(x) djonespewsey(x, mu=0, kappa=5, psi=0.01)
+curve.circular(ff, col="blue", lwd=2, shrink = 2, 
+               main=expression(paste(psi," -> 0 approaches the von Mises")))
+
+ff <- function(x) djonespewsey(x, mu=0, kappa=5, psi=1)
+curve.circular(ff, col="blue", lwd=2, shrink = 2, 
+               main=expression(paste(psi," = 0 is the Cardoid distribution")))
+
+ff <- function(x) djonespewsey(x, mu=0, kappa=2, psi=-1)
+curve.circular(ff, col="blue", lwd=2, shrink = 2, 
+               main=expression(paste(psi," = -1 is the wrapped Cauchy")))
+
+ff <- function(x) djonespewsey(x, mu=0, kappa=10, psi=10)
+curve.circular(ff, col="blue", lwd=2, shrink = 2, 
+               main=expression(paste(psi," > 0 & ", kappa , ">>0 is the Cartwright's Power-of-Cosine")))
+
+ff <- function(x) djonespewsey(x, mu=0, kappa=10, psi=-3)
+curve.circular(ff, col="blue", lwd=2, shrink = 2,
+               main=expression(paste(psi," < -2 & ", kappa , ">>0 is a new distribution")))
+```
+
+The package `circular` does not provide a sampling function. The next code uses the method of acceptance-rejection to sample from it:
+
+```{r, warning=FALSE}
+# ref:   Circular Statistics in R, 
+# check: https://circstatinr.st-andrews.ac.uk/resources/Chap4-RCommands.txt
+rjonespewsey <- function(n, mu, kappa, psi) {
+
+  fmax  <- djonespewsey(mu, as.circular(mu), kappa, psi)
+  theta <- 0
+  
+  for (j in 1:n) {
+    stopgo <- FALSE
+    while (!stopgo) {
+      u1 <- runif(1, 0, 2*pi)
+      pdfu1 <- djonespewsey(u1, as.circular(mu), kappa, psi)
+      u2 <- runif(1, 0, fmax)
+      if (u2 <= pdfu1) { 
+        theta[j] <- u1 
+        stopgo <- TRUE 
+      }
+    }
+  }
+  
+  as.circular(theta)
+}
+
+# Eg of use:
+set.seed(121)
+mu <- pi/4; kappa <- 2; psi <- -3/4
+rdata <- rjonespewsey(100, mu=mu, kappa=kappa, psi=psi)
+rose.diag(rdata, bins=50, prop=1.5, shrink=1.5)
+points(rdata, pch=20, col="darkgreen")
+ff <- function(x) djonespewsey(x, mu=mu, kappa=kappa, psi=psi)
+curve.circular(ff, col="blue", lwd=2, add=T)
+```
+
+BUGS model (TO DO)
+--------
+
+Due to the difficult normalization constant, I didn't find a practical way to model this distribution on BUGS. The only possibility I see is to provide BUGS with a grid of values $(\kappa, \psi)$ computed by function `JPNCon`, and let BUGS chose the best pair value...
+
+```{r, collapse=TRUE}
+# logarithmic sequence
+lseq <- function(from,to,len) exp(seq(log(from),log(to),len=len))
+
+# compute grid of normalization constants
+grid.size <- 20 # even number
+kappas <- lseq(0.001,8,grid.size)
+psis   <- lseq(8,0.001,grid.size/2)
+psis   <- sort(c(-psis,psis))
+
+grid.NC <- matrix(rep(NA,grid.size^2), nrow=grid.size)
+for(row in 1:grid.size)
+  for(col in 1:grid.size)
+    grid.NC[row,col] <- JPNCon(kappas[row], psis[col])
+    
+round(grid.NC[10:20,1:8],5)
+```
+
+Any help would be appreciated.
+
+<!--
+
+```{r, eval=FALSE, echo=FALSE}
+my_data <- rvonmises(100, circular(3*pi/2), 2.5)
+rose.diag(my_data, bins=50, prop=1.5, shrink=1)
+points(my_data, pch=20, col="red")
+```
+
+
+```{r, eval=FALSE, echo=FALSE}
+modelString = "
+  model {
+
+      for (i in 1:n) {
+
+        # this formula includes only the density kernel, it lacks the normalization constant
+#         phi[i] <- -log( pow(1+((1-exp(-2*kappa*psi))/(1+exp(-2*kappa*psi)))*cos(x[i]-mu)  
+#                            ,(1/psi) ) ) + C
+        
+        phi[i] <- -log( 1 + ((1-exp(-2*kappa*psi))/(1+exp(-2*kappa*psi))) * cos(x[i]-mu) ) 
+                  * (1/psi) + C
+
+
+        dummy[i] <- 0
+        dummy[i] ~ dpois( phi[i] )
+      }
+
+      # Priors 
+
+      mu    ~ dunif(pi_1,pi)
+      kappa ~ dunif(0,10)
+      psi   ~ dunif(-10,10)
+
+      # other values
+
+      C   <- 1000000   # for the zero's trick
+      pi  <- 3.14159
+      pi_1 <- -pi
+  }
+"
+```
+
+```{r, eval=FALSE, echo=FALSE}
+pp_my_data <- sapply(as.numeric(my_data), cauchy_process_val)
+
+# initializations
+genInitFactory <- function()  {
+  i <- 0
+  function() {
+    i <<- i + 1
+    list( 
+      mu = mean(pp_my_data), # start with the mean estimate
+      kappa=5,
+      psi=0
+    ) 
+  }
+}
+
+# Everything is ready. Run the model!
+run.model(modelString, samples=c("mu"), 
+          data=list(x     = pp_my_data,
+                    n     = length(pp_my_data)), 
+          chainLength=5e3, init.func=genInitFactory())
+
+```
+
+-->
