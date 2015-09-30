@@ -1,0 +1,143 @@
+---
+title: "Connecting with Javascript"
+author: "João Neto"
+date: September 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+---
+
+Refs: 
+
++ https://cran.r-project.org/web/packages/V8/vignettes/v8_intro.html
+
+Library `v8` is a Google's open source JavaScript engine written in C++. The R package `V8` provides a standalone JavaScript for R.
+
+```{r}
+library(V8)
+```
+
+To execute JavaScript code we need a handler for a context, which is an execution environment:
+
+```{r}
+ct <- new_context();
+```
+
+Within it, we can start programming:
+
+```{r}
+ct$eval("var a = 1")
+ct$get("a")
+
+ct$call("function(x, y){return x * y}", 123, 3)
+```
+
+Make functions:
+
+```{r}
+# make factorial function
+# JS("...") means JavaScript literal code
+ct$assign("fact",JS("
+  function(n) {
+    if (n==0)
+      return 1;
+    else
+      return n*fact(n-1);
+  }
+"))
+
+# use it
+ct$eval("fact(6)")
+```
+
+We can export R data to JavaScript:
+
+```{r, collapse=TRUE}
+head(cars)
+ct$assign("mydata", cars)
+head(ct$get("mydata"))
+```
+
+Validate expressions without evaluation:
+
+```{r, collapse=TRUE}
+ct$validate("function foo(x){2x}")
+ct$validate("function foo(x){2*x}")
+ct$validate("function(x){2*x}")
+ct$validate("(function(x){2*x})") # for anonymous functions, wrap them in ()'s
+```
+
+We can create JSON descriptions of some data structure:
+
+```{r}
+ct$eval("JSON.stringify({x:Math.random()})")
+```
+
+Use JavaScript libraries:
+
+```{r}
+ct$source(system.file("js/underscore.js", package="V8")) # js lib for functional programming
+ct$call("_.filter", mtcars, JS("function(x){return x.mpg < 15}"))
+```
+
+Place new js libraries under `[your R]\library\V8\js`.
+
+Notice that we can have more than one context:
+
+```{r, collapse=TRUE}
+ct$eval("var x = 1")
+
+ct2 <- new_context();
+ct2$eval("var x = 2") # the variable is in a 2nd context
+
+ct$get("x")
+ct2$get("x")
+```
+
+To erase a context use `ct$reset()`.
+
+It's also possible to make an interactive console by typing `ct$console()`. To end it, type `exit`.
+
+Another eg where we create and use a composition operator for tuples (this is a pseudo-monad in JavaScript):
+
+```{r, collapse=TRUE}
+ct$eval('
+     // tuple composition
+     gName = function(name) {   // change name
+          return function(g) { 
+              g.name = name; 
+              return g; 
+          }; 
+     };
+     
+     gType = function(type) {   // change type
+          return function(g) { 
+              g.type = type; 
+              return g; 
+          }; 
+     };
+      
+     c = function(g, op) {      // tuple composition operator
+          return op(g)
+     };
+
+     // show tuple
+
+     showtuple = function(g) {
+          return "tuple: {name:" + g.name + ", type:" + g.type + "}";
+     };
+              
+     // make a tuple 
+
+     tuple = { name : "a",
+               type : "b" };  // a tuple eg
+')
+
+ct$eval('showtuple(tuple);')
+ct$eval('newTuple = c(c(tuple, gName("new_a")), gType("new_b"));')
+ct$eval('showtuple(newTuple);')
+```
+

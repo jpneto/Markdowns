@@ -1,0 +1,116 @@
+---
+title: "Connecting with Python"
+author: "João Neto"
+date: September 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
+
+
+Refs:
+
++ [Calling Python from R using rPython](http://www.programmingr.com/content/calling-python-r-rpython/)
+
++ (http://rpython.r-forge.r-project.org/)[http://rpython.r-forge.r-project.org/]
+
+The `rPython` package allows calling Python from R. THe Python session that the package iniciates lives during the current R session.
+
+The installation on Windows requires extra steps and they are explained [here](https://github.com/cjgb/rPython-win). The next code snippet was part of this process and only needs to be done once:
+
+```{r, eval=FALSE}
+# install Rtools (if necessary)
+install.packages("installr")
+library(installr)
+install.Rtools()
+
+# install devtools (if necessary)
+install.packages("devtools")
+library(devtools)
+
+# after download of the package & config/folder updates
+# (check https://github.com/cjgb/rPython-win), execute:
+install("C:/Users/jpn.INFORMATICA/Software/_Langs/rPython")
+```
+
+After that, we just need to import the package, as usual:
+
+```{r}
+library(rPython)
+```
+
+An example of function definition and call:
+
+```{r}
+python.exec("
+  def fact(n): 
+    if n==0:
+      return 1
+    else:
+      return n*fact(n-1)
+")
+
+python.call("fact", 6)
+```
+
+Lists are translated automatically:
+
+```{r}
+python.call( "len", 1:3 )
+a <- 1:4
+b <- 5:8
+python.exec( "def concat(a,b): return a+b" )
+python.call( "concat", a, b)
+```
+
+We can assign values to python vars, and use them in method calls:
+
+```{r}
+str <- "hello world"
+python.assign( "a",  str )
+python.method.call( "a", "split", " " )
+```
+
+Python files can be loaded using `python.load`.
+
+We can also make imports:
+
+```{r}
+python.exec( "import math" )
+my_pi <- python.get( "math.pi" )
+my_pi
+```
+
+A stats eg in which Python does a linear regression:
+
+```{r}
+head(cars)
+plot(cars, pch=20)
+
+python.assign( "X",  cars$speed )
+python.assign( "Y",  cars$dist )
+
+python.exec("
+    import numpy as np
+    from sklearn import linear_model
+
+    X = np.reshape(X, (50,1))  # reshape to 50x1 vector
+    Y = np.reshape(Y, (50,1))
+
+    regr = linear_model.LinearRegression()
+    regr.fit(X, Y)
+
+    intcp = regr.intercept_[0]
+    coefs = regr.coef_[0][0]
+")
+
+intcp <- python.get( "intcp " )
+coefs <- python.get( "coefs" )
+
+abline(intcp, coefs, col="red", lwd=2)
+```
+
