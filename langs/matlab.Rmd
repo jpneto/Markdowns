@@ -1,0 +1,86 @@
+---
+title: "Connecting with Matlab"
+author: "João Neto"
+date: September 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+---
+
+Refs: 
+
++ [R.matlab reference manual](https://cran.r-project.org/web/packages/R.matlab/R.matlab.pdf)
+
+Package `R.matlab` connects to an existing Matlab installation (version >= 6) and is able to transfer data from R to Matlab and vice-versa.
+
+```{r, message=FALSE}
+library(R.matlab)
+```
+
+The next function initializes Matlab and returns a handler (it may take 30-60 seconds):
+
+```{r}
+getContext <- function() {
+  
+  Matlab$startServer()   # start the matlab server
+  matlab <- Matlab()     # create a Matlab client
+  
+  if (!open(matlab))
+    throw("Matlab server is not running: waited 30 seconds.")
+
+  matlab                 # return the matlab handler
+}
+
+matlab <- getContext()
+```
+
+The next code shows egs of use:
+
+```{r, collapse=TRUE}
+x <- 10
+setVariable(matlab, x = x)        # set a var into Matlab workspace
+evaluate(matlab, "y=20; z=x+y")   # evaluates an expression in Matlab
+res <- getVariable(matlab, "z")   # get var's value
+res$z[1,1]
+
+evaluate(matlab, "B=ones(2,10);")
+
+data <- getVariable(matlab, c("x", "z", "B"))  # we can get 1+ vars
+data$x
+data$z
+data$B
+```
+
+It's possible to define functions and export them to Matlab:
+
+```{r, collapse=TRUE}
+setFunction(matlab, "
+  function y=average(x)
+    y = sum(x)/length(x);
+")
+
+evaluate(matlab, "av=average([1 2 4 7]);")
+res <- getVariable(matlab, "av")
+res$av
+
+setFunction(matlab, "
+  function [y1,y2]=my_f(x1,x2)
+    y1=x1+x2;
+    y2=x1-x2;
+")
+
+evaluate(matlab, "[z1,z2]=my_f(3,5);")
+res <- getVariable(matlab, c("z1","z2"))
+res$z1
+res$z2
+```
+
+To close Matlab:
+
+```{r}
+close(matlab)
+```
+
