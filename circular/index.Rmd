@@ -1003,15 +1003,15 @@ Ref:
 
 + Arthur Pewsey et al., [Circular Statistics in R](http://circstatinr.st-andrews.ac.uk/); [google books](https://books.google.pt/books?id=qeadAAAAQBAJ&printsec=frontcover#v=onepage&q&f=false)
 
-This distribution has several known circular distributions has special cases.
+This distribution has several known circular distributions as special cases.
 
 Its density is proportional to
 
 $$f(x|\mu,\kappa,\psi) \propto (1+\tanh(\kappa \psi) \cos(x-\mu))^{1/\psi}$$
 
-However the normalizing constant is more complex (details at their paper, [Jones and Pewsey: Symmetric Distributions on the Circle](http://www.jstor.org/stable/27590682)).
+with $\mu-\pi \lt x \leq \mu+\pi$, $\kappa \geq 0$, \psi \in \mathcal{R}$
 
-The next function computes the normalizing constant value:
+However the normalizing constant is more complex (details at their paper, [Jones and Pewsey: Symmetric Distributions on the Circle](http://www.jstor.org/stable/27590682)). The next function computes it:
 
 ```{r, collapse=TRUE}
 # compute the normalization constact of the Jones and Pewsey distribution
@@ -1118,12 +1118,235 @@ ff <- function(x) djonespewsey(x, mu=mu, kappa=kappa, psi=psi)
 curve.circular(ff, col="blue", lwd=2, add=T)
 ```
 
+Concerning `circular::djonespewsey`, I did find some integration problems for specific values of ($\mu, \kappa, \psi$), like `djonespewsey(0,0,4.63,-1.61)` produces the error `Error in integrate(ker, 0, 2 * pi) : the integral is probably divergent`.
+
+The package implementation is similar to this one:
+
+```{r, error=TRUE, warning=FALSE}
+djonespewsey2 <- function(x, mu, kappa, psi) {
+  ker <- function(x) {
+    (cosh(kappa * psi) + sinh(kappa * psi) * cos(x - mu))^(1/psi)/
+      (2 * pi * cosh(kappa * psi))
+  }
+  
+  normalization <- integrate(ker, 0, 2 * pi)$value
+  ker(x)/normalization
+}
+
+djonespewsey(0,0,4.63,-1.61)
+djonespewsey2(0,0,4.63,-1.61)
+```
+
+So, here's a more stable density approximation without using `integrate`:
+
+```{r}
+my_djonespewsey <- function(x, mu, kappa, psi) {
+  ker <- function(x) {
+    (cosh(kappa * psi) + sinh(kappa * psi) * cos(x - mu))^(1/psi)/
+      (2 * pi * cosh(kappa * psi))
+  }
+  
+  dx = 0.01
+  xs <- seq(0,2*pi,dx)
+  normalization <- sum(ker(xs))*dx
+  ker(x)/normalization
+}
+
+my_djonespewsey(0,0,4.63,-1.61)
+```
+
+Just an eg that the stable variant produces similar values to the package implementation:
+
+```{r, warning=FALSE}
+mu <- -1; kappa <- 10; psi <- 1
+
+xs <- seq(-pi,pi,len=100)
+plot(xs, djonespewsey(xs,mu,kappa,psi), col="blue", lwd=7, type="l")
+points(xs, my_djonespewsey(xs,mu,kappa,psi), col="orange", lwd=2, type="l")
+```
+
+Stan Model
+---------
+
+Due to the difficult normalization constant, I didn't find a practical way to model this distribution on BUGS. The only possibility I see is to provide BUGS with a grid of values $(\kappa, \psi)$ computed by function `JPNCon`, and let BUGS chose the best pair value...
+
+That way, I used Stan to implement the previous stable density, and so we can infer the parameters of this distribution, like we did previously.
+
+```{r, message=FALSE}
+library(rstan)
+```
+
+This is the model in Stan:
+
+```{r}
+model <- '
+  functions {
+
+     // debug purposes
+     // void print_xs(real[] xs) {
+     //   int size_xs;
+
+     //   size_xs <- size(xs);
+     //   for(i in 1:size_xs) {
+     //      print(xs[i])
+     //   }
+     // }
+
+     real kernel(real x, real mu, real kappa, real psi) {
+
+        return (cosh(kappa * psi) + sinh(kappa * psi) * cos(x - mu))^(1/psi) /
+               (2 * pi() * cosh(kappa * psi));
+     }
+
+     real normalization(real dx, real[] xs, real mu, real kappa, real psi) {
+
+        real value;
+        int size_xs;
+
+        size_xs <- size(xs);
+        value   <- 0;
+        for (i in 1:size_xs) {
+           value <- value + kernel(xs[i], mu, kappa, psi);
+        }
+        return value*dx;
+     }
+
+     real JonesPewsey_log(real[] D, int N, real dx, real[] xs, 
+                          real mu, real kappa, real psi) {
+
+        real log_lik;
+        real log_pdf_const;
+
+        log_pdf_const <- log( normalization(dx, xs, mu, kappa, psi) );
+        log_lik <- 0;
+        for(i in 1:N) {
+          //log_lik <- log_lik + log( kernel(D[i], mu, kappa, psi)/pdf_const );
+          log_lik <- log_lik + log( kernel(D[i], mu, kappa, psi) ) - log_pdf_const;
+        }
+
+        return log_lik;
+     }
+  }
+
+  data {
+    int<lower=0> N;   // number of observed data points
+    real D[N];         // the observed data
+  }
+
+  transformed data {
+ 
+    real<lower=0> dx; // should be a power of 10: 0.01, 0.001, ...
+    real xs[100];     // should have size 1/dx
+
+    dx <- 0.01;       // step to approximate integral with sums
+
+    xs[1] <- 0;       // a grid of points between [0,2pi]
+    for(i in 2:100)  {
+      xs[i] <- xs[i-1] + 2*pi()*dx;
+    }
+    // print_xs(xs) // debug: to check if xs was correctly constructed
+  }
+
+  parameters {
+    real<lower=-pi(), upper=pi()> mu;     // mu over the unit circle
+    real<lower= 0,    upper=5>    kappa;  // kappa >= 0
+    real<lower=-10,  upper=10>    psi;    // limited to [-10,10]
+  }
+
+  model {
+
+    // priors
+    mu    ~ uniform(-pi(),pi());   
+    kappa ~ uniform( 0,5);
+    psi ~ uniform(-10,10);                // behaves better than psi ~ cauchy(0,10);
+
+    // likelihood
+    D ~ JonesPewsey(N, dx, xs, mu, kappa, psi);   
+  }
+'
+```
+
+So, let's try to fit some circular data samples. The next function receives parameter values for the Jones and Pewsey distribution, generates a ramdon sample from it, and then fit this sample (assuming the parameter values were unknown), and then plot the true distribution against the estimated one (ie, the distribution which parameter values are the posterior means):
+
+```{r}
+# place all angles between 0 <= mu < 2*pi
+normalize_angles <- function(x) {
+  while(x>2*pi)
+    x = x-2*pi
+  x
+}
+
+fit_and_plot <- function(mu, kappa, psi, N=75, iter=5000) {
+  
+  # step 1: create a random sample D
+  set.seed(121)
+  D <- as.numeric(rjonespewsey(N, mu=mu, kappa=kappa, psi=psi))
+  D <- sapply(D, normalize_angles) # values between 0 <= mu < 2*pi
+  
+  # step 2: fit D using Stan's model
+  fit  <- stan(model_code = model, data = list(D=D, N=N),  iter = 1000, chains = 1, verbose = FALSE)
+  fit2 <- stan(fit = fit,          data = list(D=D, N=N),  iter = iter, chains = 2, 
+             verbose = FALSE, seed=101, warmup=1000)
+  print(fit2)
+  
+  # step 2a: extract posterior means
+  la <- extract(fit2, permuted = TRUE) 
+  mu_hat    <- mean(la$mu)
+  kappa_hat <- mean(la$kappa)
+  psi_hat   <- mean(la$psi)
+
+  # step 3: plot
+  # left panel
+  par(mfrow=c(1,2))
+  xs <- seq(-pi,pi,len=100)
+  plot(xs, my_djonespewsey(xs,mu,kappa,psi), col="blue", lwd=4, type="l",
+       xlab="x", ylab="density")
+  points(xs, my_djonespewsey(xs,mu_hat,kappa_hat,psi_hat), col="red", lwd=2, type="l")
+  # right panel
+  plot(as.circular(D), shrink=1.25, col="darkgreen", pch=20)
+  ff     <- function(x) my_djonespewsey(x, mu=mu, kappa=kappa, psi=psi)
+  curve.circular(ff, col="blue", lwd=4, add=T)
+  ff_hat <- function(x) my_djonespewsey(x, mu=mu_hat, kappa=kappa_hat, psi=psi_hat)
+  curve.circular(ff_hat, col="red", lwd=2, add=T)
+  legend("topleft",c("real","estimate"), col=c("blue","red"), lwd=2, bty = "n")
+  par(mfrow=c(1,1))
+  
+  # return true parameters and point estimates
+  data.frame(true=c(mu, kappa, psi), estimate=c(mu_hat, kappa_hat, psi_hat))
+}
+```
+
+Fitting a distribution close to a von Mises:
+
+```{r, message=FALSE, warning=FALSE}
+fit_and_plot(mu=pi/4,  kappa=4, psi=1/8, iter=2500)
+fit_and_plot(mu=-pi/2, kappa=4, psi=1/8, iter=2500)
+```
+
+Fitting a wrapped Cauchy:
+
+```{r, message=FALSE, warning=FALSE}
+fit_and_plot(mu=pi/2, kappa=3, psi=-1, iter=2500)
+```
+
+**TODO** The model has trouble fitting for different values of $\mu$. Eg, fitting a Cartwright's Power of Cosine:
+
+```{r, message=FALSE, warning=FALSE}
+fit_and_plot(mu=-pi/2  , kappa=5, psi=2)
+fit_and_plot(mu=0      , kappa=5, psi=2)
+fit_and_plot(mu=-3*pi/4, kappa=5, psi=2)
+```
+
+We notice that even when the true distribution is the same -- only an angular shift was performed -- the fitness performance is quite different.
+
+<!-- This was my first try with BUGS. Then I chose Stan
+
 BUGS model (TO DO)
 --------
 
 Due to the difficult normalization constant, I didn't find a practical way to model this distribution on BUGS. The only possibility I see is to provide BUGS with a grid of values $(\kappa, \psi)$ computed by function `JPNCon`, and let BUGS chose the best pair value...
 
-```{r, collapse=TRUE}
+```{r, collapse=TRUE, eval=FALSE, echo=FALSE}
 # logarithmic sequence
 lseq <- function(from,to,len) exp(seq(log(from),log(to),len=len))
 
@@ -1142,8 +1365,6 @@ round(grid.NC[10:20,1:8],5)
 ```
 
 Any help would be appreciated.
-
-<!--
 
 ```{r, eval=FALSE, echo=FALSE}
 my_data <- rvonmises(100, circular(3*pi/2), 2.5)
