@@ -1,0 +1,314 @@
+---
+title: "Missing Data"
+author: "João Neto"
+date: October 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+cache: TRUE    
+---
+
+Refs:
+
++ [Gelman & Hill - Applied regression and multilevel modeling](http://www.stat.columbia.edu/~gelman/arm/), chapter 25.
+
++ [mice: Multivariate Imputation by Chained Equations in R](file:///C:/Users/jpn.INFORMATICA/Downloads/v45i03.pdf)
+
++ [Imputing missing data with R](http://datascienceplus.com/imputing-missing-data-with-r-mice-package/)
+
+```{r, echo=FALSE}
+options(width = 160)
+```
+
+Data Preparation
+------------
+
+Let's load the Social Indicators Survey dataset for this tutorial (cf. dataset's [codebook](https://courseworks.columbia.edu/access/content/user/aj2358/SIS/siswave3_codebook_v33.pdf)):
+
+```{r, collapse=TRUE, R.options=options(width = 160)}
+sis <- read.csv("siswave3v4impute3.csv", sep=";")
+
+# from Gelman&Hill's book:
+na.fix <- function (a) {
+  ifelse(a<0 | a==999999, NA, a)
+}
+
+sis$earnings <- (na.fix(sis$rearn) + na.fix(sis$tearn))/1000
+
+# select a column subset of the entire dataset
+sis_sm <- as.data.frame(with(sis, cbind(sex, race, educ_r, r_age, earnings, police)))
+sis_sm[91:95,]
+
+# clean dataset
+sis_sm <- sis_sm[c(-93,-757),]  # remove lines 93 & 756 (typos?)
+
+# give proper types to predictors
+sis_sm$sex    <- as.factor(sis_sm$sex)
+sis_sm$race   <- as.factor(sis_sm$race)
+sis_sm$educ_r <- as.ordered(sis_sm$educ_r) # ordered factor
+sis_sm$police <- as.factor(sis_sm$police)
+sapply(sis_sm, class)
+
+summary(sis_sm)
+```
+
+Notice the existence of several `NA` values, ie, missing data.
+
+Introduction
+-----------
+
+There are several types of missing data (this is Gelman & Hill classification):
+
++ MCAR - Missing Completely at Random. In this case, the probability of having a `NA` is the same for all rows and columns. This is the best-case scenario, because if we remove those samples from the inference, the bias is not affected. However, this is also the least probable case for our dataset.
+
+For instance, our dataset does not seem to be MCAR:
+
+```{r, warning=FALSE, message=FALSE, collapse=TRUE}
+library(dplyr)
+library(magrittr)
+
+sis_dp <- tbl_df(sis_sm)
+
+check.income.NA <- function(for.race) {
+
+  df <- sis_dp %>% filter(race==for.race, na.rm=TRUE)
+  
+  n    <- df %>% nrow()
+  n.NA <- df %>% filter(is.na(earnings)) %>% nrow()
+  
+  list(total=n, total.NA=n.NA, perc=n.NA/n)
+}
+
+check.income.NA(1) # whites
+check.income.NA(2) # blacks
+```
+
+The missing value percentage for whites and blacks is quite different. This is evidence that this dataset is not MCAR.
+
++ MAR - Missing at Random. Here the hypothesis is that the probability of a certain variable to be `NA` is based on the available information. So, if `income` is missing then the missing probability is modelled by the other available data like sex, race, etc.
+
++ Missing that depends on unobserved predictors. In this case, there is lack of information in the dataset. Eg, say education is important to reveal income, but education information was not collected. Since it is likely that the dataset is not representative of the education population (there was no control for it), there will be extra bias in our inferences.
+
++ Censoring. It's when the value of the predictor influences the probability of missingness. Perhaps people with large incomes usually prefer not to state them in the survey. This can be mitigated by adding more data. In this eg, people with high education or high payed jobs tend to have higher incomes, so we could model the income with this extra information.
+
+A good methodology is to include as many predictors as possible so that the MAR hypothesis is reasonable for our model.
+
+Using package `mice`
+==============
+
+We'll use the `mice` package to deal with missing data.
+
+```{r, warning=FALSE, message=FALSE}
+library(mice)
+```
+
+Data Exploration
+---------------
+
+Function `md.pattern` presents a report about how missing data is spread over the dataset:
+
+```{r}
+md.pattern(sis_sm)
+```
+
+We see that 1170 rows are complete (have zero `NA`), 21 miss the `race` info, and so on...
+
+In this dataset, we could simply remove the samples with more missing values. For eg, the last six samples, with three or more `NA`s, could be removed without a significant loss of information. There are 30 rows with two missing values. It would be a decision for the data analyst to keep or remove them.
+
+We can also visualize this information:
+
+```{r, warning=FALSE, message=FALSE}
+library(VIM)
+
+aggr(sis_sm, col=c('blue','red'), numbers=TRUE, sortVars=TRUE,
+             labels=names(sis_sm), cex.axis=.8, gap=3, 
+             ylab=c("Histogram of missing data", "Red is Missing Data"))
+```
+
+Another function is `md.pairs` which computes the number of observations for all pairs of variables and for all pairs (obse**r**ved/**m**issing,obse**r**ved/**m**issing):
+
+```{r}
+md.pairs(sis_sm)
+```
+
+For eg, there are 251 samples where the sex value is present but the earnings are not (cf. matrix `$rm`).
+
+Removing Data
+------------
+
+The simplest method is to remove the samples with missing data:
+
+```{r}
+sis_sm1a <- cc(sis_sm)
+head(sis_sm1a)
+```
+
+This however can be too much if many samples have columns with `NA` values.
+
+Also, if the removed samples are in any way different from the complete samples, then the analysis over the complete cases will bias the analysis.
+
+A partial solution is to remove only a minority of samples that have too much missing information. In out eg, say we decide to remove all the cases with three or more `NA` values:
+
+```{r}
+n_NAs <- apply(sis_sm, 1, function(x) sum(is.na(x))) # number of NAs per row
+sis_sm2 <- sis_sm[n_NAs<3,]                          # keep those with 0,1,2 NAs
+md.pattern(sis_sm2)
+```
+
+If we only partially remove missing data, we still have to deal with the remaining `NA` values.
+
+Another method is to use different subsets of the original dataset to answer different inference questions. In this case, we would remove less incomplete samples since we would be using less columns per inference. This means that these various inferences might not be consistent with each other, since each used different data.
+
+Data Imputation
+-------------
+
+Data imputation is the replacement of `NA` values for some estimated value based on an imputation algorithm.
+
+Categorical variables are tricky. For eg, we cannot replace them by the mean, since that would probably add a value not within the domain of that variable. A better alternative would be to replace by the mode, but even that is not advisable.
+
+```{r, collapse=TRUE, eval=FALSE, echo=FALSE}
+calc.mode <- function(xs) {
+  us <- unique(xs)
+  us[which.max(tabulate(match(xs, us)))]
+}
+
+means <- apply(as.matrix(sis_sm), 2, mean, na.rm=TRUE)
+means
+modes <- apply(sis_sm, 2, calc.mode)
+modes
+```
+
+A better method is to fit a linear regression or logistic regression using the available data, and then, for each missing row, use the respective prediction as the imputed value. A variant is to add some reasonable random noise (also estimated from the available data) into the imputation.
+
+Function `mice` executes a given imputation method over the dataset. It has several methods available:
+
+```{r, warning=FALSE}
+methods(mice)
+```
+
+Here's information about some of these methods:
+
++ `pmm` is predictive mean matching (for numeric)
++ `mean` is unconditional mean imputation (for numeric)
++ `norm` is Bayesian Linear Regression (for numeric)
++ `norm.nob` is (classical) Linear Regression (for numeric)
++ `logreg` is logistic regression (for 2 factors)
++ `polyreg` is multinomial logit (for 2+ factors)
++ `polr` is ordered logit (for 2+ ordered factor)
+
+We can use specific methods for each column (if a predictor is complete, just place `""` in the `meth` argument list):
+
+```{r, message=FALSE, collapse=TRUE}
+sapply(sis_sm2, class)  # check again the types of each predictor
+ni <- 7     # the number of imputations
+imp.data <- mice(sis_sm2, m=ni, maxit=50, 
+                 meth=c('logreg', 'polyreg', 'polr', 'pmm', 'pmm', 'logreg'), 
+                 seed=99, diag=FALSE, print=FALSE)
+summary(imp.data)
+```
+
+Mice give us information about which set of predictors were used to impute a certain variable. This information is kept in the predictor matrix:
+
+> [The predictor matrix] rows correspond to target variables (i.e. variables to be imputed), in the sequence as they appear in data. A value of '1' means that the column variable is used as a predictor for the target variable (in the rows). The diagonal of predictorMatrix must be zero [ref: mice help]
+
+This predictor matrix can be supplied by the user in argument `pred`, which allows her to control which predictors are used for each variable.
+
+We can check the values assigned to each sample column at each data imputation for diagnostic checking, ie, to see if the imputations are plausible:
+
+```{r}
+head(imp.data$imp$police, 10) # for this predictor, should be 0s and 1s only
+```
+
+<!--
+Post-processing imputations
+--------------
+
+Imputations can result in strange values. In out dataset, the original income has no negative values:
+
+```{r}
+which(sis_sm$earnings<0)
+```
+
+but the imputed results could have had negative values (in this case, it has not):
+
+```{r}
+min(imp.data$imp$earnings)
+```
+-->
+
+Visualizing Imputation Results
+------------------
+
+Package `mice` provides several plotting tools.
+
+Function `stripplot` shows the distributions for each predictor:
+
+```{r}
+stripplot(imp.data, pch = 20, cex = 1)
+```
+
+We can visualize if the density plots of the original data and the inputed data are close:
+
+```{r}
+densityplot(imp.data, xlim=c(-1e2,1e3))  # blue is the original data, red are the imputations
+```
+
+In this case, we only have one continuous variable (income). Despite the plot, there are no negative incomes, this is only an effect of fitting a density to the actual datapoints.
+
+And this is a scatterplot of earnings against other predictors:
+
+```{r}
+xyplot(imp.data, earnings ~ race+educ_r+police+r_age, pch=20, cex=1)
+```
+
+Checking Convergence
+----------------
+
+One way to check if the imputation algorithm ran ok, is to verify how the mean and variance of each imputation evolved over iterations (let's call them imputation streams). A sign of convergence is to see each stream mixing with the other, with no sign of a trend. If the streams look flat, something wrong happened and the user should try other methods, increase the number of interations (fortunately, the number of iterations needed are much lower than for MCMC methods) or make changes to the predictor matrix. 
+
+```{r}
+plot(imp.data, c("race", "earnings", "police", "educ_r"))
+```
+
+Creating a Complete Dataset
+---------------
+
+Function `complete` uses the inputation information to create a complete dataset:
+
+```{r, collapse=TRUE}
+head(sis_sm2)
+sis_sm2c <- complete(imp.data, action=1)
+head(sis_sm2c)
+```
+
+In function `complete`, the argument `action='long'` creates a larger dataset using all the imputation' values (check help), which can be then split into differen inputed datasets:
+
+```{r}
+n <- nrow(sis_sm2) # this dataset has 1495 rows
+
+sis_sm2cl <- complete(imp.data, action='long')
+nrow(sis_sm2cl)    # 1495 * 7 inputations
+
+# split dataframes
+dfs <- split(sis_sm2cl[,c(-1,-2)], f= sis_sm2cl$.imp)
+head(dfs[[1]])   # first imputation
+head(dfs[[ni]])  # last  imputation
+```
+
+Pooling Results
+------------
+
+We can apply all the imputations in an inference and then pool the results. Let's assume we would like to check if earnings is influenced by any other predictor:
+
+```{r}
+# performing ni linear regressions
+fits <- with(imp.data, lm(earnings ~ sex+race+police+educ_r))
+summary(fits$analyses[[ni]]) # just from one regression
+summary(pool(fits))          # pooled results
+```
+
+The p-values (the column `Pr(>|t|)`) indicate that the two higher education levels are strongly significant to predict income (the higher education, the higher the income). Having police in the neighborhood (`police=1`) is weakly significant. Also, hispanic subjects (`race=3`) also seem to have weakly negative significance.
+
