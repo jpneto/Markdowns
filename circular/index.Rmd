@@ -11,6 +11,13 @@ output:
 cache: yes
 ---
 
+
+```{r setup, echo=FALSE}
+library(rgl)
+library(knitr)
+knit_hooks$set(webgl = hook_webgl) # to present rgl objects in html
+```
+
 ```{r, message=FALSE, warning=FALSE}
 library(circular) # circular stats, cran.r-project.org/web/packages/circular/circular.pdf
 ```
@@ -1431,3 +1438,139 @@ run.model(modelString, samples=c("mu"),
 ```
 
 -->
+
+Nonparametric Methods
+---------------
+
+This section is entirely based on [NPCirc: An R Package for Nonparametric Circular Methods](http://www.jstatsoft.org/article/view/v061i09/v61i09.pdf), in Journal of Statistical Software, vol.61, 9
+
+Nonparametric methods are useful to fit complex circular models (with many mixtures) where classical models are not flexible enough. Package `NPCirc` provides functions to deal with this type of problem.
+
+```{r, message=FALSE, warning=FALSE}
+library(NPCirc)
+```
+
+The package allows for sampling and finding the density of complex mixtures. The available distributions are:
+
++ circular uniform (use `unif` to identify this distribution on argument `dist`) 
+
++ von Mises (`vm`)
+
++ cardioid (`car`)
+
++ wrapped Cauchy (`wc`) 
+
++ wrapped normal (`wn`)
+
++ wrapped skew-normal (`wsn`)
+
+The next eg shows a mixture of 70% of vonMise($\pi$/2, 4) and 30% of a wrapped Cauchy($\pi$,0.75):
+
+```{r}
+t <- circular(seq(0,2*pi,len=500))
+
+# sampling n points
+n <- 250
+params  <- list(p=c(.7,.3), mu=c(pi/2,pi), con=c(4,.75)) # mixture parameters
+my_data <- rcircmix(n, dist=c("vm", "wc"), param=params)
+
+# finding the density
+dens <- dcircmix(x=t, dist=c("vm", "wc"), param=params)
+
+# plotting them
+plot(my_data, shrink=1.5)
+lines(t, dens, lwd=2, col="blue")
+```
+
+Function `kern.den.circ` computes circular kernel regression estimation, using the von Mises as kernel. This algorithm nees a smoothing parameter that can be estimated using several different methods:
+
+```{r}
+# Select a smoothing parameter for the non-parametric estimation
+# there are several methods available
+bw1 <- bw.boot(my_data)
+bw2 <- bw.CV(my_data)
+bw3 <- bw.rt(my_data)
+bw4 <- bw.pi(my_data)
+
+# select one, say bw4, and make the density estimation
+est <- kern.den.circ(x=my_data, t=t, bw=bw4)
+
+# plot it
+par(mfrow=c(1,2))
+plot(my_data, shrink=1.5)
+lines(t, dens, lwd=2, col="blue")
+lines(est, lwd=2, col="red")
+
+xs <- seq(0,2*pi,len=500)
+plot.default(my_data, rep(-.02,n), ylim=c(-.02,.6), col="grey40", ylab="")
+lines(xs, dens, lwd=2, col="blue")
+lines(xs, est$y, lwd=2, col="red")
+abline(h=0, lty=4)
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,1))
+```
+
+There are also methods for regression:
+
++ `kern.reg.circ.lin` which has circular covariates and linear response
+
++ `kern.reg.circ.circ` with circular covariates and response
+
++ `kern.reg.lin.circ` which has linear covariates and circular response
+
+One eg with linear responses:
+
+```{r}
+data("speed.wind2", package = "NPCirc") # speed.wind2 is a dataset available in the package
+nas <- which(is.na(speed.wind2$Speed)) # find NA's for removal
+dir <- circular(speed.wind2$Direction[-nas], units = "degrees") 
+vel <- speed.wind2$Speed[-nas]
+
+estLL <- kern.reg.circ.lin(dir, vel, method = "LL") # there's also method "NW"
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(estLL, plot.type = "circle", points.plot = TRUE,
+     labels = c("N", "NE", "E", "SE", "S", "SO", "O", "NO"),
+     label.pos = seq(0, 7 * pi/4, by = pi/4),
+     zero = pi/2, clockwise = TRUE, lwd = 2, line.col = "red", main = "")
+
+plot(estLL, plot.type = "line", points.plot = TRUE, lwd = 2, line.col = "red",
+     xlab = "direction", ylab = "speed (m/s)", main="")
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,1))
+```
+
+One eg with circular responses:
+
+```{r}
+data("wind", package = "NPCirc")
+wind6  <- circular(wind$wind.dir[seq( 7, 1752, by = 24)]) # wind direction at 6am
+wind12 <- circular(wind$wind.dir[seq(13, 1752, by = 24)]) # wind direction at noon
+
+estLL <- kern.reg.circ.circ(wind6, wind12, bw = 2.25, method = "LL")
+
+plot(estLL, plot.type = "line", points.plot = TRUE, line.col = 2, lwd = 2, xlab = "Wind direction at 6 a.m.", ylab = "Wind direction at noon", main="")
+```
+
+And an interactive plot:
+
+```{r, webgl=TRUE}
+plot(estLL, plot.type = "circle", points.plot = TRUE, line.col = 2, lwd = 2, points.col = 1, units = "degrees")
+```
+
+Finally, an eg with both circular covariates and response:
+
+```{r, webgl=TRUE}
+data("periwinkles", package = "NPCirc")
+dist <- periwinkles$distance
+dir <- circular(periwinkles$direction, units = "degrees")
+
+estLL <- kern.reg.lin.circ(dist, dir, t = NULL, bw = 200, method = "LL")
+plot(estLL, plot.type = "circle", points.plot = TRUE, line.col = 2, lwd = 2, points.col = 2)
+```
