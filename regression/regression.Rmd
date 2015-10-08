@@ -395,9 +395,6 @@ Logistic Regression fits a logistic function to a dataset:
 ```{r}
 marks.set <- read.csv(file="Marks.csv", head=TRUE, sep=',')
 head(marks.set)
-sapply(marks.set,class)  # numbers were imported as factors, need to numeric the out of them
-marks.set$exam_1 <- as.numeric(levels(marks.set$exam_1))[marks.set$exam_1]
-marks.set$exam_2 <- as.numeric(levels(marks.set$exam_2))[marks.set$exam_2]
 sapply(marks.set,class)
 
 # apply the logistic regression
@@ -606,5 +603,148 @@ huber <- function(a,delta) {
 plot(xs,huber(xs,delta),type="l",col="blue",lwd=2)
 lines(xs,log(cosh(xs)),col="red")                      # log.cosh  curve
 lines(xs,delta^2*(sqrt(1+(xs/delta)^2)-1),col="green") # pseudo huber curve
+```
+
+Non-linear Regression
+=========
+
+A nonlinear regression classical example is a model like this:
+
+$$y = f(x, \theta) + \epsilon$$
+
+with error $\epsilon \sim \mathcal{0,\sigma^2}$, response $y$, covariantes $x$ and model parameters $\theta$. The main difference for linear regression, is that $f$ does not have restrictions on its form.
+
+In base R we have access to `nls` which performs non-linear regression. The next egs are from its help file:
+
+```{r, warning=FALSE}
+x <- -(1:100)/10
+y <- 100 + 10 * exp(x / 2) + rnorm(x)/5  # some non-linear, exponential relatioship
+
+fit <- nls(y ~ Const + A * exp(B * x),   # make the non-linear regression fit
+           start = list(Const=1, A = 1, B = 1)) 
+fit$m$getPars()                          # check estimated parameters
+plot(x, y, main = "", pch=20)
+curve(100 + 10 * exp(x / 2), col = "blue", lwd=4, add = TRUE)
+lines(x, predict(fit), col = "red", lwd=2)
+```
+
+If we have some information about where to search for the parameters, we can use `start`, and if we need to tweak the number of interations or the convergence tolerance we use `control`:
+
+```{r}
+fit <- nls(y ~ Const + A * exp(B * x), 
+           start   = list(Const=5, A = 1, B = 0.5),
+           control = nls.control(maxiter = 100, tol = 1e-05))
+```
+
+Another eg:
+
+```{r, collapse=TRUE}
+my_data <- subset(DNase, Run == 1)
+head(my_data)
+fit1 <- nls(density ~ 1/(1 + exp((xmid - log(conc))/scal)),
+            data  = my_data,
+            start = list(xmid = 0, scal = 1),
+            algorithm = "plinear")
+summary(fit1)
+# plot it:
+xs <- data.frame(conc=seq(0,13,len=100))
+plot(my_data$conc, my_data$density, pch=20)
+lines(xs$conc, predict(fit1,newdata=xs), col="red", lwd=2)
+```
+
+A more complex eg with indexing:
+
+```{r}
+data(muscle, package = "MASS")
+
+## The non linear model considered is
+##       Length = alpha + beta*exp(-Conc/theta) + error
+## where theta is constant but alpha and beta may vary with Strip.
+
+with(muscle, table(Strip)) # 2, 3 or 4 obs per strip
+## We first use the plinear algorithm to fit an overall model,
+## ignoring that alpha and beta might vary with Strip.
+
+musc.1 <- nls(Length ~ cbind(1, exp(-Conc/th)), muscle,
+              start = list(th = 1), algorithm = "plinear")
+summary(musc.1)
+## Then we use nls' indexing feature for parameters in non-linear
+## models to use the conventional algorithm to fit a model in which
+## alpha and beta vary with Strip.  The starting values are provided
+## by the previously fitted model.
+## Note that with indexed parameters, the starting values must be
+## given in a list (with names):
+b <- coef(musc.1)
+musc.2 <- nls(Length ~ a[Strip] + b[Strip]*exp(-Conc/th), muscle,
+              start = list(a = rep(b[2], 21), b = rep(b[3], 21), th = b[1]))
+summary(musc.2)
+```
+
+Package `nlstools`
+--------------
+
+Ref:
+
++ [A Toolbox for Nonlinear Regression in R: The Package nlstools](http://www.jstatsoft.org/index.php/jss/article/view/v066i05/v66i05.pdf)
+
+Package `nlstools` is a unified diagnostic framework for non-linear regression. It deals with the following problems:
+
++ The iterative estimation usually requires initial values of the model parameters. These values shouldbe relatively close to the 'real' values for convergence.
+
++ The validity of the model fit using diagnostic and visual tools
+
++ The construction of confidence intervals with non-parametric methods
+
+```{r, message=FALSE, warning=FALSE}
+library(nlstools)
+```
+
+The next eg shows a model for oxygen kinetics during 6-minute walk tests. There are two distict phases. One before time $\lambda \geq 5.883$ which is a rest phase, and then after a walking stage which is modelled by an exponential. The formula is shown in the code
+
+```{r}
+head(O2K)
+plot(O2K, pch=20)
+
+formulaExp <- 
+  as.formula(VO2 ~ (t <= 5.883) * VO2rest + 
+                   (t >  5.883) *(VO2rest + (VO2peak-VO2rest)*(1-exp(-(t-5.883)/mu))))
+
+
+fit_O2K <- nls(formulaExp, 
+               start = list(VO2rest=400, VO2peak=1600, mu=1), data = O2K)
+overview(fit_O2K)
+plotfit(fit_O2K, smooth = TRUE, lwd=2, pch.obs=20)
+```
+
+Assessing Goodness of fit
+-------------
+
+Given the parameter estimates $\hat{\theta}$, we can use the residuals $\hat{\epsilon}$ to check the quality of the regression
+
+$$\hat{\epsilon} = y - f(x, \hat{\theta})$$
+
+To get the residuals:
+
+```{r}
+e_hat <- nlsResiduals(fit_O2K)
+plot(e_hat)
+```
+
+We see that the residuals seem approximately normally distributed, and there's no evidence of autocorrelation.
+
+```{r}
+test.nlsResiduals(e_hat)
+```
+
+which means the null hypothesis (they are normally distributed) cannot be rejected. The second test cannot reject the hypothesis of no autocorrelation.
+
+The next functions compute confidence regions for the parameters:
+
+```{r, message=FALSE}
+O2K.cont1 <- nlsContourRSS(fit_O2K)
+plot(O2K.cont1, col = FALSE, nlev = 5)
+
+O2K.conf1 <- nlsConfRegions(fit_O2K, exp = 2, length = 2000)
+plot(O2K.conf1, bounds = TRUE, pch=20)
 ```
 

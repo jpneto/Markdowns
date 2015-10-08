@@ -1,0 +1,153 @@
+---
+title: "Fitting Distributions"
+author: "João Neto"
+date: October 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+cache: TRUE
+---
+
+Refs:
+
++ [fitdistrplus: An R Package for Fitting Distributions](http://www.jstatsoft.org/article/view/v064i04/v64i04.pdf)
+
+Introduction
+===========
+
+The typical way to fit a distribution is to use function `MASS::fitdistr`:
+
+```{r}
+library(MASS)
+set.seed(101)
+my_data <- rnorm(250, mean=1, sd=0.45)      # unkonwn distribution parameters
+
+fit <- fitdistr(my_data, densfun="normal")  # we assume my_data ~ Normal(?,?)
+fit
+hist(my_data, pch=20, breaks=25, prob=TRUE, main="")
+curve(dnorm(x, fit$estimate[1], fit$estimate[2]), col="red", lwd=2, add=T)
+```
+
+`fitdistr` uses `optim` to estimate the parameter values by maximizing the likelihood function. So it works like this:
+
+```{r}
+log_likelihood <- function(params) { -sum(dnorm(my_data, params[1], params[2], log=TRUE)) }
+fit2 <- optim(c(0,1), log_likelihood)    # c(0,1) are just initial guesses
+fit2
+hist(my_data, pch=20, breaks=25, prob=TRUE)
+curve(dnorm(x, fit2$par[1],     fit2$par[2]),     col="blue", lwd=6, add=T) # optim fit
+curve(dnorm(x, fit$estimate[1], fit$estimate[2]), col="red",  lwd=2, add=T) # fitdistr fit
+```
+
+Using `fitdistrplus`
+=========
+
+This tutorial uses the `fitdistrplus` package for fitting distributions.
+
+```{r, message=FALSE}
+library(fitdistrplus)
+```
+
+
+Choosing which distribution to fit
+-------------
+
+Let's use one of the datasets provided by the packge:
+
+```{r}
+data("groundbeef", package = "fitdistrplus")
+my_data <- groundbeef$serving
+plot(my_data, pch=20)
+```
+
+We can first plot the empirical density and the histogram to gain insight of the data:
+
+```{r, fig.width=10}
+plotdist(my_data, histo = TRUE, demp = TRUE)
+```
+
+Another tool is to show some descriptive statistics, like the moments, to help us in making a decision:
+
+```{r, fig.height=6, fig.width=6}
+descdist(my_data, discrete=FALSE, boot=500)
+```
+
+The plot also includes a nonparametric bootstrap procedure for the values of kurtosis and skewness.
+
+Fitting a distribution
+-------------
+
+Say, in the previous eg, we chose the weibull, gamma and log-normal to fit:
+
+```{r}
+fit_w  <- fitdist(my_data, "weibull")
+fit_g  <- fitdist(my_data, "gamma")
+fit_ln <- fitdist(my_data, "lnorm")
+summary(fit_ln)
+```
+
+we can plot the results:
+
+```{r, fig.height=10, fig.width=10}
+par(mfrow=c(2,2))
+plot.legend <- c("Weibull", "lognormal", "gamma")
+denscomp(list(fit_w, fit_g, fit_ln), legendtext = plot.legend)
+cdfcomp (list(fit_w, fit_g, fit_ln), legendtext = plot.legend)
+qqcomp  (list(fit_w, fit_g, fit_ln), legendtext = plot.legend)
+ppcomp  (list(fit_w, fit_g, fit_ln), legendtext = plot.legend)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+par(mfrow=c(1,1))
+```
+
+The fitting can work with other non-base distribution. It only needs that the correspodent, d, p, q functions are implemented.
+
+In the next eg, the `endosulfan` dataset cannot be properly fit by the basic distributions like the log-normal:
+
+```{r}
+data("endosulfan", package = "fitdistrplus")
+my_data <- endosulfan$ATV
+
+fit_ln <- fitdist(my_data, "lnorm")
+cdfcomp(fit_ln, xlogscale = TRUE, ylogscale = TRUE)
+```
+
+To solve this it is used the Burr and Pareto distributions available at package `actuar`
+
+```{r, message=FALSE, fig.width=10}
+library(actuar)
+
+fit_ll <- fitdist(my_data, "llogis", start = list(shape = 1, scale = 500))
+fit_P  <- fitdist(my_data, "pareto", start = list(shape = 1, scale = 500))
+fit_B  <- fitdist(my_data, "burr",   start = list(shape1 = 0.3, shape2 = 1, rate = 1))
+cdfcomp(list(fit_ln, fit_ll, fit_P, fit_B), xlogscale = TRUE, ylogscale = TRUE,
+        legendtext = c("lognormal", "loglogistic", "Pareto", "Burr"), lwd=2)
+```
+
+The package also provides some goodness-of-it statistics:
+
+```{r}
+gofstat(list(fit_ln, fit_ll, fit_P, fit_B), fitnames = c("lnorm", "llogis", "Pareto", "Burr"))
+```
+
+Visually and using the previous statistics, it seems that the Burr distribution seems the preferred one among the candidates we chose to explore.
+
+Parameter estimates
+-----------
+
+We can apply a bootstrap to estimate the uncertainty in the parameters:
+
+```{r}
+ests <- bootdist(fit_B, niter = 1e3)
+summary(ests)
+plot(ests)
+quantile(ests, probs=.05) # 95% percentile bootstrap confidence interval
+```
+
+
+
+
