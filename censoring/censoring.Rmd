@@ -1,0 +1,466 @@
+---
+title: "Censored and Truncated Data"
+author: "João Neto"
+date: October 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+---
+
+Refs:
+
++ Spiegelhalter et al - The Bugs Book (2013)
+
++ MacKay - Information Theory, Inference & Learning Algs (2003)
+
++ Stan 2.8 user and reference guide (2015)
+
+This tutorial uses probabilistic programming to deal with the problems of truncated and censored data, namely, using examples in BUGS, JAGS and Stan.
+
+What's the difference between truncated and censored data?
+
++ *Truncated data* happens when the generating process only produces values within an interval of values. Everything below of above simply are not observed.
+
++ *Censored data* means that some observations are censored. We know that they existed, however we are unable to know their precise values. Usually, we know if they have values below or above a certain threashold, or within a given limited interval (egs: obs < 4; obs > 7; obs $\in [4,7]$). So censored data provides more information than truncated data.
+
+Truncated Data
+==========
+
+This problem appears at MacKay's book, at the beginning of chapter 3:
+
+> Unstable particles are emitted from a source and decay at a distance x, a real number that has an exponential probability distribution with characteristic length $\lambda$. Decay events can be observed only if they occur in a window extending from x = 1 cm
+to x = 20 cm. N decays are observed at locations \{ x_1, x_2, \ldots, x_N\}. What is $\lambda$?
+
+The next sample simulates the source with unknown $\lambda=12$ for a shifted exponential:
+
+```{r, fig.height=3, fig.width=10, message=FALSE}
+library(PoweR) # includes shifted exponential distribution
+
+N <- 100
+true.lambda  <- 10
+truncated.at <- 20
+
+set.seed(141)
+my.data <- gensample(12,N,law.pars=c(1,1/true.lambda))$sample # shifted exponential
+
+my.data.tr <- my.data[my.data<truncated.at]  # truncated data
+
+plot(my.data, rep(1,N), pch=20, col="blue", ylab="", yaxt='n', bty="n", xlim=c(0,max(my.data)+5))
+points(my.data.tr, rep(0.9,length(my.data.tr)), pch=20, col="red")
+abline(v=truncated.at, col="grey", lty=2)
+```
+
+An Analytic Solution
+-------------------
+
+Using MacKay's Bayesian solution, the likelihood function for data point $x$ is
+
+$$p(x|\lambda) = 
+\left\{
+	\begin{array}{ll}
+		\frac{1}{Z(\lambda)} \frac{e^{-x/\lambda}}{\lambda } & \mbox{if } 1 \leq x \lt 20 \\
+		0 & \mbox{if } \text{otherwise}
+	\end{array}
+\right.
+$$
+
+with 
+
+$$Z(\lambda) = \int_1^{20} \frac{e^{-x/\lambda}}{\lambda} dx = e^{-1/\lambda} - e^{-20/\lambda}$$
+
+as the normalizing constant for a given $\lambda$.
+
+Now, by Bayes' Theorem, with $\mathcal{D} = \{ x_1, x_2, \ldots, x_N\}$:
+
+$$p(\lambda | \mathcal{D}) \propto p(\mathcal{D}|\lambda) p(\lambda)$$
+
+where $p(\lambda)$ is the chosen prior distribution for $\lambda$.
+
+Assuming that $x_i$ are iid, ie, $p(\mathcal{D}|\lambda) = \prod_i p(x_i|\lambda)$:
+
+$$p(\lambda | \mathcal{D}) \propto \prod_i p(x_i|\lambda) ~ p(\lambda) = \frac{1}{(\lambda Z(\lambda))^N} ~ \exp\left\{ -\sum_{i=1}^N x_i/\lambda \right\} ~ p(\lambda)$$
+
+Let's implement this in R:
+
+```{r}
+# function that returns the posterior, given data D and a prior
+get.post <- function(D, prior) {
+  n <- length(D)
+  
+  function(lambda) {
+    Z <- exp(-1/lambda) - exp(-truncated.at/lambda)
+    exp(-sum(D)/lambda)*prior(lambda) / (lambda * Z)^n
+  }
+}
+
+# log version
+get.log.post <- function(D, prior) {
+  n <- length(D)
+  
+  function(lambda) {
+    Z <- exp(-1/lambda) - exp(-truncated.at/lambda)
+    (-sum(D)/lambda) + log(prior(lambda)) - n*log(lambda * Z)
+  }
+}
+```
+
+We need to choose a prior. Herein, we'll use a Cauchy centered at 5 with a large scale parameter. Let's define it, and apply it to compute the posterior distribution:
+
+```{r}
+prior         <- function(lambda) {dcauchy(lambda,5,25)} # define a prior
+log.posterior <- get.log.post(my.data.tr, prior)         # log posterior
+```
+
+That's it!
+
+Let's plot the results:
+
+```{r, fig.width=10}
+xmax <- 25
+xs   <- seq(1,xmax,len=100)
+
+ys_prior <- sapply(xs, prior)
+plot(xs, ys_prior, type="l", col="blue", lwd=2, ylim=c(0,max(ys_prior)), ylab="", yaxt='n')
+
+ys_post <- sapply(xs, function(x) exp(log.posterior(x)))
+ratio <- max(ys_post)/max(ys_prior)                # place them at the same y-scale
+points(xs, ys_post/ratio, type="l", col="purple", lwd=2)
+legend("topright", c("prior", "posterior","true", "MAP", "MLE"), 
+       col=c("blue", "purple", "blue", "red", "darkgreen"), 
+       lty=c(1,1,2,2,2), lwd=c(2,2,1,1,1))
+
+abline(v=true.lambda, col="blue", lty=2)  # draw true value
+
+f.optim <- function(x) -log.posterior(x)
+res <- optim(10, f.optim, method="Brent", lower=0, upper=1e3)
+MAP <- res$par
+abline(v=MAP, col="red",  lty=2)          # draw Maximum A Posteriori estimate
+
+# compare with the MLE
+MLE <- mean(my.data.tr)                   # draw Maximum Likelihood Estimate
+abline(v=MLE, col="darkgreen", lty=2)
+```
+
+If we choose a different prior like an uniform, or a Cauchy at a different location, say 10 or 15, the MAP estimate would be very similar, since there are plenty of data to 'drown' the prior.
+
+A Simulation Solution
+--------------
+
+Let's assume an analytic solution was not possible, and try JAGS to solve this problem. I'm using JAGS given that we are dealing with a truncated distribution, and it's easier to handle than with BUGS:
+
+```{r, message=FALSE}
+library(rjags)
+
+model = "
+  model {
+
+    for(i in 1:N) {
+      x[i] ~ dexp(rate)T(1,20) # truncated exponential
+    }
+
+    rate ~ dt(0.2,0.0016,1)    # ~ Cauchy(1/0.2, (1/25)^2)
+    lambda <- 1/rate
+  }
+"
+
+writeLines(model, con="model.txt")  # Write the modelString to a file
+
+jags <- jags.model("model.txt",
+                   data = list('x' = my.data.tr,
+                               'N' = length(my.data.tr)),
+                   n.chains = 4,
+                   n.adapt = 2500)
+ 
+update(jags, 15000)
+ 
+res <- jags.samples(jags, c('lambda'), 5000)  # get samples
+hist(res[[1]], breaks=200, xlim=c(5,22), col="lightgrey", prob=TRUE)  # first chain
+d <- density(res[[1]])
+lines(d, col="red", lwd=1)
+lambda_MAP <- d$x[which.max(d$y)]
+abline(v=lambda_MAP, col="red", lty=2, lwd=2)
+abline(v=true.lambda, col="blue", lwd=2)
+legend("topright", c("true", "MAP"),  col=c("blue", "red"),  lty=c(1,2), lwd=2)
+```
+
+We get a MAP estimate of $\hat{\lambda} =$ `r round(lambda_MAP,2)` which is quite nice given the true value $\lambda =$ `r true.lambda`.
+
+Also, the same model in Stan:
+
+```{r, message=FALSE, results="hide"}
+library(rstan)
+
+model = "
+  data {
+    int<lower=1> N;
+    real U;
+    real<upper=U> x[N];
+  }
+
+  parameters {
+    real<lower=0> rate;
+  }
+
+  model {
+    for (i in 1:N)
+      x[i] ~ exponential(rate) T[1,U];
+
+    rate ~ cauchy(5, 25);
+  }
+"
+
+N <- length(my.data.tr)
+U <- truncated.at
+x <- my.data.tr
+
+fit  <- stan(model_code = model, data = list(x=x, N=N, U=U), iter = 1e3, chains = 2, verbose = FALSE)
+fit2 <- stan(fit = fit,          data = list(x=x, N=N, U=U), iter = 2e4, chains = 2, verbose = FALSE, seed=101, warmup=5000)
+```
+
+Let's present the results:
+
+```{r, fig.width=10}
+print(fit2)
+la <- extract(fit2, permuted = TRUE) 
+hist(as.numeric(1/la$rate), breaks=200, prob=T, xlab="lambda", col="lightgrey",
+     main="Posterior p(lambda|D)", xlim=c(3,xmax), ylim=c(0,0.2))
+d <- density(1/la$rate)
+lines(d, col="red", lwd=2)
+lambda_MAP <- d$x[which.max(d$y)]
+abline(v=lambda_MAP, col="red", lty=2, lwd=2)
+abline(v=true.lambda, col="blue", lwd=2)
+legend("topright", c("true", "MAP"),  col=c("blue", "red"),  lty=c(1,2), lwd=2)
+```
+
+Unknown Truncation value
+-----------------
+
+What if the truncation value was not known? Then, the value `U` turns out to be a parameter:
+
+```{r, message=FALSE, results="hide"}
+model = "
+  data {
+    int<lower=1> N;
+    real x[N];
+  }
+
+  parameters {
+    real<lower = max(x)> U;
+    real<lower=0> rate;
+  }
+
+  model {
+    U ~ cauchy(30, 25);
+
+    for (i in 1:N)
+      x[i] ~ exponential(rate) T[1,U];
+
+    rate ~ cauchy(5, 25);
+  }
+"
+
+N <- length(my.data.tr)
+x <- my.data.tr
+
+fit  <- stan(model_code = model, data = list(x=x, N=N), iter = 1e3, chains = 2, verbose = FALSE)
+fit2 <- stan(fit = fit,          data = list(x=x, N=N), iter = 2e4, chains = 4, verbose = FALSE, seed=101, warmup=5000)
+```
+
+We can see that the estimated mean of `U` is near the true value of `r truncated.at` (even considering that the true value is not (barely) inside the 95% confidence interval), while the mode (50% quantile) is closer:
+
+```{r}
+print(fit2)
+```
+
+Also, the posterior mean value and mode of `rate` corresponds exactly to the value of $\lambda$ (notice that `rate == 1/lambda`).
+
+Check chapter 8 in Stan's [reference guide](http://mc-stan.org/documentation/) for more information.
+
+Censored Data
+================
+
+Left censoring
+------------
+
+This eg is adapted from the Bugs Book, example 9.6.1. We have eight objects with integer measures normally distributed (with known $\sigma=1$). However, the measuring process cannot measure object with more than eight units. So, a measure of 8 means "8 or more". What is the estimated $\mu$ of the sampling distribution? This is an eg of *left censoring*.
+
+The available data:
+
+```{r}
+my.data.cn <- c(6,6,6,7,7,7,8,8,8)  # 8 means 8+
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(BRugs)
+
+run.model <- function(model, samples, data=list(), chainLength=10000, burnin=0.10, init.func, n.chains=1) {
+  
+  writeLines(model, con="model.txt")  # Write the modelString to a file
+  modelCheck( "model.txt" )           # Send the model to BUGS, which checks the model syntax
+  if (length(data)>0)                 # If there's any data available...
+    modelData(bugsData(data))         # ... BRugs puts it into a file and ships it to BUGS
+  modelCompile()                      # BRugs command tells BUGS to compile the model
+  
+  if (missing(init.func)) {
+    modelGenInits()                   # BRugs command tells BUGS to randomly initialize a chain
+  } else {
+    for (chain in 1:n.chains) {       # otherwise use user's init data
+      modelInits(bugsInits(init.func))
+    }
+  }
+    
+  modelUpdate(chainLength*burnin)     # Burn-in period to be discarded
+  samplesSet(samples)                 # BRugs tells BUGS to keep a record of the sampled values
+  modelUpdate(chainLength)            # BRugs command tells BUGS to randomly initialize a chain
+}
+```
+
+For censored data, BUGS is able to use suffix `C`, after the censored data distribution, to denote the known limits for those values. In this case, the last three values are censored in the open interval $[8,+\infty)$, so we use `C(8,)`:
+
+```{r, fig.width=10}
+modelString = "
+  model {
+    for (i in 1:6) {
+      x[i] ~ dnorm(mu, 1)      # uncensored data
+    } 
+    for (i in 7:9) {
+      x[i] ~ dnorm(mu, 1)C(8,) # censored data
+    }
+
+    mu ~ dunif(0, 100)
+  }
+"
+
+my.data.cn[my.data.cn==8] <- NA # convert 8 to NA
+
+data.list = list(
+  x = my.data.cn
+)
+
+run.model(modelString, samples=c("mu", "x[7]"), data=data.list, chainLength=10000)
+
+samplesStats(c("mu", "x[7]"))  # x[8] & x[9] same as x[7]
+mus <- samplesSample("mu")
+v8s <- samplesSample("x[7]")   # samples for values equal to 8
+
+par(mfrow=c(1,2))
+hist(mus, breaks=50, prob=T)
+hist(v8s, breaks=50, prob=T)
+```
+
+Another eg of left censoring, in JAGS, is found [here](http://www.indiana.edu/~kruschke/DoingBayesianDataAnalysis/Programs/JagsCensoringExample.R).
+
+Interval censoring
+------------
+
+Another type of censoring occurs when the data was rounded before the analysis. So, for instance, a 8 might mean any value between $[7.5, 8.5]$. 
+
+```{r}
+my.data2.cn <- c(6,6,6,7,7,7,8,8,8)
+N <- length(my.data2.cn)
+```
+
+
+The model in JAGS uses the `dinterval` distribution for censored data. Writing `y ~ dinterval(x1,x2)`, where `x2` is a vector of two values, means one of three options:
+
++ `y==0` if `x1 <= x2[1]`
+
++ `y==1` if `x2[1] < x1 <= x2[2]`
+
++ `y==2` if `x1 > x2[2]`
+
+So, to use this in our eg, we first define the limits for each data point:
+
+```{r, collapse=TRUE}
+lim <- cbind(my.data2.cn-0.5, my.data2.cn+0.5)  # intervals for each data point
+lim
+```
+
+and we will force the vector `y` that will appear in our model, to be all made of 1's, so that every data point falls inside its interval:
+
+```{r}
+y <- rep(1,N)
+```
+
+The model becomes:
+
+```{r, message=FALSE, fig.width=10}
+model = "
+  model {
+    for (i in 1:N) {
+      y[i] ~ dinterval(x[i], lim[i,])
+
+      x[i] ~ dnorm(mu, 1)
+    }
+
+    mu ~ dnorm(0,1E-6)
+  }
+"
+
+writeLines(model, con="model.txt")  # Write the modelString to a file
+
+jags <- jags.model("model.txt",
+                   data = list(x   = rep(NA,N),
+                               N   = N,
+                               lim = lim,
+                               y   = y),
+                   n.chains = 4,
+                   inits= list(mu = 5,
+                               x  = as.vector(apply(lim,1,mean))), # initial vals
+                   n.adapt = 2500)
+ 
+update(jags, 25000)
+res <- jags.samples(jags, c('mu', 'x[1]', 'x[4]', 'x[7]'), 5000)
+summary(as.mcmc.list(res$mu))
+summary(as.mcmc.list(res$`x[1]`))
+par(mfrow=c(2,2))
+hist(res$mu,     breaks=50, prob=T)
+hist(res$`x[1]`, breaks=50, prob=T)
+hist(res$`x[4]`, breaks=50, prob=T)
+hist(res$`x[7]`, breaks=50, prob=T)
+```
+
+We notice a shrinkage towards the mean, since all the measures share the same normal distribution.
+
+The BUGS model for the same problem would be like this:
+
+```{r}
+modelString = "
+  model {
+    for (i in 1:9) {
+      lower[i] <- x[i] - 0.5
+      upper[i] <- x[i] + 0.5
+
+      z[i] ~ dnorm(mu, 1)I(lower[i], upper[i])
+    }
+
+    mu ~ dunif(0, 100)
+  }
+"
+```
+
+... but somehow the compilation process does not work (?)
+
+```{r, eval=FALSE, echo=FALSE}
+data.list = list(
+  x = my.data2.cn
+)
+
+run.model(modelString, samples=c("mu", "z[1]", "z[4]", "z[7]"), data=data.list, chainLength=10000)
+
+samplesStats(c("mu", "z[1]", "z[4]", "z[7]"))  
+
+mus <- samplesSample("mu")
+v6s <- samplesSample("z[1]")
+v7s <- samplesSample("z[4]")
+v8s <- samplesSample("z[7]")
+
+par(mfrow=c(2,2))
+hist(mus, breaks=50, prob=T)
+hist(v6s, breaks=50, prob=T)
+hist(v7s, breaks=50, prob=T)
+hist(v8s, breaks=50, prob=T)
+```
