@@ -1,0 +1,267 @@
+---
+title: "Copulas"
+author: "João Neto"
+date: October 2015
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+---
+
+```{r setup, echo=FALSE}
+library(rgl)
+library(knitr)
+knit_hooks$set(webgl = hook_webgl) # to present rgl objects in html
+```
+
+Refs:
+
++ [Modelling Dependence with Copulas in R](http://datascienceplus.com/modelling-dependence-with-copulas/)
+
++ [Using Copulas](http://www.danielberg.no/presentations/astin08.pdf)
+
+Introduction
+--------
+
+```{r}
+library(MASS)  # use: mvrnorm
+library(psych) # use: pairs.panels
+
+set.seed(100)
+```
+
+The next code creates a sample from the given multivariate normal distribution:
+
+```{r}
+m <- 3
+n <- 2000
+mu    <- rep(0, m)
+sigma <- matrix(c(1.0,  0.4,  0.2,
+                  0.4,  1.0, -0.8,
+                  0.2, -0.8,  1.0), nrow=3)
+
+x <- mvrnorm(n, mu=mu, Sigma=sigma, empirical=TRUE)
+colnames(x) <- paste0("x",1:m)
+cor(x, method='spearman')  # check sample correlation
+```
+
+Function `mvrnorm` is nice to generate correlated random variables but there is a restriction, the marginal functions are normal distributions:
+
+```{r}
+pairs.panels(x)
+```
+
+Many empirical evidence have skewed or heavy tailed marginals. What if we would like to create a similar correlated random variables but with arbitrary marginals, say, a Gamma(2,1), a Beta(2,2), and a t($\nu$=5) distribution?
+
+Here's a possible algorithm to do that:
+
+1. Generate the variables $x_i$ from a Gaussian multivariate (as we did)
+
+2. Remembering the _probability integral transformation_:
+
+$$X \sim F_X \Rightarrow U = F_X(X) \sim \mathcal{U}(0,1)$$
+
+transform $x_i$ using the Gaussian cdf, $\Phi$ (in R is called `pnorm`), $u_i = \Phi(x_i)$, where $u_i$ have marginal uniform distributions but are still correlated as variables $x_i$.
+
+```{r, webgl=TRUE}
+u <- pnorm(x)
+pairs.panels(u)
+
+plot3d(u[,1],u[,2],u[,3],pch=20,col='navyblue')
+```
+
+3. Apply, for each variable $u_i$, the inverse cdf of the required distribution that we wish as the marginal (eg, in R, the inverse of `pnorm` is `qnorm`), that is $z_i = F^{-1}(u_i)$:
+
+```{r}
+z1 <- qgamma(u[,1], shape=2,  scale=1)
+z2 <-  qbeta(u[,2], shape1=2, shape2=2)
+z3 <-     qt(u[,3], df=5)
+z  <- cbind(z1,z2,z3)
+cor(z, meth='spearman')
+
+pairs.panels(z)
+```
+
+And we see that now the marginals have the distributions we wanted!
+
+```{r, webgl=TRUE}
+plot3d(z[,1], z[,2], z[,3], pch=20, col='blue')
+```
+
+This process can also be coded using package `copula`:
+
+```{r}
+library(copula)
+
+set.seed(100)
+# constructs an elliptical copula
+myCop <- normalCopula(param=c(0.4,0.2,-0.8), dim=3, dispstr="un")
+# creates a multivariate distribution via copula
+myMvd <- mvdc(copula=myCop, margins=c("gamma", "beta", "t"),
+              paramMargins=list(list(shape=2,  scale=1),
+                                list(shape1=2, shape2=2), 
+                                list(df=5)) )
+z2 <- rMvdc(n, myMvd)
+colnames(z2) <- paste0("z",1:m)
+pairs.panels(z2)
+```
+
+Copulas
+---------
+
+A **copula** (from the Latin: link, bond) is a multivariate distribution function with standard uniform marginal distributions. 
+
+More formally, if $(X,Y)$ is a pair of continuous rv's, with joint $H(x,y)$ and marginals $F_X(x), F_Y(y)$, then a copula is the distribution function $C:[0,1]^2 \rightarrow [0,1]$,
+
+$$C(u,v) = H(F^{-1}_X(u), F^{-1}_Y(v))$$
+
+where $U=F_X(x) \sim \mathcal{U}(0,1)$, $V=F_Y(y) \sim \mathcal{U}(0,1)$.
+
+Copulas are interesting because they can couple a multivariate distribution to arbitrary marginal distributions, being more flexible that the standard elliptical distributions. They contain all the information about (ie, they model) the dependence between all $d$ random variables.
+
+The copula function assigns a non-negative number to each hyper-rectangle in $[0,1]^n$.
+
+```{r, fig.width=12}
+cop2 <- normalCopula(param=c(0.7), dim=2, dispstr="un") # 2D copula to plot
+par(mfrow=c(1,2))
+persp(cop2, dCopula, main="Density", xlab="u1", ylab="u2", theta=35)
+persp(cop2, pCopula, main="CDF",     xlab="u1", ylab="u2", theta=35)
+```
+
+The next plot shows an independent copula $C(u_1, u_2) = u_1 u_2$,
+
+```{r, fig.width=12}
+ind.cop <- indepCopula(dim = 2)
+par(mfrow=c(1,2))
+persp(ind.cop, dCopula, main="Density", xlab="u1", ylab="u2", theta=35)
+persp(ind.cop, pCopula, main="CDF",     xlab="u1", ylab="u2", theta=35)
+```
+
+**Sklar's Theorem** states that given a d-dimensional joint distribution $H$ with marginals $F_1$ and $F_d$, then there exists a copula $C$ such that
+
+$$H(u_1,\ldots,u_d) = C(F_1(u_1), \ldots, F_d(u_d))$$
+
+Also, for any univariates $F_1 \ldots F_d$, and any copula $C$, the function $H$ is a d-dimensional distribution with marginals $F_1 \ldots F_d$. If $F_1 \ldots F_d$ are continuous, then $C$ is unique.
+
+So, a joint distribution can be split into marginals and a copula, which can be studied separately.
+
+Also, with a copula, we can create many different joint distributions by selecting different marginals. This is what `copula::mvdc()` does.
+
+Archimedean Copulas
+---------------
+
+Archimedean Copulas are a specific type of copula with format
+
+$$C(u_1,u_2) = g^{[-1]}(g(u_1) + g(u_2))$$
+
+where $g:[0,1] \rightarrow [0,\infty), g(1)=0$, is called the copula generator, and $g^{[-1]}(x)$ is a pseudo-inverse, which is $g^{-1}(x), \text{if} 0 \leq t \leq g(0)$ and zero otherwise.
+
+These copulas are continuous, strictly decreasing, convex, commutative ($C(u_1,u_2)=C(u_2,u_1)$), and associate ($C(u_1,C(u_2,u_3)) = C(C(u_1,u_2),u_3)$). These properties make them good tools for applications.
+
+An eg is the Gumbel copula, 
+
+$$C_\eta(u,v) = \exp\{ -((- \log u)^\eta + (- \log v)^\eta)^{1/\eta} \}$$
+
+```{r}
+gumbel.cop <- gumbelCopula(param=2, dim=2)  # gumbel copula with parameter eta=2
+
+persp(gumbel.cop, dCopula, main="Density", xlab="u1", ylab="u2", theta=35)
+```
+
+Parameter Estimation
+-----------
+
+Let's create a dataset
+
+```{r}
+gumbel.cop <- gumbelCopula(param=3, dim=2)
+gMvd2 <- mvdc(gumbel.cop, c("exp","exp"),  # we'll assume this copula is unkonwn
+              list(list(rate=2), list(rate=4)))
+set.seed(11)
+x <- rMvdc(2500, gMvd2)
+plot(x, pch=20)
+```
+
+...and try to find the copula and the marginals that model this dataset.
+
+If we knew the type of copula and type of margins, we just fit the parameters of a copula to the data (herein, we use the same copula object that created the dataset, something we will not have the luxury to have in a real application).
+
+```{r, warning=FALSE}
+fit2 <- fitMvdc(x, gMvd2, start = c(1,1,2), hideWarnings=FALSE)
+print(fit2)     # fit2@mvdc returns the fitted multivariate distribution
+fit2@estimate   # get the mean estimates of the marginals and the copula
+```
+
+More generally, if we don't know the format of the copula neither the marginals, with package `VineCopula` we can estimate the most appropriate type of copula that models the data:
+
+```{r}
+library(VineCopula)
+
+u1 <- pobs(as.matrix(x[,1])) # pobs place the observations inside [0,1]
+u2 <- pobs(as.matrix(x[,2]))
+fitCopula <- BiCopSelect(u1, u2, familyset=NA)
+fitCopula
+```
+
+Reading the help file for `BiCopSelect` we check that `family=4` is the Gumbel copula (indeed, the data set was made with a Gumbel copula). The estimated parameter is also correct.
+
+Now, we should fit the marginals:
+
+```{r}
+library(fitdistrplus)
+descdist(x[,1], discrete=FALSE, boot=500)
+```
+
+It seems that it can be a gamma, or an exponential (not a beta, since the values are not inside [0,1]).
+
+```{r, collapse=TRUE}
+fit1_gamma <- fitdist(x[,1], "gamma")
+summary(fit1_gamma)
+fit1_exp   <- fitdist(x[,1], "exp")
+summary(fit1_exp)
+```
+
+Both fits are similar. Notice that the real marginal for `x[,1]` is an exponential with `rate=2` which is found by the second fit.
+
+Doing the same for `x[,2]`:
+
+```{r}
+descdist(x[,2], discrete=FALSE, boot=500)
+fit2_gamma <- fitdist(x[,2], "gamma")
+summary(fit2_gamma)
+fit2_exp   <- fitdist(x[,2], "exp")
+summary(fit2_exp)
+```
+
+Say we pick the gamma for the first, and the exponential for the second:
+
+```{r}
+param1_shape <- fit1_gamma$estimate['shape']
+param1_rate  <- fit1_gamma$estimate['rate']
+param2_rate  <- fit2_exp$estimate['rate']
+```
+
+We can create our proposed copula:
+
+```{r}
+param_gumbelCop <- fitCopula$par
+
+estCop <- mvdc(copula=gumbelCopula(param_gumbelCop,dim=2), 
+               margins=c("gamma","exp"),
+               paramMargins=list(list(shape=param1_shape, rate=param1_rate),
+                                 list(rate=param2_rate)))
+```
+
+And make a sample to compare if it is similar to the original data:
+
+```{r}
+new_data <- rMvdc(2500, estCop)
+
+plot(x, pch='.', col="blue", cex=3)
+points(new_data, pch='.', col="red", cex=3)
+```
+
+As we see, the two datasets have a similar structure. This is evidence that the proposed model is appropriate.
+
