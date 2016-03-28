@@ -1,12 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T,
-               fig.width = 8, fig.height = 8)
-```
-
-Radial Basis Functions
-========================================================
+---
+title: "Radial Basis Functions"
+author: "João Neto"
+date: November 2013
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+cache: yes
+---
 
 A radial basis function, RBF, $\phi(x)$ is a function with respect to the origin or a certain point $c$, ie, $\phi(x) = f(\|x-c\|)$ where the norm is usually the Euclidean norm but can be other type of measure.
 
@@ -25,7 +28,7 @@ Let's use a one-dimensional dataset as an ilustration of the gaussian influence:
 rbf.gauss <- function(gamma=1.0) {
   
   function(x) {
-    exp(-gamma * norm(as.matrix(x),"F") )
+    exp(-gamma * norm(as.matrix(x),"F")^2 )
   }
 }
 
@@ -68,37 +71,31 @@ There are $N$ equations for $N$ unknowns. In matrix form:
 
 $$
 \underbrace{
+  \left\lbrack
+  \array{
+    \exp(-\gamma \|x_1-x_1\|^2) & \cdots & \exp(-\gamma \|x_1-x_N\|^2) \cr
+    \exp(-\gamma \|x_2-x_1\|^2) & \cdots & \exp(-\gamma \|x_2-x_N\|^2) \cr
+    \vdots & \ddots & \vdots \cr
+    \exp(-\gamma \|x_N-x_1\|^2) & \cdots & \exp(-\gamma \|x_N-x_N\|^2) \cr
+  }
+  \right\rbrack
+}_{\Phi}  \underbrace{
 \left\lbrack
-\begin{matrix}
-exp(-\gamma \|x_1-x_1\|^2) & \cdots & exp(-\gamma \|x_1-x_N\|^2) \cr
-exp(-\gamma \|x_2-x_1\|^2) & \cdots & exp(-\gamma \|x_2-x_N\|^2) \cr
-\vdots & \ddots & \vdots \cr
-exp(-\gamma \|x_N-x_1\|^2) & \cdots & exp(-\gamma \|x_N-x_N\|^2) \cr
-\end{matrix}
-\right\rbrack
-}_{\Phi}
-
-\underbrace{
-\left\lbrack
-\begin{matrix}
+\array{
 w_1  \cr
 w_2  \cr
 \vdots \cr
 w_N
-\end{matrix}
+}
 \right\rbrack
-}_{\boldsymbol w}
-
-=
-
-\underbrace{
+}_{\boldsymbol w} = \underbrace{
 \left\lbrack
-\begin{matrix}
+\array{
 y_1  \cr
 y_2  \cr
 \vdots \cr
 y_N
-\end{matrix}
+}
 \right\rbrack
 }_{\boldsymbol y}
 $$
@@ -111,40 +108,33 @@ $$h(x) = b + \sum_{n=1}^N w_n \times exp(-\gamma \|x-x_n\|^2)$$
 
 This produces the following change in the matrix form above ($b$ becomes $w_0$):
 
-$$
-\underbrace{
+$$ \underbrace{
 \left\lbrack
-\begin{matrix}
-1 & exp(-\gamma \|x_1-x_1\|^2) & \cdots & exp(-\gamma \|x_1-x_N\|^2) \cr
-1 & exp(-\gamma \|x_2-x_1\|^2) & \cdots & exp(-\gamma \|x_2-x_N\|^2) \cr
-\vdots & \vdots & \ddots & \vdots \cr
-1 & exp(-\gamma \|x_N-x_1\|^2) & \cdots & exp(-\gamma \|x_N-x_N\|^2) \cr
-\end{matrix}
+\matrix{
+  1 & \exp(-\gamma \|x_1-x_1\|^2) & \cdots & \exp(-\gamma \|x_1-x_N\|^2) \cr
+  1 & \exp(-\gamma \|x_2-x_1\|^2) & \cdots & \exp(-\gamma \|x_2-x_N\|^2) \cr
+  \vdots & \vdots & \ddots & \vdots \cr
+  1 & \exp(-\gamma \|x_N-x_1\|^2) & \cdots & \exp(-\gamma \|x_N-x_N\|^2) \cr
+}
 \right\rbrack
-}_{\Phi}
-
-\underbrace{
+}_{\Phi} \underbrace{
 \left\lbrack
-\begin{matrix}
+\matrix{
 w_0  \cr
 w_1  \cr
 w_2  \cr
 \vdots \cr
 w_N
-\end{matrix}
+}
 \right\rbrack
-}_{\boldsymbol w}
-
-=
-
-\underbrace{
+}_{\boldsymbol w} = \underbrace{
 \left\lbrack
-\begin{matrix}
+\matrix{
 y_1  \cr
 y_2  \cr
 \vdots \cr
 y_N
-\end{matrix}
+}
 \right\rbrack
 }_{\boldsymbol y}
 $$
@@ -155,9 +145,9 @@ $$w = (\Phi^T \Phi)^{-1} \Phi^T y$$
 
 This is a regression method. To adapt it for classification tasks (i.e., $y_n \in \{-1,1\}$), we compute:
 
-$$h(x) = sign( b + \sum_{n=1}^N w_n \times exp(-\gamma \|x-x_n\|^2) )$$
+$$h(x) = \text{sign}( b + \sum_{n=1}^N w_n \times exp(-\gamma \|x-x_n\|^2) )$$
 
-where $sign()$ is the typical sign function.
+where $\text{sign}()$ is the typical sign function.
 
 However, if N is large, the need to use all in-sample datapoints is exagerated and might overfit. A variant is to choose K representatives ($K\lt\lt N$) that can do the interpolation. Choose the best $K$ centers among the possible $x_i \in {\cal D}$ is NP-hard, so a possible option is to select $K$ centers using a clustering algorithm, namely a K-means clustering. Let's name those centers $\mu_1, \ldots, \mu_K$. These $\mu_k$ define the set of _basis functions_.
 
@@ -166,37 +156,31 @@ Thus, the matrix form reduce the matrix $\Phi$ from a $N \times (N+1)$ matrix to
 $$
 \underbrace{
 \left\lbrack
-\begin{matrix}
+\matrix{
 1 & exp(-\gamma \|x_1-\mu_1\|^2) & \cdots & exp(-\gamma \|x_1-\mu_K\|^2) \cr
 1 & exp(-\gamma \|x_2-\mu_1\|^2) & \cdots & exp(-\gamma \|x_2-\mu_K\|^2) \cr
 \vdots & \vdots & \ddots & \vdots \cr
 1 & exp(-\gamma \|x_N-\mu_1\|^2) & \cdots & exp(-\gamma \|x_N-\mu_K\|^2) \cr
-\end{matrix}
+}
 \right\rbrack
-}_{\Phi}
-
-\underbrace{
+}_{\Phi}  \underbrace{
 \left\lbrack
-\begin{matrix}
+\matrix{
 w_0  \cr
 w_1  \cr
 w_2  \cr
 \vdots \cr
 w_N
-\end{matrix}
+}
 \right\rbrack
-}_{\boldsymbol w}
-
-=
-
-\underbrace{
+}_{\boldsymbol w} = \underbrace{
 \left\lbrack
-\begin{matrix}
+\matrix{
 y_1  \cr
 y_2  \cr
 \vdots \cr
 y_N
-\end{matrix}
+}
 \right\rbrack
 }_{\boldsymbol y}
 $$
