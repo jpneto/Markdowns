@@ -1,9 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = TRUE, echo = T,
-               fig.width = 5, fig.height = 5)
-```
+---
+title: "Bias-Variance"
+author: "João Neto"
+date: "December 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: yes
+---
 
 <script type="text/x-mathjax-config">
 MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
@@ -15,9 +21,6 @@ MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
   });
 });
 </script>
-
-Bias-Variance
-========================================================
 
 This document is based entirely on the Learning from Data [video lectures](http://work.caltech.edu/library/).
 

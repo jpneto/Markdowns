@@ -298,8 +298,6 @@ diag(lu.decomposition( A )$U) # the pivots
 This process is not garanteed to work, some element in the diagonal might not have a pivot:
 
 ```{r}
-library(matrixcalc)
-
 A <- matrix(c(1,-2,     # notice how the 2nd row is the triple of the 1st one
               3,-6), ncol=2, byrow=TRUE)
 
@@ -874,6 +872,55 @@ This can be used in compression by dropping the smallest singular values and vec
  
 If we see $A$ as a linear transformation of, say, an image, then $A = U \Sigma V^T$ decomposes the process in three parts: (i) $V^T$ rotates/reflects the image to a proper axis, (ii) $\Sigma$ does the stretching, and (iii) $U$ rotates/reflects it back.
 
+One theorem states that if we have a low rank approximation matrix $A_n$,
+
+$$A_n = \sum_{i=1}^n \sigma_i u_i v_i^T$$
+
+then the following is true,
+
+$$\lVert A - A_n \rVert = \sigma_{n+1}$$
+
+Since the $\sigma$ values are decreasing, this means that progressive values of $A_n$ approaches the origina matrix $A$.
+
+### SVD and Linear Least Squares
+
+An application of the SVD is we can do linear regression with it [ref](http://www.math.uconn.edu/~leykekhman/courses/MATH3795/Lectures/Lecture_9_Linear_least_squares_SVD.pdf)
+
+```{r}
+# make some data:
+as <- seq(-4,2,.1)
+n <- length(as)
+bs <- as^3 + 2*as^2 - 4 + runif(n,-3,3) # some unknown source with noise
+plot(as,bs)
+
+# organize it as classical Ax=b 
+A <- matrix(c(rep(1,n), as, as^2, as^3), ncol=4)
+b <- bs
+
+# Problem: find x to minimize ||Ax-B||^2
+
+svdA <- svd(A)
+
+x.hat <- svdA$v %*% ((t(svdA$u) %*% b)  / svdA$d)
+ps <- A %*% x.hat # the projections for each original b value
+plot(as,bs)
+points(as,ps,ty="l",col="red",lwd=2)
+```
+
+If we select an approximation matrix, say, $A_2$, the result will eventually deteriorate if the last  $\sigma$ values are not small enough (as it is in this eg):
+
+
+```{r}
+n.approx <- 2 # select approximation matrix
+
+svdA <- svd(A)
+x.hat <- svdA$v[,1:n.approx] %*% ((t(svdA$u)[1:n.approx,] %*% b)  / svdA$d[1:n.approx])
+ps <- A %*% x.hat          # the projections for each original b value
+plot(as,bs)
+points(as,ps,ty="l",col="red",lwd=2)
+```
+
+
 Generalized inverse (pseudo-inverse)
 -----------------
 
@@ -882,8 +929,6 @@ The generalized inverse (or pseudo-inverse) is a way to provide inverses to non-
 Def: The pseudo-inverse of $A:m \times n$, $A^+:n \times m$, $$A^+ = V \Sigma^+ U^T$$ where $U,V$ are from the SVD decomposition, and $\Sigma^+$ is the diagonal matrix $\Sigma$ with values $1/\sigma_i$ instead of $\sigma_i$.
 
 ```{r}
-library(MASS)
-
 A <- matrix(c(8,3,1,5, 
               2,7,2,5,
               5,5,5,2), ncol=4, byrow=TRUE)

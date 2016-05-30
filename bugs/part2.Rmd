@@ -727,7 +727,6 @@ Let's say we have this dataset (taken from [Bayesian Methods for Hackers](http:/
 
 ```{r, fig.width=12}
 samples <- read.csv("mixture_data.csv", header=F)[,1]
-samples <- as.numeric(levels(samples)[samples])  # because it read the values as factors
 hist(samples, breaks=40)
 ```
 

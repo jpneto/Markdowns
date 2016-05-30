@@ -129,7 +129,7 @@ library(binhf) # uses: shift()
 
 result <- permutations(n, r, S)
 
-# receive a vector of comparables, a shift the vector so that
+# receive a vector of comparables, shift the vector so that
 # the minimum is at the head of the vector
 shift.to.minimum <- function(row) {
   shift(row, which(row==min(row))-1, dir='left')
@@ -700,14 +700,14 @@ A quick reminder: given a set $G$ and an operation $(.) : G \times G \rightarrow
 + For every $x \in G$ there is an inverse element $x^{-1} \in G$ such that $x . x^{-1} = x^{-1} . x = e$
 
 The identity element is 
-$e= \left(
+$$e= \left(
 \begin{matrix}
 1 & 2 & 3 & 4 \cr
 1 & 2 & 3 & 4
 \end{matrix}
-\right)$
+\right)$$
 and the inverse is
-$\left(
+$$\left(
 \begin{matrix}
 1 & 2 & 3 & 4 \cr
 a_1 & a_2 & \ldots & a_n
@@ -720,7 +720,7 @@ a_1 & a_2 & \ldots & a_n \cr
 1 & 2 & 3 & 4
 \end{matrix}
 \right)
-$
+$$
 
 The group of all permutations of $\{1,2,\ldots,n\}$ over the composition is known as **n-order symmetric group**, or just $S_n$.
 
@@ -800,7 +800,7 @@ Another reminder: A relation $R$ on set $S$ is an **equivalence relation** iff
 
 + $xRy \implies yRx$
 
-+ $xRy \and yRz \implies xRz$
++ $xRy$ and $yRz \implies xRz$
 
 An **equivalence class** of $x\in S$ is defined as $\{y \in S | yRx \}$.
 

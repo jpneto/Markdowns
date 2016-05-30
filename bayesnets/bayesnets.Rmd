@@ -1,9 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = TRUE, echo = T, dev='svg',
-               fig.width = 12, fig.height = 5, fig.align='center')
-```
+---
+title: "Bayesian Networks"
+author: "João Neto"
+date: "December 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: yes
+---
 
 <!-- Includes \cancel latex command -->
 <script type="text/x-mathjax-config">
@@ -17,11 +23,10 @@ MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
 });
 </script>
 
-Bayesian Networks
-========================================================
+Refs:
 
-refs:
 + [CRAN Task View: gRaphical Models in R](http://cran.r-project.org/web/views/gR.html)
+
 + Initial egs from Udacity's "Introduction to AI" course
 
 Probability Calculus
@@ -50,7 +55,7 @@ A Bayesian network is a probabilistic graphical model (a type of statistical mod
 
 Eg:
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(igraph)
 
 eg1.bnet <- graph.formula(A--+C, B--+C, C--+D, C--+E)
@@ -537,19 +542,23 @@ We can check this by doing the computations by hand:
 So,
 
 $$P(x_1|y_1) = \frac{P(y_1|x_1) P(x_1)}{p(y_1)} = 0.4$$
+
 Finding the structure of a Bayes Net
 --------------------------
 
 R package `bnlearn` provides the capability of infering the bayes Net structure given only a dataset.
 
-refs:
+Refs:
+
 + [http://www.jstatsoft.org/v35/i03/paper](http://www.jstatsoft.org/v35/i03/paper)
+
 + [http://cran.r-project.org/web/packages/bnlearn/index.html](http://cran.r-project.org/web/packages/bnlearn/index.html)
+
 + Nagarajan - Bayesian Networks in R (2013)
 
 In the next code sample, dataset `alarm` has 20k observations made by this bayes network:
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(bnlearn)
 
 dag.alarm <- empty.graph(names(alarm))
@@ -579,7 +588,7 @@ graphviz.plot(dag.alarm)
 
 But let's assume we only know the dataset:
 
-```{r}
+```{r, warning=FALSE}
 library(bnlearn)
 
 data(alarm)

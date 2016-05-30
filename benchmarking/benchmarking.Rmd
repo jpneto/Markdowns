@@ -1,12 +1,15 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T,
-               fig.width = 10, fig.height = 5)
-```
-
-Benchmarking
-========================================================
+---
+title: "Benchmarking"
+author: "João Neto"
+date: "March 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+cache: yes
+---
 
 `system.time()` returns CPU (and other) times that expr used.
 
@@ -27,7 +30,6 @@ m <- microbenchmark(
   times = 250
 )
 m
-boxplot(m)
 library(ggplot2) 
 qplot(y=time, data=m, colour=expr) + scale_y_log10()
 ```

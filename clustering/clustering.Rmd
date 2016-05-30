@@ -1,17 +1,20 @@
-```{r, message = FALSE, tidy = FALSE, echo = F}
-## knitr configuration: http://yihui.name/knitr/options#chunk_options
-opts_chunk$set(comment = "", error= TRUE, warning = FALSE, message = FALSE,
-               tidy = FALSE, cache = FALSE, echo = T, dev='svg',
-               fig.width = 6, fig.height = 6, fig.align='center')
-```
-
-Clustering
-========================================================
-
+---
+title: "Clustering"
+author: "João Neto"
+date: "December 2013"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 6
+    fig_height: 6
+cache: yes
+---
 
 Refs:
 
 + [http://horicky.blogspot.pt/2012/04/machine-learning-in-r-clustering.html](http://horicky.blogspot.pt/2012/04/machine-learning-in-r-clustering.html)
+
 + [http://manuals.bioinformatics.ucr.edu/home/R_BioCondManual#TOC-Clustering-and-Data-Mining-in-R](http://manuals.bioinformatics.ucr.edu/home/R_BioCondManual#TOC-Clustering-and-Data-Mining-in-R)
  
 K-Means
@@ -295,7 +298,7 @@ is the distance between vectors $x = (x_1, x_2\ldots x_n)$ and $y = (y_1, y_2\ld
 
 When $p=2$ we have as a special case the Euclidean distanc, and when $p=1$ we have the Manhattan distance.
 
-```{r}
+```{r, warning=FALSE}
 library(kknn)
 library(caret)
 
@@ -318,15 +321,15 @@ iris.kknn$fitted.values
 table(test.set$Species, fitted(iris.kknn))
 pairs(test.set[,-5], 
       pch = as.character(as.numeric(test.set$Species)), 
-      col = c("green3", "red")[(test.set$Species != fit)+1])
+      col = c("green3", "red")[(test.set$Species != iris.kknn)+1])
 ```
 
 The package is also able to perform cross-validation:
 
-```{r}
+```{r, collapse=TRUE}
 set.seed(101)
 # 10-fol cross validation with k=7 neighbors
-iris.cv <- simulation(Species ~ ., iris, runs=10, k=7, kernel="triangular")
+iris.cv <- cv.kknn(Species ~ ., iris, kcv=10, kernel="triangular")
 iris.cv # 6% for the mean error with a sd of 2.4%
 # Another method for leave-one-out cross-validation
 iris.cv2 <- train.kknn(Species ~ ., iris, nn=10, kernel="triangular")

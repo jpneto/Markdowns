@@ -88,6 +88,7 @@ quantile(x = stats, probs = c(.025,.975)) # 95% confidence interval
 
 t.test(beer,water) # Using the t-test to get the same results
 
+# devtools::install_github("rasmusab/bayesian_first_aid")
 library(BayesianFirstAid)
 bayes.t.test(beer,water,n.iter=1e4) # Using the bayesian version of the t-test
 ```

@@ -13,7 +13,7 @@ cache: yes
 
 Current version of [OpenBUGS](http://www.openbugs.info/w/Downloads) needed.
 
-Refªs:
+Refs:
 
 + Lunn et al. **The BUGS Book** [website](http://www.mrc-bsu.cam.ac.uk/bugs/thebugsbook/exercises/)
 
@@ -681,7 +681,6 @@ This is the data:
 
 ```{r, fig.width=12}
 msg.data <- read.csv("txtdata.csv")[,1]
-msg.data <- as.numeric(levels(msg.data)[msg.data])  # because it read the values as factors
 length(msg.data)
 head(msg.data)
 space <- 0.2
@@ -906,5 +905,3 @@ samplesStats(c("N"))
 Now the increasing of $M$ had little effect of the estimates, both for the mean and the median!
 
 _Please continue to [part 2](part2.html)_
-
-

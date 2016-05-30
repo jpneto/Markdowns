@@ -16,7 +16,7 @@ Refs:
 + [Advanced R by Hadley Wickham](http://adv-r.had.co.nz/Profiling.html)
 
 ```{r, message=FALSE, warning=FALSE}
-# devtools::install_github("lineprof")
+# devtools::install_github("hadley/lineprof")
 library(lineprof)
 ```
 
