@@ -1,7 +1,7 @@
 ---
 title: "Caret"
-author: "Jo�o Neto"
-date: "February 2015"
+author: "João Neto"
+date: "December 2016"
 output: 
   html_document:
     toc: true
@@ -23,98 +23,154 @@ model tuning using resampling
 variable importance estimation
 as well as other functionality. [ref](http://topepo.github.io/caret/training.html)
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # to install package with all dependencies:
 # install.packages("caret", dependencies = c("Depends", "Suggests"))
 library(caret)
 ```
 
-To partition data into training and test sets:
+The next functions help prepare the dataset for learning.
 
 ```{r}
-inTrain <- createDataPartition(y = iris$Species, # which columns is the outcome data
-                               p = .75,          # training set relative size
-                               list = FALSE)
-training <- iris[ inTrain,]
-testing  <- iris[-inTrain,]
+# calls caret::preProcess
+caret_preprocess <- function(df, ...) {
+  predict(preProcess(df, ...), df)
+}
+
+# pre: to perform classification
+# pre: assumes dependent variable is the last column
+# convert factors with a one hot encoding (make dummy vars with 0/1s)
+#  “fullrank=T” create only (n-1) columns for a factor with n different levels
+caret_oneHotEncoding <- function(df) {
+  dmy <- dummyVars(" ~ .", data=df, fullRank=TRUE)
+  res <- data.frame(predict(dmy, newdata = df))
+  res[,ncol(res)] <- as.factor(res[,ncol(res)]) # make dependent variable a factor
+  names(res)[ncol(res)] <- names(df)[ncol(df)]  # and keep its original name
+  res
+}
+
+# pre: assumes dependent variable is the last column
+caret_featureSelection <- function(train, test, n.pred) {
+  if (missing(n.pred)) n.pred=ncol(train)-1  # use all as predictors
+  control <- rfeControl(functions = rfFuncs,
+                        method = "repeatedcv",
+                        repeats = 3,
+                        verbose = FALSE)
+  
+  dependent.col <- ncol(train)
+  predictors    <- names(train)[-dependent.col]
+  rfe.profile   <- rfe(train[,predictors], train[,dependent.col], rfeControl = control)
+  rfe.profile$variables$var[1:n.pred]  # return the best predictors
+}
 ```
 
-Given some model, `train` tune it according to the data. Function `train` recognizes a [huge number of models](http://topepo.github.io/caret/bytag.html). To see the current list:
 
-```{r}
-names(getModelInfo())
-```
-
-For this first example, let's use support vector machines with linear kernels:
+Now we are ready to read and preprocess the dataset:
 
 ```{r, warning=FALSE, message=FALSE}
-svm_fit <- train(Species ~ .,
-                 data = training,
-                 method = "svmLinear",
-                 preProcess = c("center", "scale"))
-svm_fit
+library(dplyr)
+
+raw.data <- read.csv("train_u6lujuX_CVtuZ9i.csv", stringsAsFactors = T)
+glimpse(raw.data) 
+dependentVar <- names(raw.data)[ncol(raw.data)]  # must be the last column
+
+# process data
+raw.data %>% 
+  dplyr::select(-Loan_ID) %>%                          # assumption: irrelevant data
+  caret_preprocess(method = c("knnImpute", "center", "scale")) %>% 
+  caret_oneHotEncoding -> my.data
+glimpse(my.data)
 ```
 
-And we use the trained model to make predictions:
+Next we partition the dataset into training and testing sets:
 
 ```{r}
-test_pred <- predict(svm_fit, newdata=testing)
-confusionMatrix(data=test_pred, testing$Species)
+set.seed(123)
+inTrain <- createDataPartition(my.data[,ncol(my.data)], p=0.75, list=FALSE)  # train gets 75%
+train   <- my.data[ inTrain,]
+test    <- my.data[-inTrain,]
 ```
 
-It's possible to control how the model tuning is done:
+We can optionally perform feature selection:
+
+```{r, warning=FALSE, message=FALSE}
+predictors <- caret_featureSelection(train, test, n.pred=5)
+predictors
+```
+
+And can choose some of the many models available on caret to perform classification:
+
+```{r, warning=FALSE, message=FALSE, results='hide'}
+model_gbm  <- train(train[,predictors], train[,dependentVar], method='gbm' , verbose=F) # Boosted Regression
+model_rf   <- train(train[,predictors], train[,dependentVar], method='rf'  , verbose=F) # Random Forest
+model_nnet <- train(train[,predictors], train[,dependentVar], method='nnet', verbose=F) # Neural Nets
+model_svm  <- train(train[,predictors], train[,dependentVar], method='svmRadial' , verbose=F) # Support Vector Machines
+```
+
+We can check variable importance:
 
 ```{r}
-ctrl <- trainControl(method = "repeatedcv", # K-fold cross validation w/repeated train/test splits
-                     number = 8,            # K value (default 10)
-                     repeats = 3)           # number of repetitions (for repeatedcv only)
-
-# if the tuning is done, method="none" will not use resampling nor parameter tuning
-
-svm_fit <- train(Species ~ .,
-                 data = training,
-                 method = "svmLinear",
-                 tuneLength = 15,  # how many candidate parameter values to evaluate
-                 trControl = ctrl,
-                 preProc = c("center", "scale"))
-svm_fit
-
-test_pred <- predict(svm_fit, newdata=testing)
-confusionMatrix(data=test_pred, testing$Species)
+par(mfrow=c(2,2))
+plot(varImp(object=model_gbm),   main="GBM - Variable Importance")
+plot(varImp(object=model_rf),    main="RF  - Variable Importance")
+plot(varImp(object=model_nnet),  main="GBM - Variable Importance")
+plot(varImp(object=model_svm),   main="SVM - Variable Importance")
+par(mfrow=c(1,1))
 ```
 
-In this case, we don't notice changes, since the initial training was already almost perfect.
+and make predictions:
 
-There's also an option `tuneGrid` that allows the user to pass parameter values he chooses:
+```{r, warning=FALSE, message=FALSE}
+library(pROC)
+
+predictions <- predict.train(object=model_gbm, test[,predictors], type="raw")
+confusionMatrix(predictions, test[,dependentVar])$table
+roc(as.integer(test[,dependentVar]), as.integer(predictions))$auc
+```
+
+Caret also allows for parameter tuning:
 
 ```{r}
-tune_grid <-  expand.grid(interaction.depth = c(1, 5, 9),
-                          n.trees = (1:30)*10,
-                          shrinkage = 0.1)
+modelLookup(model='gbm') # which parameters can be tuned?
 
-gbm_fit <- train(Species ~ .,
-                 data = training,
-                 method = "gbm",
-                 tuneGrid = tune_grid,
-                 trControl = ctrl,
-                 preProc = c("center", "scale"),
-                 metric = "Kappa", # which metric to optimize ()
-                 verbose=FALSE)
+# making a grid of values
+grid <- expand.grid(n.trees           = c(10,20),
+                    shrinkage         = c(0.01,0.05,0.5),
+                    n.minobsinnode    = c(3,5,10),
+                    interaction.depth = c(1,5,10))
 
-test_pred <- predict(gbm_fit, newdata=testing)
-confusionMatrix(data=test_pred, testing$Species)
+# let's use, say, 5-Fold cross-validation repeated 3 times
+fitControl <- trainControl(method = "repeatedcv", 
+                           number = 5, 
+                           repeats = 3)
 
-plot(gbm_fit)
-plot(gbm_fit, metric="Kappa")
+# tune the model
+model_gbm2 <- train(train[,predictors], train[,dependentVar], method='gbm',
+                   # "RMSE" or "Rsquared" for regression; 
+                   # "Accuracy" or "Kappa" for classification
+                   metric= "Accuracy", 
+                   trControl=fitControl,
+                   tuneGrid=grid,
+                   verbose=FALSE)
+
+model_gbm2$results %>% 
+  dplyr::arrange(desc(Accuracy)) %>% 
+  head(6)
+
+plot(model_gbm2)
+model_gbm2$bestTune
+predictions <- predict.train(object=model_gbm2, test[,predictors], type="raw")
+confusionMatrix(predictions, test[,dependentVar])$table
+roc(as.integer(test[,dependentVar]), as.integer(predictions))$auc
 ```
-
-There are options to pre-process data (besides centering and scaling) that can be checked [here](http://topepo.github.io/caret/preprocess.html).
 
 To compare different models:
 
-```{r}
-resamps <- resamples(list(GBM = gbm_fit,
-                          SVM = svm_fit))
+```{r, warning=FALSE, message=FALSE}
+resamps <- resamples(list(GBM = model_gbm,
+                          RF  = model_rf,
+                          NN  = model_nnet,
+                          SVM = model_svm))
 resamps
 summary(resamps)
 bwplot(resamps, layout = c(2, 1))
@@ -123,4 +179,68 @@ xyplot(resamps, what = "BlandAltman")
 splom(resamps)
 ```
 
-A company package `caretEmsemble` deals with ensembles of models, and a vignette can be read [here](http://cran.r-project.org/web/packages/caretEnsemble/vignettes/caretEnsemble-intro.html).
+Ensemble Learning
+=================
+
+A company package `caretEmsemble` deals with ensembles of models, and a vignette can be read [here](http://cran.r-project.org/web/packages/caretEnsemble/vignettes/caretEnsemble-intro.html). Check also [How to Build an Ensemble Of Machine Learning Algorithms in R](http://machinelearningmastery.com/machine-learning-ensembles-with-r/).
+
+```{r, warning=FALSE, message=FALSE, results='hide'}
+library(caretEnsemble)
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3, classProbs=TRUE)
+models.names <- c('gbm', 'rf', 'nnet', 'svmRadial')
+
+# necessary to prevent invalid R variables names in caretList
+for (f in names(my.data)) 
+  if (class(my.data[[f]])=="factor") {
+    levels <- unique(c(my.data[[f]]))
+    my.data[[f]] <- factor(my.data[[f]], labels=make.names(levels))
+  }
+
+models <- caretList(Loan_Status ~ ., 
+                    data=my.data[,c(predictors[-2],dependentVar)],
+                    trControl=control, 
+                    methodList=models.names,
+                    verbose=FALSE)
+```
+
+Let's see some comparisons:
+
+```{r}
+results <- resamples(models)
+summary(results)
+dotplot(results)
+```
+
+The models should have low correlation so that the ensemble works best:
+
+```{r}
+modelCor(results)
+```
+
+We see that there is high correlation, so the ensemble results will have little benefits.
+
+Function `caretStack` find a linear combination of several models:
+
+```{r}
+stack.glm <- caretStack(models, method="glm", metric="Accuracy", trControl=control)
+print(stack.glm)
+```
+We see that the results were, unsurprisingly, not that better...
+
+Let's try a random forest to ensemble the models:
+
+```{r}
+stack.rf <- caretStack(models, method="rf", metric="Accuracy", trControl=control)
+print(stack.rf)
+```
+
+To predict we need also to rename the dependent variable:
+
+```{r}
+predictions <- ifelse(predict(object=stack.glm, test[,predictors]) ==
+                          levels(my.data$Loan_Status)[[1]], "0" , "1")
+confusionMatrix(predictions, test[,dependentVar])$table
+roc(as.integer(test[,dependentVar]), as.integer(predictions))$auc
+```
+
