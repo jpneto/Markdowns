@@ -1,7 +1,7 @@
 ---
 title: "Missing Data"
-author: "Jo„o Neto"
-date: October 2015
+author: "Jo√£o Neto"
+date: December 2016
 output: 
   html_document:
     toc: true
@@ -18,6 +18,8 @@ Refs:
 + [mice: Multivariate Imputation by Chained Equations in R](file:///C:/Users/jpn.INFORMATICA/Downloads/v45i03.pdf)
 
 + [Imputing missing data with R](http://datascienceplus.com/imputing-missing-data-with-r-mice-package/)
+
++ [Getting started with simputation](https://cran.r-project.org/web/packages/simputation/vignettes/intro.html)
 
 ```{r, echo=FALSE}
 options(width = 160)
@@ -74,10 +76,10 @@ sis_dp <- tbl_df(sis_sm)
 
 check.income.NA <- function(for.race) {
 
-  df <- sis_dp %>% filter(race==for.race, na.rm=TRUE)
+  df <- sis_dp %>% dplyr::filter(race==for.race)
   
   n    <- df %>% nrow()
-  n.NA <- df %>% filter(is.na(earnings)) %>% nrow()
+  n.NA <- df %>% dplyr::filter(is.na(earnings)) %>% nrow()
   
   list(total=n, total.NA=n.NA, perc=n.NA/n)
 }
@@ -169,18 +171,6 @@ Data imputation is the replacement of `NA` values for some estimated value based
 
 Categorical variables are tricky. For eg, we cannot replace them by the mean, since that would probably add a value not within the domain of that variable. A better alternative would be to replace by the mode, but even that is not advisable.
 
-```{r, collapse=TRUE, eval=FALSE, echo=FALSE}
-calc.mode <- function(xs) {
-  us <- unique(xs)
-  us[which.max(tabulate(match(xs, us)))]
-}
-
-means <- apply(as.matrix(sis_sm), 2, mean, na.rm=TRUE)
-means
-modes <- apply(sis_sm, 2, calc.mode)
-modes
-```
-
 A better method is to fit a linear regression or logistic regression using the available data, and then, for each missing row, use the respective prediction as the imputed value. A variant is to add some reasonable random noise (also estimated from the available data) into the imputation.
 
 Function `mice` executes a given imputation method over the dataset. It has several methods available:
@@ -222,23 +212,6 @@ We can check the values assigned to each sample column at each data imputation f
 head(imp.data$imp$police, 10) # for this predictor, should be 0s and 1s only
 ```
 
-<!--
-Post-processing imputations
---------------
-
-Imputations can result in strange values. In out dataset, the original income has no negative values:
-
-```{r}
-which(sis_sm$earnings<0)
-```
-
-but the imputed results could have had negative values (in this case, it has not):
-
-```{r}
-min(imp.data$imp$earnings)
-```
--->
-
 Visualizing Imputation Results
 ------------------
 
@@ -247,6 +220,7 @@ Package `mice` provides several plotting tools.
 Function `stripplot` shows the distributions for each predictor:
 
 ```{r}
+library(lattice)
 stripplot(imp.data, pch = 20, cex = 1)
 ```
 
@@ -312,3 +286,55 @@ summary(pool(fits))          # pooled results
 
 The p-values (the column `Pr(>|t|)`) indicate that the two higher education levels are strongly significant to predict income (the higher education, the higher the income). Having police in the neighborhood (`police=1`) is weakly significant. Also, hispanic subjects (`race=3`) also seem to have weakly negative significance.
 
+Using package `simputation`
+==============
+
+`simputation` is a new (September 2016) package that standardizes the interface to access different imputation methods.
+
+```{r, warning=FALSE}
+library(magrittr)
+library(simputation)
+```
+
+In the author's [vignette](https://cran.r-project.org/web/packages/simputation/vignettes/intro.html), he uses the iris dataset with some NAs:
+
+```{r}
+dat <- iris
+dat[1:3,1] <- dat[3:7,2] <- dat[8:10,5] <- NA  # make some NAs
+head(dat,10)
+```
+
+The next code imputes Sepal.Width and Sepal.Length by regression using the values of Petal.Width and Species:
+
+```{r}
+dat %>% 
+  impute_lm(Sepal.Width + Sepal.Length ~ Petal.Width + Species) -> imputed
+head(imputed,10)
+```
+
+Next, let's impute the missing Species values wusing a decision tree model:
+
+```{r}
+imputed %>% 
+  impute_cart(Species ~ .) -> imputed
+head(imputed,10)
+```
+
+The package can impute for each class separately:
+
+```{r}
+# complete 'Species' using the sequential hot desk (shd) method
+dat %>% impute_shd(Species ~ Petal.Length) -> dat2
+# then impute Sepal.Length by regressing on Sepal.Width, for each Species
+dat2 %>% impute_lm(Sepal.Length ~ Sepal.Width | Species) %>% head()
+```
+
+Notice that the value at the 3rd row could not be found, since Sepal.Width was also missing.
+
+This by group imputation can also be executed using `dplyr::group_by`:
+
+```{r}
+dat2 %>% dplyr::group_by(Species) %>% 
+    impute_lm(Sepal.Length ~ Sepal.Width) %>% 
+    head()
+```
