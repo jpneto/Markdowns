@@ -1,0 +1,405 @@
+---
+title: "Mixed Integer Programming"
+author: "Joao Neto"
+date: "December 2016"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 8
+    fig_height: 6
+---
+
+Ref:
+
++ [ompr site](https://dirkschumacher.github.io/ompr/)
+
+```{r, eval=FALSE}
+# to install
+devtools::install_github("dirkschumacher/ompr")
+devtools::install_github("dirkschumacher/ompr.roi")
+install.packages("ROI")
+install.packages("ROI.plugin.glpk")
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ROI)
+library(ROI.plugin.glpk)
+library(ompr)
+library(ompr.roi)
+```
+
+Dirk Schumacher is the author of the `ompr` package for mixed integer linear program optimization.
+
+For `ompr` a mixed integer linear program (MIP) is specified by:
+
++ a set of decision variables (integer, continuous or binary)
++ a set of linear constraints
++ an objective linear function (to maximize or minimize)
+
+The package functions create immutable copies of the models which can be piped to each other using the `%>%` operator.
+
+Some available options (these are not properly sensible MIPs, only egs of use):
+
+```{r, eval=FALSE}
+MIPModel() %>% 
+  add_variable(x, type = "integer") %>% 
+  add_variable(y, type = "continuous") %>% 
+  add_variable(z, type = "binary")
+
+MIPModel() %>%   
+  add_variable(x, lb = 10) %>% 
+  add_variable(y, lb = 5, ub = 10)  # lower and upper bounds
+
+MIPModel() %>% 
+  add_variable  (x[i], i = 1:10) %>%  # creates 10 decision variables
+  set_objective (x[5]) %>% 
+  add_constraint(x[5] <= 10)
+
+MIPModel() %>% 
+  add_variable  (x[i], i = 1:3) %>%          
+  set_objective (sum_expr(x[i], i = 1:3)) %>%      # sum over a subset of variables
+  add_constraint(sum_expr(x[i], i = 1:3) <= 10)
+
+MIPModel() %>% 
+  # Create x_{i, j} variables for all combinations of i and j where
+  # i = 1:10 and j = 1:10.
+  add_variable(x[i, j], type = "binary", i = 1:10, j = 1:10) %>% 
+  
+  # add a y_i variable for all i between 1 and 10 with i mod 2 = 0
+  add_variable(y[i], type = "binary", i = 1:10, i %% 2 == 0) %>% 
+  
+  # we maximize all x_{i,j} where i = j + 1
+  set_objective(sum_expr(x[i, j], i = 1:10, j = 1:10, i == j + 1)) %>% 
+  
+  # for each i between 1 and 10 with i mod 2 = 0
+  # we add a constraint \sum_j x_{i,j}
+  add_constraint(sum_expr(x[i, j], j = 1:10) <= 1, i = 1:10, i %% 2 == 0) %>% 
+  
+  # of course you can leave out filters or add more than 1
+  add_constraint(sum_expr(x[i, j], j = 1:10) <= 2, i = 1:10) 
+```
+
+
+The Knapsack Problem
+========
+
+Here's its definition:
+
+$$
+\begin{equation*}
+\begin{array}{ll@{}ll}
+\text{max}  & \displaystyle\sum\limits_{i=1}^{n} v_{i}x_{i} & &\\
+\text{subject to}& \displaystyle\sum\limits_{i=1}^{n}   w_{i}x_{i} \leq W,  & &\\
+                 &  x_{i} \in \{0,1\}, &i=1 ,\ldots, n&
+\end{array}
+\end{equation*}
+$$
+
+In the `opmr` model we defined like this:
+
+```{r}
+# some data
+v <- c(1.0, 4.0, 2.0, 3.0, 5.0) # each item's value
+w <- c(3.1, 1.1, 2.0, 1.0, 4.0) # each item's weight
+n <- length(v)                  # how many items
+W <- 6                          # the knapsack's capacity
+
+MIPModel() %>% 
+  add_variable  (x[i], i = 1:n, type = "binary") %>% 
+  set_objective (sum_expr(v[i] * x[i], i = 1:n)) %>% 
+  add_constraint(sum_expr(w[i] * x[i], i = 1:n) <= W) -> model
+```
+
+We can now solve the problem and access the results:
+
+```{r}
+model %>% 
+  solve_model(with_ROI("glpk")) %>% 
+  get_solution(x[i]) %>% 
+  filter(value > 0)
+```
+
+
+The Traveling Salesman Problem
+==================
+
+Let's create some random cities
+
+```{r}
+n <- 10
+max_x <- 500
+max_y <- 500
+
+set.seed(123456)
+cities <- data.frame(id = 1:n, x = runif(n, max = max_x), y = runif(n, max = max_y))
+
+# define the matrix distance
+distance <- as.matrix(dist(select(cities, x, y), diag = TRUE, upper = TRUE))
+
+ggplot(cities, aes(x, y)) + theme_bw() +
+  geom_point()
+```
+
+Schumacher uses, in his [solution](https://dirkschumacher.github.io/ompr/articles/problem-tsp.html), the Miller–Tucker–Zemlin (MTZ) [formulation](https://www.unc.edu/~pataki/papers/teachtsp.pdf) which has quadratic many constraints and variables (so, not suitable for large `n`).
+
+```{r}
+model <- MIPModel() %>%
+  # we create a variable that is 1 iff we travel from city i to j
+  add_variable(x[i, j], i = 1:n, j = 1:n, type = "integer", lb = 0, ub = 1) %>%
+  
+  # a helper variable for the MTZ formulation of the tsp
+  add_variable(u[i], i = 1:n, lb = 1, ub = n) %>% 
+  
+  # minimize travel distance
+  set_objective(sum_expr(distance[i, j] * x[i, j], i = 1:n, j = 1:n), "min") %>%
+  
+  # you cannot go to the same city
+  set_bounds(x[i, i], ub = 0, i = 1:n) %>%
+  
+  # leave each city
+  add_constraint(sum_expr(x[i, j], j = 1:n) == 1, i = 1:n) %>%
+  
+  # visit each city
+  add_constraint(sum_expr(x[i, j], i = 1:n) == 1, j = 1:n) %>%
+  
+  # ensure no subtours (arc constraints)
+  add_constraint(u[i] >= 2, i = 2:n) %>% 
+  add_constraint(u[i] - u[j] + 1 <= (n - 1) * (1 - x[i, j]), i = 2:n, j = 2:n)
+
+```
+
+With the model specified, we can ask the package to solve it:
+
+```{r}
+result <- solve_model(model, with_ROI(solver = "glpk", verbose = TRUE))
+```
+
+
+```{r}
+solution <- get_solution(result, x[i, j]) %>% 
+  filter(value > 0) 
+solution
+```
+
+Let's preprocess the result to plot it accordingly:
+
+```{r}
+paths <- select(solution, i, j) %>% 
+  rename(from = i, to = j) %>% 
+  mutate(trip_id = row_number()) %>% 
+  tidyr::gather(property, idx_val, from:to) %>% 
+  mutate(idx_val = as.integer(idx_val)) %>% 
+  inner_join(cities, by = c("idx_val" = "id"))
+
+ggplot(cities, aes(x, y)) + theme_bw() +
+  geom_point() + 
+  geom_line(data = paths, aes(group = trip_id)) + 
+  ggtitle(paste0("Optimal route with cost: ", round(objective_value(result), 2)))
+```
+
+
+Sodoku
+======
+
+Variable $x_{i,j,k}$ is a binary value stating if number $k$ is at position $(i,j)$.
+
+```{r}
+n <- 9
+model <- MIPModel() %>%
+  
+  # The number k stored in position i,j
+  add_variable(x[i, j, k], i = 1:n, j = 1:n, k = 1:9, type = "binary") %>%
+  
+  # no objective
+  set_objective(0) %>%
+  
+  # only one number can be assigned per cell
+  add_constraint(sum_expr(x[i, j, k], k = 1:9) == 1, i = 1:n, j = 1:n) %>%
+  
+  # each number is exactly once in a row
+  add_constraint(sum_expr(x[i, j, k], j = 1:n) == 1, i = 1:n, k = 1:9) %>%
+  
+  # each number is exactly once in a column
+  add_constraint(sum_expr(x[i, j, k], i = 1:n) == 1, j = 1:n, k = 1:9) %>% 
+  
+  # each 3x3 square must have all numbers
+  add_constraint(sum_expr(x[i, j, k], i = 1:3 + sx, j = 1:3 + sy) == 1, 
+                 sx = seq(0, n - 3, 3), sy = seq(0, n - 3, 3), k = 1:9)
+```
+
+We can now solve the model:
+
+```{r}
+result <- solve_model(model, with_ROI(solver = "glpk", verbose = TRUE))
+```
+
+```{r}
+result %>% 
+  get_solution(x[i,j,k]) %>%
+  filter(value > 0) %>%  
+  select(i, j, k) %>% 
+  tidyr::spread(j, k) %>% 
+  select(-i) %>% 
+  write.table(row.names = FALSE, col.names = FALSE)
+```
+
+If we want to force some positions, just add constraints:
+
+```{r}
+model %>% 
+  add_constraint(x[1, 1, 5] == 1) %>%   # the upper left cell must be a 5
+  solve_model(with_ROI(solver = "glpk")) %>% 
+  get_solution(x[i,j,k]) %>%
+  filter(value > 0) %>%  
+  select(i, j, k) %>% 
+  tidyr::spread(j, k) %>% 
+  select(-i) %>% 
+  write.table(row.names = FALSE, col.names = FALSE)
+```
+
+The Warehouse Location Problem
+===============
+
+> Given a set of customers and set of locations to build warehoses the task is to decide where to build warehouses and from what warehouses goods should be shipped to which customer.
+
+> Thus there are two decisions that need to made at once: where and if to build warehouses and the assignment of customers to warehouses. This simple setting also implies that at least one warehouse must be built and that any warehouse is big enough to serve all customers.
+
+> As a practical example: you run the logistics for an NGO and want to regularly distribute goods to people in need. You identified a set of possible locations to set up your distribution hubs, but you are not sure where to build them. Then such a model might help. In practice however you might need to incorporate additional constraints into the model. [ref](https://dirkschumacher.github.io/ompr/articles/problem-warehouse-location.html)
+
+$$
+\begin{equation*}
+\begin{array}{ll@{}ll}
+\text{min}  & \displaystyle\sum\limits_{i=1}^{n}\sum\limits_{j=1}^{m}\operatorname{transportcost}_{i,j} \cdot x_{i, j} +  \sum\limits_{j=1}^{m}\operatorname{fixedcost}_{j} \cdot y_{j}& &\\
+\text{subject to} & \displaystyle\sum\limits_{j=1}^{m}   x_{i, j} = 1  & i=1 ,\ldots, n&\\
+                  & \displaystyle x_{i, j} \leq y_j,  & i=1 ,\ldots, n & j=1 ,\ldots, m&\\
+                 &                                                x_{i,j} \in \{0,1\} &i=1 ,\ldots, n, & j=1 ,\ldots, m \\
+                 &                                                y_{j} \in \{0,1\} &j=1 ,\ldots, m&
+\end{array}
+\end{equation*}
+$$
+
+Let's make a dataset:
+
+```{r}
+set.seed(1234)
+grid_size <- 1000
+n <- 100
+customer_locations <- data.frame(
+  id = 1:n,
+  x = round(runif(n) * grid_size),
+  y = round(runif(n) * grid_size)
+)
+
+m <- 20
+warehouse_locations <- data.frame(
+  id = 1:m,
+  x = round(runif(m) * grid_size),
+  y = round(runif(m) * grid_size)
+)
+fixedcost <- round(rnorm(m, mean = grid_size * 10, sd = grid_size * 5))
+
+transportcost <- function(i, j) {
+  customer <- customer_locations[i, ]
+  warehouse <- warehouse_locations[j, ]
+  round(sqrt((customer$x - warehouse$x)^2 + (customer$y - warehouse$y)^2))
+}
+```
+
+
+```{r}
+p <- ggplot(customer_locations, aes(x, y)) + 
+  geom_point() + 
+  geom_point(data = warehouse_locations, color = "red", alpha = 0.5, shape = 17) +
+  scale_x_continuous(limits = c(0, grid_size)) +
+  scale_y_continuous(limits = c(0, grid_size)) +
+  theme(axis.title = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.text = element_blank(), panel.grid = element_blank())
+p + ggtitle("Warehouse location problem", 
+          "Black dots are customers. Light red triangles show potential warehouse locations.")
+```
+
+```{r}
+model <- MIPModel() %>%
+  # 1 iff i gets assigned to warehouse j
+  add_variable(x[i, j], i = 1:n, j = 1:m, type = "binary") %>%
+  
+  # 1 iff warehouse j is built
+  add_variable(y[j], j = 1:m, type = "binary") %>%
+  
+  # maximize the preferences
+  set_objective(sum_expr(transportcost(i, j) * x[i, j], i = 1:n, j = 1:m) + 
+                  sum_expr(fixedcost[j] * y[j], j = 1:m), "min") %>%
+  
+  # every customer needs to be assigned to a warehouse
+  add_constraint(sum_expr(x[i, j], j = 1:m) == 1, i = 1:n) %>% 
+  
+  # if a customer is assigned to a warehouse, then this warehouse must be built
+  add_constraint(x[i,j] <= y[j], i = 1:n, j = 1:m)
+```
+
+```{r}
+solve_model(model, with_ROI(solver = "glpk", verbose = TRUE)) %>% 
+  get_solution(x[i,j]) %>%
+  filter(value > .9) %>%  
+  select(i, j) -> matching
+```
+
+```{r}
+plot_assignment <- matching %>% 
+  inner_join(customer_locations, by = c("i" = "id")) %>% 
+  inner_join(warehouse_locations, by = c("j" = "id"))
+customer_count <- matching %>% group_by(j) %>% summarise(n = n()) %>% rename(id = j)
+plot_warehouses <- warehouse_locations %>% 
+  mutate(costs = fixedcost) %>% 
+  inner_join(customer_count, by = "id") %>% 
+  filter(id %in% unique(matching$j))
+p + 
+  geom_segment(data = plot_assignment, aes(x = x.y, y = y.y, xend = x.x, yend = y.x)) + 
+  geom_point(data  = plot_warehouses, color = "red", size = 3, shape = 17) +
+  ggrepel::geom_label_repel(data  = plot_warehouses, 
+                            aes(label = paste0("fixed costs:", costs, "; customers: ", n)), 
+                            size = 2, nudge_y = 20) + 
+  ggtitle(paste0("Cost optimal warehouse locations and customer assignment"),
+          "Big red triangles show warehouses that will be built, light red are unused warehouse locations. Dots represent customers served by the respective warehouses.")
+```
+The fixed costs for setting up the 4 warehouses is:
+
+```{r}
+sum(fixedcost[unique(matching$j)])
+```
+<!--
+
+MaxEnt
+======
+
+
+```{r, collapse=TRUE, eval=FALSE}
+entropy <- function(x) {
+  -sum(x*ifelse(x==0,0,log(x)))  # 0 log 0 == 0 since lim p->0: p.log(p) == 0
+}
+
+entropy(c(.25,.25,.25,.25))
+entropy(c(.30,.20,.25,.25))
+entropy(c(1,0,0,0))
+```
+
+
+```{r, eval=FALSE}
+n <- 100
+
+model <- MIPModel() %>%
+   add_variable(x[i], i = 1:n, lb = 0.001, ub = 1) %>%
+   set_objective(sum_expr(-x[i]*log(x[i]), i = 1:n)) %>% # PROBLEM: non-linear objective
+   add_constraint(sum_expr(x[i], i = 1:n) == 1)
+```
+
+```{r, eval=FALSE}
+model %>% 
+  solve_model(with_ROI(solver = "glpk"))
+```
+
+-->
+
