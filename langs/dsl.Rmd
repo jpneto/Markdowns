@@ -1,0 +1,152 @@
+---
+title: "Domain-Specific Languages"
+author: "João Neto"
+date: "December 2016"
+output: html_document
+---
+
+From Wikipedia:
+
+> A domain-specific language (DSL) is a computer language specialized to a particular application domain. This is in contrast to a general-purpose language (GPL), which is broadly applicable across domains. 
+
+R's flexibility makes it possible to create DSL's inside the language. Details can be found at Hadley Wickham's [Advanced R](http://adv-r.had.co.nz/dsl.html).
+
+Here we make some egs.
+
+Wires
+=====
+
+Refs: [Retaining a Sense of Wonder](http://www.cs.uni.edu/~wallingf/blog/archives/monthly/2016-12.html#e2016-12-21T14_31_14.htm)
+
+In [Advent of Code](http://adventofcode.com/) there's a [problem](http://adventofcode.com/2015/day/7) about finding the values produced by a network of logic gates that are described like this:
+
+```{r}
+problem <-
+"   x AND y -> d       
+    x OR y -> e        
+    x LSHIFT 2 -> f    
+    y RSHIFT 2 -> g    
+    NOT x -> h         
+    NOT y -> i         
+    123 -> x           
+    456 -> y     
+"
+```
+
+there are the typical logic gates and we wish to find the values for each gate, after all are executed.
+
+One way would be to create a graph of the described gates, make a topological sort to find what is the order of execution, before executing them, one by one. This means some code (we could use the `igraph` package to help).
+
+However, there's a more elegant solution: _turn the data into a program_. The trick is to transform each line into a function! That way, if we wish to find what is the value of `123 -> x` we just execute function `x() <- function 123`. The order which they are executed becomes irrelevant, each function call decides which are the needed functions, since _functions defer computation_.
+
+This is something easy to do in LISP, but it turns out that R also makes it easy with its meta-programming tools. 
+
+So, let's first define the operations required by the problem:
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(stringr)
+
+int2unint <- function(n) ifelse(n>=0,n,65536+n)   # the DSL uses unsigned 16-bit ints
+
+# the basic commands for the DSL
+not    <- purrr::compose(int2unint,bitwNot)       # using R bitwise operators
+and    <- purrr::compose(int2unint,bitwAnd)       
+or     <- purrr::compose(int2unint,bitwOr)
+lshift <- purrr::compose(int2unint,bitwShiftL)
+rshift <- purrr::compose(int2unint,bitwShiftR)
+```
+
+Next we need functions that convert each line into a R function description:
+
+```{r}
+# Each command has an appropriate description builder that converts 
+# the token list into a string with a R function definition, eg: 
+#   > tokens
+#   [1] "456" "->"  "y"
+#   > create.const.description(tokens)
+#   [1] "y <- function() 456"
+
+create.and.description <- function(tokens)
+  paste0(tokens[5], " <- function() and(",    tokens[1], "(),", tokens[3], "())")
+
+create.or.description <- function(tokens)
+  paste0(tokens[5], " <- function() or(",     tokens[1], "(),", tokens[3], "())")
+
+create.lshift.description <- function(tokens)
+  paste0(tokens[5], " <- function() lshift(", tokens[1], "(),", tokens[3], ")")
+
+create.rshift.description <- function(tokens)
+  paste0(tokens[5], " <- function() rshift(", tokens[1], "(),", tokens[3], ")")
+
+create.not.description <- function(tokens)
+  paste0(tokens[4], " <- function() not(",    tokens[2], "())")
+
+create.const.description <- function(tokens)
+  paste0(tokens[3], " <- function() ", tokens[1])
+```
+
+An example:
+
+```{r}
+"y RSHIFT 2 -> g" %>% 
+  str_split(" ") %>% 
+  `[[`(1) %>% 
+  create.rshift.description()
+```
+
+Notice that until now this R function description is just a string, we need to convert it to an expression so we can evaluate it. This is done by the next function:
+
+```{r}
+# given a list of tokens, create the respective R function in the global enviroment
+create.fun <- function(tokens) {
+  
+       if(any(str_detect(tokens,"AND"   ))) op <- create.and.description
+  else if(any(str_detect(tokens,"OR"    ))) op <- create.or.description
+  else if(any(str_detect(tokens,"LSHIFT"))) op <- create.lshift.description
+  else if(any(str_detect(tokens,"RSHIFT"))) op <- create.rshift.description
+  else if(any(str_detect(tokens,"NOT"   ))) op <- create.not.description
+  else                                      op <- create.const.description
+  
+  # evals executes this new R command, creating the function
+  eval(parse(text=op(tokens)), envir=globalenv())  
+}
+```
+
+Let's place the parsing and evaluing into a function:
+
+```{r}
+exec_gates <- function(problem) {
+  # read data and tokenize it, line by line
+  read_lines(problem) %>% 
+    purrr::map(function(line) line %>% str_trim %>% str_split("[ \t]+")) -> list.tokens 
+  
+  results <- data.frame(var=rep(NA,length(list.tokens)))
+  
+  for(.i in 1:length(list.tokens)) {
+    tokens <- list.tokens[[.i]][[1]]            # get tokens from i-th line
+    results[.i,1] <- tokens[length(tokens)]     # save variable name into results df
+    create.fun(tokens)                          # create function
+  }
+  
+  results$var %>%                               # execute functions and save their results
+    purrr::map(function(var) eval(parse(text=paste0(var,"()")))) -> results$val
+  results
+}
+```
+
+And now we are ready to execute the problem:
+
+```{r}
+exec_gates(problem)
+```
+
+
+
+
+
+
+
+
+
+
