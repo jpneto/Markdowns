@@ -248,7 +248,7 @@ abline(v=alpha, col=&quot;grey40&quot;, lty=2)</code></pre>
 <pre class="r"><code>median(x_k)</code></pre>
 <pre><code>## [1] 8.964787</code></pre>
 <p>but does not give as much information as the posterior does.</p>
-<p>The posterior might be multinomial when the data is sufficiently appart:</p>
+<p>The posterior might be multimodal when the data is sufficiently appart:</p>
 <pre class="r"><code>x2_k &lt;- c(0,0,200,400,400)
 log_posterior2 &lt;- make_log_posterior(x2_k, beta)
 
