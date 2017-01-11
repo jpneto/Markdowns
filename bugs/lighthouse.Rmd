@@ -267,12 +267,9 @@ model <- '
   parameters {
     real alpha;
     real<lower=0> beta;
-    real<lower=-pi()/2, upper=pi()/2> angle[N];
   }
   
   model {
-    vector[N] flashes;
-    
     alpha ~ uniform(0, 20);
     beta  ~ uniform(0, 50);
 
