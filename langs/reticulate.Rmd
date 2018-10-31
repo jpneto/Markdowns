@@ -1,0 +1,74 @@
+---
+title: "Python+R on RStudio"
+output:
+  html_document:
+    df_print: paged
+---
+
+Reticulate needs `knitr` version 1.18+
+
+```{r}
+library(reticulate)
+use_python("C:\\Users\\jpn.INFORMATICA\\Software\\_Langs\\WinPython-64bit-3.5.2.3Qt5\\python-3.5.2.amd64")
+```
+
+More info about configuration [here](https://rstudio.github.io/reticulate/articles/versions.html).
+
+```{r}
+py_available(initialize =TRUE)
+py_config()
+```
+
+
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 1, 500)
+y = np.sin(4 * np.pi * x) * np.exp(-5 * x)
+
+fig, ax = plt.subplots()
+
+ax.fill(x, y, zorder=10)
+ax.grid(True, zorder=5)
+#plt.savefig('test.png')
+plt.show()
+```
+
+A variable defined on R
+
+```{r}
+xpto=100
+```
+
+... can be used on a Python script via object `r`:
+
+```{python}
+x = 12 * r.xpto
+print(x)
+```
+
+And conversely, a Python variable can be used o R via object `py`:
+
+```{r}
+py$x
+```
+
+It's also possible to access python libraries directly on R scripts:
+
+```{r}
+# import numpy and specify no automatic Python to R conversion
+np <- import("numpy", convert = FALSE)
+
+# py_help(np$array)  # opens a text file with help on this function
+
+# do some array manipulations with NumPy
+a   <- np$array(c(1:4))
+sum <- a$cumsum()
+
+# convert to R explicitly at the end
+py_to_r(sum)
+```
+
+See more info [here](https://rstudio.github.io/reticulate/articles/calling_python.html).

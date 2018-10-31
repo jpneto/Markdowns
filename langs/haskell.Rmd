@@ -1,0 +1,108 @@
+---
+title: "Running Haskell in R"
+author: "João Neto"
+date: "27 de Março de 2018"
+output: html_document
+---
+
+Ref:
+
++ [Calling Haskell from R](http://neilmitchell.blogspot.pt/2011/10/calling-haskell-from-r.html)
+
+The Foreign Function Interface (FFI) allows Haskell programs to cooperate with programs written with other languages. Haskell programs can call foreign functions and foreign functions can call Haskell code. 
+
+The Foreign Function Interface (FFI) is an extension to the Haskell standard. To use it, you need to enable it with the following compiler pragma at the beginning of your source file:     `{-# LANGUAGE ForeignFunctionInterface #-}`
+    
+The following code creates a C library with two available functions:
+
+```{r, eval=FALSE}
+{-# LANGUAGE ForeignFunctionInterface #-}
+module HaskellLib where
+
+import Foreign
+import Foreign.C.Types
+
+foreign export ccall sumRootsR :: Ptr Int -> Ptr Double -> Ptr Double -> IO ()
+foreign export ccall factR :: Ptr CULLong  -> Ptr CULLong  -> IO ()
+
+-------------------------------
+
+sumRootsR :: Ptr Int -> Ptr Double -> Ptr Double -> IO ()
+sumRootsR n xs result = 
+  do
+    n <- peek n
+    xs <- peekArray n xs
+    poke result $ sumRoots xs
+
+sumRoots :: [Double] -> Double
+sumRoots xs = sum (map sqrt xs)
+
+--------------------------------
+
+factR :: Ptr CULLong  -> Ptr CULLong  -> IO ()
+factR n result = 
+  do
+    n <- peek n
+    poke result $ fact n
+
+fact :: (Integral a) => a -> a
+fact n = product [1..n]
+```
+
+For each Haskell function we need a wrapper function that takes compatible C types (`Ptr Int` or `Ptr Double`) and the result is a `IO()`. We use `peek` to fetch input values, and `poke` to output the desired result.
+
+To pass a list we need to pass the size of the list and a pointer to its first value. That's the case with `sumRoots`.
+
+We also need some [helper code](https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/win32-dlls.html) that starts up and shuts down Haskell's Runtime System (RTS):
+
+```{r, eval=FALSE}
+#include <Rts.h>
+
+void HsStart() {
+    int argc = 1;
+    char* argv[] = {"ghcDll", NULL}; // argv must end with NULL
+
+    // Initialize Haskell runtime
+    char** args = argv;
+    hs_init(&argc, &args);
+}
+
+void HsEnd() {
+    hs_exit();
+}
+```
+
+The following cmd instructions compile both files and make the DLL:
+
+```{r, eval=FALSE}
+ghc -c SumRoots.hs
+ghc -c StartEnd.c
+ghc -shared -o SumRoots.dll SumRoots.o StartEnd.o
+```
+
+Now we should load the DLL [more info](http://users.stat.umn.edu/~geyer/rc/)) and start Haskell's RTS:
+
+```{r}
+dyn.load(".\\HaskellLib.dll")  # if needed, include full path
+.C("HsStart")
+```
+
+For easy access to the Haskell's functions, create wrapper classes:
+```{r}
+sumRoots <- function(ns) {
+  return(.C("sumRootsR", n=as.integer(length(ns)), 
+            xs=as.double(ns), result=as.double(0))$result)
+}
+
+factHaskell <- function(n) {
+  return(.C("factR", n=as.integer(n), result=as.integer(0))$result)
+}
+```
+
+Now we can use them as if they were R functions:
+
+```{r}
+sumRoots(c(12,444.34))
+factHaskell(20)  # overflows for some reason
+```
+
