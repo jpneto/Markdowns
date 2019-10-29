@@ -1,0 +1,527 @@
+---
+title: "Bucket Statistics"
+author: "João Neto"
+date: "28/10/2019"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 10
+    fig_height: 6
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(magrittr)
+
+set.seed(121)
+```
+
+Refs
+
++ Michael Wood - [The Role of Simulation Approaches in Statistics](https://www.tandfonline.com/doi/full/10.1080/10691898.2005.11910562) (2005)
+
++ Michael Wood - [Making Sense of Statistics](http://woodm.myweb.port.ac.uk/nms/index.htm) (2005)
+
++ Jamie D. Mills - [Using Computer Simulation Methods to Teach Statistics](http://jse.amstat.org/v10n1/mills.html) (2002)
+
+# The Bucket Model
+
+The _two bucket story_ uses a model with two buckets containing balls. The model is a sequence of actions, where each ball from `bucket1` is a given outcome. Those outcomes can be collected forming samples of size $n$ (with or without replacement). For each sample, we then apply a statistic $s$, and the result is placed into `bucket2`. The contents of `bucket2` are used to analyse the empirical distribution of $s$.
+
+The code for creating the two buckets is as follows:
+
+```{r}
+# multiplier == 0 represents infinite population (ie, no replacement)
+make.bucket1 <- function(universe, multiplier=1) {
+  if (multiplier>0)
+    universe <- c(replicate(multiplier, universe))
+  function(n.sample) {
+    sample(universe, n.sample, rep=ifelse(multiplier==0, TRUE, FALSE))
+  }
+}
+
+# uses the bucket1 urn to generate a sample of size 'size.sample'
+# and applies the given statistic function 
+make.bucket2 <- function(bucket1, size.sample, statistic) {
+  function(n) {
+    replicate(n, bucket1(size.sample) %>% statistic) %>% 
+    as.vector 
+  }
+}
+```
+
+Notice that both functions are bucket factories. They must be parameterized depending on the application. The parameter `multiplier` is useful to increase the size of the sample for models with replacement.
+
+An example:
+
+```{r, collapse=TRUE}
+# our collected data: we asked 12 families how many cars they had
+cars.per.family <- c(3, 2, 0, 0, 0, 1, 1, 5, 1, 1, 0, 4)
+
+# create a bucket/urn based on the above sample (we multiply the data by 4)
+bucket1 <- make.bucket1(cars.per.family, 4)
+
+# create a 2nd bucket with the statistic of interest (here, the mean) 
+# from resamples of size 12
+bucket2 <- make.bucket2(bucket1, 12, mean)
+
+# get bootstrap data and check values
+car.means <- bucket2(500)
+hist(car.means, breaks = 25)
+quantile(car.means, c(.025, 0.5, .975)) 
+```
+
+> There are, of course, more sophisticated bootstrap methods, which may be useful when the assumptions on which the percentile interval is based are unreasonable. For example the sample of 12 above is unlikely to give an accurate idea of rare extreme values — e.g. some people doubtless have 10 cars. If we were interested in these, it may make sense to use the sample to fit a suitable probability distribution, and then use this to generate a guessed population for Bucket 1.
+
+If we wanted to produce new values, we could fit an appropriate distribution, and sample from it. The next eg assumes the population follows a normal (it should be something like a [truncated normal](https://stats.stackexchange.com/questions/229624/), since no family has negative cars...):
+
+```{r, message=FALSE}
+library(fitdistrplus)
+
+make.bucket1.normal <- function(population) {
+  fit.distribution <- fitdist(population, "norm")
+  fit.mean <- fit.distribution$estimate[1]
+  fit.sd   <- fit.distribution$estimate[2]
+  function(n.sample) {
+    rnorm(n.sample, fit.mean, fit.sd) %>%  round
+  }
+}
+```
+
+```{r, warning=FALSE}
+bucket1 <- make.bucket1.normal(cars.per.family)
+bucket2 <- make.bucket2(bucket1, 12, mean)
+
+# get bootstrap data and check values
+car.means <- bucket2(1e4)
+hist(car.means, breaks = 25, prob=T)
+quantile(car.means, c(.025, .975)) 
+```
+
+These are permutation tests, which make use of random rearrangements of the initial sample. That's why they are called _resampling methods_, because they involve resampling the particular observed data, to infer something useful about the general population. 
+
+We are assuming that the observations are independent and exchangeable.
+
+Other assumptions:
+
++ the resampling is considered random (R does have high quality sampling)
+
++ the initial sample is similar do the real population. This depends on the procedure that was used to collect the data: if it was bad, expect bad inferences
+
++ the value of the statistic from the initial sample is similar to the statistics derived from the bootstrapped samples (this usually holds, but some distributions don't have even a mean!)
+
+## Simulating a Binomial
+
+Consider $x \sim Binomial(n, p)$
+
+```{r, collapse=TRUE}
+n.trials <- 20
+p <- 0.3
+my.data <- c(replicate((1-p)*100,0), replicate(p*100,1)) 
+
+bucket1 <- make.bucket1(my.data, 0)
+bucket2 <- make.bucket2(bucket1, n.trials, sum)
+
+sums <- bucket2(1e4)
+hist(sums, prob=T)
+summary(sums)
+
+# Compare with R sampling
+test <- rbinom(1e4, n.trials, p)
+summary(test)
+```
+
+## Simulating a Poisson
+
+For $x \sim Poisson(\lambda)$ just make the number of trials large and $p$ small:
+
+```{r, collapse=TRUE}
+lambda <- 3
+p <- 0.01
+n.trials <- lambda/p
+
+my.data <- c(replicate((1-p)*100,0), replicate(p*100,1))
+
+bucket1 <- make.bucket1(my.data, 0)
+bucket2 <- make.bucket2(bucket1, n.trials, sum)
+
+sums <- bucket2(1e4)
+hist(sums, prob=T)
+summary(sums)
+
+# Compare with R sampling
+test <- rpois(1e4, lambda)
+summary(test)
+```
+
+## Visualizing the Central Limit Theorem
+
+> [wikipedia](https://en.wikipedia.org/wiki/Central_limit_theorem)  the central limit theorem (CLT) establishes that, in some situations, when independent random variables are added, their properly normalized sum tends toward a normal distribution (informally a "bell curve") even if the original variables themselves are not normally distributed.
+
+```{r}
+set.seed(100)
+events <- 1:5  
+n.trials <- 1e3
+
+bucket1 <- make.bucket1(events, 0) # events follow an uniform distribution
+bucket2 <- make.bucket2(bucket1, n.trials, sum) # but when summed...
+
+hist(bucket2(1e4), breaks=50, prob=T, main="Normal approximation")
+```
+
+## Example 1
+
+> A firm decides whether to accept a batch of 100 components by taking a
+random sample of 20 of the components, testing them and accepting the
+whole batch if there is no more than one defective component in this sample.
+If there are two or more defectives, the batch is rejected. (This is known as
+an ‘acceptance sampling plan’.) They are keen to reject any batches containing
+more than 5% defectives. Estimate the probability that their sampling
+scheme will reject a batch with just over 5% defective.
+
+```{r}
+p.defect <- 0.05
+is.rejected <- function(v) {mean(v) < 1-p.defect}
+
+components <- c(replicate(5,0),replicate(95,1)) # 5% defective (zero is defective)
+
+bucket1 <- make.bucket1(components) 
+bucket2 <- make.bucket2(bucket1, 20, is.rejected)
+
+bucket2(1e4) %>% mean 
+```
+
+## Example 2 -- The birthday Paradox
+
+We can use the two buckets model to simulate the Birthday Paradox. We sample from all possible anniversaries (here integers from 1 to 366), and apply a statistic that checks for repeated values.
+
+```{r}
+n.people <- 23
+days <- 1:366
+
+# our stat: check for shared birthdays (1 yes, 0 no)
+stat.unique <- function(v) { 1*(length(unique(v)) != length(v)) }
+
+bucket1 <- make.bucket1(days, 0) # apply replacement
+bucket2 <- make.bucket2(bucket1, n.people, stat.unique)
+
+bucket2(1e4) %>% mean  # probability of having 2+ people with the same birthday
+```
+
+## Example 3
+
+> Jenny is applying for three jobs. She estimates her chance of getting the
+first job as one in two, her chance of getting the second job as one in three,
+and her chances of getting the third as one in four. What are her chances
+of ending up with at least one of the three jobs?
+
+To simulate this one, we need to create a matrix of job simulations, and use the buckets to sample from the matrix's rows:
+
+```{r}
+n.rows <- 1e4
+jobs <- matrix(data=c(sample(c(0,1), n.rows, rep=T, prob=c(.500,.500)),
+                      sample(c(0,1), n.rows, rep=T, prob=c(.666,.333)),
+                      sample(c(0,1), n.rows, rep=T, prob=c(.750,.250))),
+               ncol=3      
+              )
+
+# 1 if there's at least one job, 0 otherwise
+stat.has.job <- function(row) { 1 * (sum(jobs[row,]) > 0) }
+  
+bucket1 <- make.bucket1(1:n.rows)  # sample rows for matrix 'jobs'
+bucket2 <- make.bucket2(bucket1, 1, stat.has.job) # check one row/sample
+
+bucket2(1e4) %>% mean
+```
+
+The true value is $75\%$.
+
+## Example 4 - A Poisson problem
+
+> Manchester United scored 80 goals in 38 matches in the 1998–9 English Premier League season, an average of 2.1 goals per match. What is the probability of MU of scoring 3 goals in one match during that season?
+
+38 matches of 90 minutes means a total of 3420 minutes. Let's assume that all minutes during a match have a similar probability of getting goals and there's no two goals within a minute (we could model seconds instead of minutes). Using the bucket, each ball is a minute, with 80 marked with a 1 for a goal (the 80 goals), or a zero for a non-goal (the remaining minutes).
+
+```{r, collapse=TRUE}
+has.minute.a.goal <- c(replicate(80,1), replicate(3420-80,0))
+
+bucket1 <- make.bucket1(has.minute.a.goal, 0)
+bucket2 <- make.bucket2(bucket1, 90, sum) # a soccer match has 90 minutes
+
+result <- bucket2(1e4) %>% table
+result/1e4
+```
+
+This means a `r 100*result[4]/1e4`% of 3 goals during a match.
+
+## Example 5 - Confidence Intervals for a Polling
+
+A questionnaire was made with options from 0 (bad) to 5 (good). 98 valid answers were collected. What is the $95\%$ confidence interval for the mean response?
+
+| answer  | frequency  |
+|---|---|
+| 0 |42 |
+| 1 |21 |
+| 2 |16 |
+| 3 | 6 |
+| 4 | 9 |
+| 5 | 4 |
+
+```{r}
+responses <- c(replicate(42,0),
+               replicate(21,1),
+               replicate(16,2),
+               replicate( 6,3),
+               replicate( 9,4),
+               replicate( 4,5))
+
+bucket1 <- make.bucket1(responses, 0)
+bucket2 <- make.bucket2(bucket1, 98, mean)
+
+bucket2(1e4) %>% quantile(c(.025, .975)) 
+```
+
+# Replacing t-Test (comparing means)
+
+Michael Wood says:
+
+> There are, of course, many useful simulation approaches that do not fall under the umbrella of the two bucket story. One example is provided by approximate randomization tests (Noreen 1989; Wood 2003). These are randomization tests (Edgington 1995) which assess significance by “shuffling one variable … relative to another …” (Noreen 1989, page 9). This is a general simulation method that can often be used as a substitute for a number of traditional hypothesis tests — t test, one way analysis of variance, test of the hypothesis that a correlation is zero, Mann-Whitney test, etc. However, it does not fit the format of the two bucket story—it would need a third bucket so that two buckets can be reserved for the data allowing them to be “shuffled” relative to each other.
+
+However, **it is** possible to use the two bucket story to compare means!
+
+Let's use two groups of data to check if their difference of means is significant:
+
+```{r}
+my.data <- list(group1 = c(27,20,21,26,27,31,24,21,20,19,23,24,28,19,24,29,18,20,
+                           17,31,20,25,28,21,27),
+                group2 = c(21,22,15,12,21,16,19,15,22,24,19,23,13,22,20,24,18,20))
+
+all.data <- c(my.data$group1, my.data$group2)
+```
+
+Our bucket1 will generate indexes permutations for the entire data, ie, from `all.data`. For each indexes permutation, we compute the difference of means for the two resampled groups. To achieve that, we just take the first indexes and assign them to the first group, and do the same to the second group.
+
+```{r}
+diff.means <- function(indexes) {
+  in.group1 <- 1:length(my.data$group1)
+  indexes.group1 <- indexes[ in.group1]
+  indexes.group2 <- indexes[-in.group1]
+  # since our hypothesis is that they have the same mean, it is a two sided test
+  # hence the abs()
+  abs( mean(all.data[indexes.group1]) - mean(all.data[indexes.group2]) )
+}
+
+bucket1 <- make.bucket1(1:length(all.data), 1)
+bucket2 <- make.bucket2(bucket1, length(all.data), diff.means)
+
+results <- bucket2(1e4)
+```
+
+Let's make an helper function to draw prettier histograms:
+
+```{r}
+compute.p.value <- function(results, observed.effect, precision=3) {
+  
+  # n = #experiences
+  n <- length(results)
+  # r = #replications at least as extreme as observed effect
+  r <- sum(abs(results) >= observed.effect)  
+  # compute Monte Carlo p-value with correction (Davison & Hinkley, 1997)
+  list(mc.p.value=round((r+1)/(n+1), precision), r=r, n=n)
+}
+
+present_results <- function(results, observed.effect,  label="") {
+
+  lst <- compute.p.value(results, observed.effect)
+  
+  hist(results, breaks=50, prob=T, main=label,
+       sub=paste0("MC p-value for H0: ", lst$mc.p.value),
+       xlab=paste("found", lst$r, "as extreme effects for", lst$n, "replications"))
+  abline(v=observed.effect, lty=2, col="red")
+}
+```
+
+and now we can show the results:
+
+```{r}
+observed.effect <- abs( mean(my.data$group1) - mean(my.data$group2) )
+  
+present_results(results, observed.effect, "Difference of Means")
+```
+
+So, there's strong evidence to reject the observed effect as random.
+
+# Replacing $\chi^2$-Test
+
+> Suppose you run a casino and you suspect that a customer has replaced a die provided by the casino with a ``crooked die''; that is, one that
+has been tampered with to make one of the faces more likely to come up
+than the others.  You apprehend the alleged cheater and confiscate the die,
+but now you have to prove that it is crooked.  You roll the die 60 times
+and get the following results: 
+
+<center>
+```{r, echo=FALSE, results="asis", warning=FALSE}
+library(xtable)
+
+df <- data.frame(value=1:6, frequency=c(8,9,19,6,8,10))
+tab <- xtable(df, align="ccc")
+print(tab, type="html")
+```
+</center>
+
+> What is the probability of seeing results like this by chance? -- [ref](http://allendowney.blogspot.pt/2011/05/there-is-only-one-test.html)
+
+```{r}
+observed <- c(8,9,19,6,8,10)
+
+my.data <- list(observed = observed, 
+                expected = rep(round(sum(observed)/6),6)) # the most probable result
+```
+
+The test statistic is $\chi^2$:
+
+> The chi-squared test is used to determine whether there is a significant difference between the expected frequencies and the observed frequencies in one or more categories -- [wikipedia](https://en.wikipedia.org/wiki/Chi-squared_test)
+
+```{r}
+stat.chiSquared <- function(observed) {
+  sum((observed-my.data$expected)^2/my.data$expected)
+}
+```
+
+
+In this case, we cannot use the `make.bucket1` factory, we need to program `bucket1` ourselves:
+
+```{r}
+# returns table sample of 'n.throws' dice throws
+bucket1 <- function(n.throws) {
+  throws <- c(1:6,sample(1:6, n.throws, rep=TRUE)) # add 1:6 to prevent zeros
+  as.numeric(table(throws)) - 1                    # -1 removes those extra
+}
+bucket2 <- make.bucket2(bucket1, sum(observed), stat.chiSquared)
+
+results <- bucket2(1e4)
+```
+
+with the results, we can plot them:
+
+```{r}
+observed.effect <- stat.chiSquared(my.data$observed)
+
+present_results(results, observed.effect)
+```
+
+There is some evidence that the dice might not be fair.
+
+# Replacing Mann-Whitney U-Test
+
+The Mann-Whitney U test is a nonparametric statistical significance test for determining whether two independent samples were drawn from a population with the same distribution.
+
+> The two samples are combined and rank ordered together. The strategy is to determine if the values from the two samples are randomly mixed in the rank ordering or if they are clustered at opposite ends when combined. A random rank order would mean that the two samples are not different, while a cluster of one sample values would indicate a difference between them. -- pg.58, Nonparametric Statistics for Non-Statisticians: A Step-by-Step Approach, 2009.
+
+Let's try with some data:
+
+```{r}
+my.data <- list(group1 = c(6.2, 9.9, 7.3, 6.4, 10.3, 11.1, 10.6, 10.0), 
+                group2 = c(7.4, 11.7, 6.7, 11.0, 8.1, 6.5, 4.3, 10.2, 10.7, 7.1)) 
+
+all.data <- c(my.data$group1, my.data$group2) 
+group1.indxs <- 1:length(my.data$group1)
+```
+
+We replace the method by checking the difference between the sum of ranks of the two groups of data. That is coded in the `stat.U` statistic:
+
+```{r}
+stat.U <- function(v) {
+  ranks <- rank(v)
+  abs( sum(ranks[group1.indxs]) - sum(ranks[-group1.indxs]) )
+}
+
+bucket1 <- make.bucket1(all.data, 1)
+bucket2 <- make.bucket2(bucket1, length(all.data), stat.U)
+
+results <- bucket2(1e4)
+```
+
+And now we just plot the results against the real observed effect:
+
+```{r}
+observed.effect <- stat.U(all.data)
+
+present_results(results, observed.effect)
+```
+
+Another eg using different distributions: 
+
+```{r}
+set.seed(101)
+
+all.data <- c(rnorm(30,1), rexp(30,2)) 
+group1.indxs <- 1:30
+
+bucket1 <- make.bucket1(all.data, 1)
+bucket2 <- make.bucket2(bucket1, length(all.data), stat.U)
+
+results <- bucket2(1e4)
+
+observed.effect <- stat.U(all.data)
+present_results(results, observed.effect)
+```
+
+# Running a Bootstrap
+
+> The basic idea of bootstrapping is that inference about a population from sample data (sample -> population) can be modeled by resampling the sample data and performing inference on (resample -> sample). As the population is unknown, the true error in a sample statistic against its population value is unknowable. In bootstrap resamples, the 'population' is in fact the sample, and this is known; hence the quality of inference from resample data -> 'true' sample is measurable -- [wikipedia](http://en.wikipedia.org/wiki/Bootstrapping_(statistics))
+
+The bootstrap uses Monte Carlo simulations to resample many datasets based on the original data. These resamples are used to study the variation of a given test statistic. 
+
+The bootstrap assumes that the different samples from the observed data are independent of one another.
+
+Here's a simple eg: one knows a sample of size 30 from a population with $\mathcal{N}(0,1)$ distribution. In practice we don't know the population distribution (otherwise, the bootstrap would not be needed), but let's assume that in order to compare results. Say, we wish to find out about the variation of its mean:
+
+```{r}
+set.seed(123)
+sample.size <- 30
+my.data <- rnorm(sample.size)
+
+bucket1 <- make.bucket1(my.data, 10)
+bucket2 <- make.bucket2(bucket1, sample.size, mean)
+
+bootstrap.samples <- bucket2(1e4)
+real.samples <- replicate(1e4, mean(rnorm(sample.size)))
+
+plot( density(real.samples), ylim=c(0,3), main="mean distributions")
+lines(density(bootstrap.samples), col="red")
+abline(v=0, lty=2) # true value
+legend("topright", c("from population", "from bootstrap", "true mean"), col=c(1,2,1), lty=c(1,1,2))
+```
+
+# Comparing statistics from different distributions
+
+Permutation tests are applicable whenever we can freely exchange labels under
+the null hypothesis; for eg, when testing the hypothesis that both samples are drawn from the same population.
+
+To test, say, if two samples have the same mean but _assuming_ that they came from distributions with different variance, it is no longer possible to permute them between groups. One way to deal with it, is to resample twice, one per group, and check if the confidence interval of the differences includes the observed difference.
+
+```{r, collapse=TRUE}
+my.data <- list(group1 = c(94, 38, 23, 197, 99, 16, 141),
+                group2 = c(52, 10, 40, 104, 51, 27, 146, 30, 46))
+
+bucket1.gp1 <- make.bucket1(my.data$group1, 0)
+bucket2.gp1 <- make.bucket2(bucket1.gp1, length(my.data$group1), mean)
+
+bucket1.gp2 <- make.bucket1(my.data$group2, 0)
+bucket2.gp2 <- make.bucket2(bucket2.gp1, length(my.data$group2), mean)
+
+results <- abs( bucket2.gp1(1e4) - bucket2.gp1(1e4) ) # two sided test
+
+observed.effect <- abs( mean(my.data$group1) - mean(my.data$group2) )
+
+# if observed effect is, say, inside the 95% confidence interval, 
+# we cannot reject the same mean hypothesis
+observed.effect
+quantile (results, c(0.025, 0.975))
+present_results(results, observed.effect)
+```
+
+
