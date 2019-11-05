@@ -1,0 +1,183 @@
+---
+title: "Interact with other languages"
+author: "João Neto"
+date: "30/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## C++
+
+[link](https://blog.rstudio.com/2018/10/11/rstudio-1-2-preview-cpp/)
+
+```{Rcpp}
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+NumericMatrix gibbs(int N, int thin) {
+
+   NumericMatrix mat(N, 2);
+   double x = 0, y = 0;
+
+   for(int i = 0; i < N; i++) {
+      for(int j = 0; j < thin; j++) {
+         x = R::rgamma(3.0, 1.0 / (y * y + 4));
+         y = R::rnorm(1.0 / (x + 1), 1.0 / sqrt(2 * x + 2));
+      }
+      mat(i, 0) = x;
+      mat(i, 1) = y;
+   }
+
+   return(mat);
+}
+```
+
+```{r}
+gibbs(10, 10)
+```
+
+
+## Python
+
+First install Anaconda.
+
+```{r}
+library(reticulate)
+use_condaenv("r-reticulate")  # which version of Python to use
+```
+
+```{python}
+def Fibonacci(n): 
+    if n<0: 
+        print("Incorrect input") 
+    # First Fibonacci number is 0 
+    elif n==1: 
+        return 0
+    # Second Fibonacci number is 1 
+    elif n==2: 
+        return 1
+    else: 
+        return Fibonacci(n-1)+Fibonacci(n-2) 
+```
+
+```{r}
+py$Fibonacci(5)
+```
+
+```{python, fig.width=15}
+import matplotlib.pyplot as plt
+import numpy as np
+
+t = np.arange(0.0, 2.0, 0.01)
+s = 1 + np.sin(2*np.pi*t)
+
+plt.plot(t,s)
+plt.grid(True)
+plt.show()
+```
+
+```{r}
+head(py$s)
+```
+
+## Haskell
+
+This script executes a Haskell program. It places the result in a system variable.
+
+```{r, engine='haskell', engine.path='C:/Program Files/Haskell Platform/8.6.5/bin/runhaskell', cache=TRUE}
+import System.Environment
+
+fib :: Integer -> Integer
+fib 0 = 0
+fib 1 = 1
+fib n = fib (n-1) + fib (n-2)
+
+main = do
+    let result = fib 6
+    print result
+    setEnv "HASKELL_RESULT" (show $ result)
+    check <- getEnv "HASKELL_RESULT"
+    print check
+```
+
+However, the system var does not persist after the script ends (?)
+
+```{r}
+Sys.getenv("HASKELL_RESULT")
+```
+
+## Stan
+
+```{stan, output.var="ex1"}
+parameters {
+  real y[2];
+}
+model {
+  y[1] ~ normal(0, 1);
+  y[2] ~ double_exponential(0, 2);
+}
+```
+
+```{r}
+library(rstan)
+
+fit = sampling(ex1)
+print(fit)
+```
+
+## GraphViz
+
+```{r, warning=FALSE}
+library(DiagrammeR)
+```
+
+Cf. [DiagrammeR Graphviz documentation](http://rich-iannone.github.io/DiagrammeR/graphviz.html) 
+
+```{r}
+grViz("
+digraph boxes_and_circles {
+
+  # a 'graph' statement
+  graph [overlap = true, fontsize = 10]
+
+  # several 'node' statements
+  node [shape = box,
+        fontname = Helvetica]
+  A; B; C; D; E; F
+
+  node [shape = circle,
+        fixedsize = true,
+        width = 0.9] // sets as circles
+  1; 2; 3; 4; 5; 6; 7; 8
+
+  # several 'edge' statements
+  A->1 B->2 B->3 B->4 C->A
+  1->D E->A 2->4 1->5 1->F
+  E->6 4->6 5->7 6->7 3->8
+}
+")
+```
+For more options, check [mermaid Documentation](https://rich-iannone.github.io/DiagrammeR/mermaid.html)
+
+```{r}
+mermaid("
+sequenceDiagram
+  customer->>ticket seller: ask ticket
+  ticket seller->>database: seats
+  alt tickets available
+    database->>ticket seller: ok
+    ticket seller->>customer: confirm
+    customer->>ticket seller: ok
+    ticket seller->>database: book a seat
+    ticket seller->>printer: print ticket
+  else sold out
+    database->>ticket seller: none left
+    ticket seller->>customer: sorry
+  end
+")
+```
+

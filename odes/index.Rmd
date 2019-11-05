@@ -1,6 +1,6 @@
 ---
 title: "Solving Differential Equations"
-author: "Jo„o Neto"
+author: "Jo√£o Neto"
 date: October 2014
 output: 
   html_document:

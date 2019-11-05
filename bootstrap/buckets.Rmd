@@ -291,26 +291,24 @@ Michael Wood says:
 
 However, **it is** possible to use the two bucket story to compare means!
 
-Let's use two groups of data to check if their difference of means is significant:
+Let's use an eg of treatment/control data to check if their difference of means is significant:
 
 ```{r}
-my.data <- list(group1 = c(27,20,21,26,27,31,24,21,20,19,23,24,28,19,24,29,18,20,
-                           17,31,20,25,28,21,27),
-                group2 = c(21,22,15,12,21,16,19,15,22,24,19,23,13,22,20,24,18,20))
+my.data <- 
+    list(treatment = c(27,20,21,26,27,31,24,21,20,19,23,24,28,19,24,29,18,20,17,31,20,25,28,21,27),
+         control   = c(21,22,15,12,21,16,19,15,22,24,19,23,13,22,20,24,18,20))
 
-all.data <- c(my.data$group1, my.data$group2)
+all.data <- c(my.data$treatment, my.data$control)
 ```
 
 Our bucket1 will generate indexes permutations for the entire data, ie, from `all.data`. For each indexes permutation, we compute the difference of means for the two resampled groups. To achieve that, we just take the first indexes and assign them to the first group, and do the same to the second group.
 
 ```{r}
 diff.means <- function(indexes) {
-  in.group1 <- 1:length(my.data$group1)
-  indexes.group1 <- indexes[ in.group1]
-  indexes.group2 <- indexes[-in.group1]
-  # since our hypothesis is that they have the same mean, it is a two sided test
-  # hence the abs()
-  abs( mean(all.data[indexes.group1]) - mean(all.data[indexes.group2]) )
+  in.treatment <- 1:length(my.data$treatment)
+  indexes.group1 <- indexes[ in.treatment]
+  indexes.group2 <- indexes[-in.treatment]
+  mean(all.data[indexes.group1]) - mean(all.data[indexes.group2])
 }
 
 bucket1 <- make.bucket1(1:length(all.data), 1)
@@ -346,7 +344,7 @@ present_results <- function(results, observed.effect,  label="") {
 and now we can show the results:
 
 ```{r}
-observed.effect <- abs( mean(my.data$group1) - mean(my.data$group2) )
+observed.effect <- mean(my.data$treatment) - mean(my.data$control)
   
 present_results(results, observed.effect, "Difference of Means")
 ```

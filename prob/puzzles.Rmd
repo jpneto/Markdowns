@@ -1,0 +1,751 @@
+---
+title: "Probability Puzzles"
+author: "João Neto"
+date: "03/11/2019"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 10
+    fig_height: 6
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(magrittr)
+```
+
+### Probability that a stick randomly broken in two places can form a triangle
+
+Assume length 1 and breaking points at $x$ and $y>x$
+
+```{r}
+get.lengths <- function() {
+  x <- runif(1)
+  y <- runif(1)
+  
+  if (y<x) {
+    tmp <- y
+    y <- x
+    x <- tmp
+  }
+  
+  c(x,y-x,1-y) %>% sort  # find lengths and sorted them
+}
+
+n.tries <- 1e4
+results <- replicate(n.tries, get.lengths() %>% (function(v) {v[1]+v[2]>v[3]}))
+mean(results)
+
+results <- replicate(n.tries, max(get.lengths())>0.5 )
+mean(results)
+
+```
+
+A triangle is only possible if no piece size > $1/2$. If there's a piece of size > $1/2$ it maybe that both $x,y$ are on the same half. That happens with probability $1/2$ ($1/4$ for the left half and $1/4$ for the right half). But there's also another option, the bigger piece is on the middle, meaning $x<0.25 \land y>0.25$ or vice-versa, each case with probability $1/8$. So, summing these values, result in $0.75$ for a non-triangle.
+
+Also check [https://math.stackexchange.com/questions/676](https://math.stackexchange.com/questions/676/probability-that-a-stick-randomly-broken-in-two-places-can-form-a-triangle)
+
+### Consecutive Numbers in Lottery Draws
+
+How likely it is that a lottery draw (6 out of 49) contains two consecutive numbers. [ref](https://factbased.blogspot.com/2014/03/consecutive-numbers-in-lottery-draws.html)
+
+We'll use the [two bucket model](http://www.di.fc.ul.pt/~jpn/r/bootstrap/buckets.html):
+
+```{r}
+# multiplier == 0 represents infinite population (ie, no replacement)
+make.bucket1 <- function(universe, multiplier=1) {
+  if (multiplier>0)
+    universe <- c(replicate(multiplier, universe))
+  function(n.sample) {
+    sample(universe, n.sample, rep=ifelse(multiplier==0, TRUE, FALSE))
+  }
+}
+
+# uses the bucket1 urn to generate a sample of size 'size.sample'
+# and applies the given statistic function 
+make.bucket2 <- function(bucket1, size.sample, statistic) {
+  function(n) {
+    replicate(n, bucket1(size.sample) %>% statistic) %>% 
+    as.vector 
+  }
+}
+```
+
+This gives us the mean of running one simulation:
+
+```{r}
+stat.has.consecutives <- function(draw) 1*any(diff(sort(draw))==1)
+                                            
+bucket1 <- make.bucket1(1:49)
+bucket2 <- make.bucket2(bucket1, 6, stat.has.consecutives)
+
+results <- bucket2(1e5)
+mean(results)
+```
+
+We could run the simulation several times:
+
+```{r, eval=FALSE}
+# not evaluating...
+bucket3 <- make.bucket2(bucket2, 5e3, mean)
+
+results <- bucket3(500)
+quantile(results, c(.025, .5, .975)) 
+hist(results)
+```
+
+but this is quite computer intensive. Let's use a computational shortcut:
+
+```{r}
+library(binom)
+
+binom.confint(sum(results), length(results), methods="bayes")
+```
+
+which states that the exact result probably is less that $50\%$.
+
+An exact way of doing this is to see that after a draw $N_1, N_2,\ldots, N_6$ with no consecutive numbers, means that $N_1+1, N_2+1,\ldots, N_6+1$ were not drawn. We need number $50$ to reason like this. This means the draws without consecutive numbers are equal to draw 6 numbers from (50-6) numbers.
+
+```{r}
+1 - choose(50-6,6)/choose(49,6)
+```
+
+### Bacteria Puzzle
+
+A jar of water has a single cell of bacteria. With every passing minute, the bacteria will either die, stay the same or divide into two with probability $1/5, 2/5, 2/5$ respectively. What is the probability that the family of bacteria will survive forever?
+
+```{r}
+iterate <- function(population) {
+  length.population <- length(population)
+  if (length.population==0)
+    return (numeric(0))
+  for(i in 1:length.population) {
+    event <- sample(1:5, 1)
+    if (event==1)
+      population[i] <- 0             # this bacteria dies
+    if (event>=4)
+      population <- c(population, 1) # a new bacteria is born
+  }
+  population[population==1] # trim dead bacteria
+}
+
+run.population <- function(population=c(1), times) {
+  for(i in 1:times) {
+    if (length(population)==0)
+      return (numeric(0))
+    population <- iterate(population)
+  }
+  population
+}
+
+results <- replicate(1e4, 1*(length(run.population(times=25))>0))
+mean(results)
+```
+
+Let $1-x$ be the probability of living forever. This probability does not change, no matter the number of bacterias in the jar (assuming infinite amount of resources and space). So, each bacteria has probability $x$ of dying which is independent from all other bacterias (two bacteria have probability $x^2$ of dying). This means, given the distribution above:
+
+$$x = \frac{1}{5} + \frac{2}{5} x + \frac{2}{5} x^2$$
+
+We can solve the equation:
+
+```{r}
+f <- function(x) {2/5*x^2 - (3/5)*x + 1/5}
+uniroot(f, lower = 0, upper = 0.99)$root  # must be less than 80%
+```
+
+And find that the result is indeed $50\%$.
+
+### Aces in Deck
+
+What is the average number of cards you need to draw from a well shuffled deck of cards before you get an Ace?
+
+```{r}
+stat.n.cards.before.ace <- function(deck) {
+  which(deck<=4)[1]
+}
+
+bucket1 <- make.bucket1(1:52) # assume aces are numbers 1-4
+bucket2 <- make.bucket2(bucket1, 52, stat.n.cards.before.ace)
+
+results <- bucket2(1e4)
+mean(results)
+```
+
+Using the hypergeometric:
+
+```{r}
+# eg, probability of having 1 aces after 3 draws (deck: 4 aces, 48 other cards)
+# dhyper(1, 4, 48, 3)
+
+exp.sum <- 0
+for (n.draws in 1:49) {
+  exp.sum <- exp.sum + dhyper(1, 4, 48, n.draws)
+}
+exp.sum
+```
+
+We can also apply the principle of symmetry: _in the absence of other information, equipossible events should be considered as equiprobable_.
+
+The four aces divide the sequence of cards into five segments. If there are two consecutive aces, the intermediate segment has size zero. Also, if there's an ace in first or last position, we also have a segment of size zero. The principle of symmetry says that all segments, on average, have the same size of $\frac{48}{5}$ (there are 48 cards to place on those 5 segments). That is $9.6$. Since we must also draw an ace, the result should be $10.6$!
+
+### The Smaller Piece
+
+A segment of size 1 is broken, at random, in three pieces. What is the average length of the smaller piece?
+
+```{r}
+n.tries <- 1e4
+results <- replicate(n.tries, get.lengths() %>% min)
+mean(results)
+```
+
+From smallest to largest, the segments have size $x, x+y, x+y+z$ (breakpoints at $x,2x+y$). This means $3x+2y+z=1$. 
+
+Also $x \leqslant 1/3 , y \leqslant 1/2, z \leqslant 1$. Given these upper limits, assume that $x \sim U(0,1/3)$, $y \sim U(0,1/2)$, $z \sim U(0,1)$. Don't worry about the total sum, we can always normalize to 1.
+
+We can compute the expected values for each variable:
+
+$$E[x] = 1/6 ~ \land E[y] = 1/4 ~ \land E[z] = 1/2$$
+Also, the expected length is $E[3x+2y+z]=3/2$ which will be necessary to normalize the result back to size 1.
+
+The expected length of the smallest segment (after normalization) is
+
+$$E[x/3x+2y+z] = \frac{1/6}{3/2} = 2/18 = 1/9$$
+
+Btw, we could compute the expected maximum length
+
+$$E[x+y+z/3x+2y+z] = \frac{11/12}{3/2} = 22/36 = 0.6(1)$$
+
+```{r}
+results <- replicate(n.tries, get.lengths() %>% max)
+mean(results)
+```
+
+And also the expected middle length:
+
+$$E[x+y/3x+2y+z] = \frac{5/12}{3/2} = 10/36 = 0.2(7)$$
+```{r}
+results <- replicate(n.tries, get.lengths() %>% median)
+mean(results)
+```
+
+cf. [ref](https://math.stackexchange.com/questions/14190/average-length-of-the-longest-segment/14194#14194)
+
+### The 7 coins of James Bond
+
+James Bond has seven US coins. What is the probability that he has more than one dollar?
+
+```{r}
+coins <- c(1,5,10,25)
+
+stat.more.one.dollar <- function(coins) {
+  1*(sum(coins) > 100)
+}
+
+bucket1 <- make.bucket1(coins, 0)
+bucket2 <- make.bucket2(bucket1, 7, stat.more.one.dollar)
+
+results <- bucket2(1e4)
+mean(results)
+```
+
+This eg is small enough to count all $4^7$ possibilities:
+
+```{r, collapse=TRUE}
+library(gtools)
+
+# generate all permutations
+table <- permutations(length(coins), 7, coins, repeats.allowed=T)
+sums <- apply(table, 1, sum)
+mean(sums > 100)
+```
+
+If the number of permutations was too large, even for an approximate answer by simulation, we could first generate some thousand sums and check their distribution:
+
+```{r}
+hist(sums, breaks=50)
+```
+
+In this case, it is 'somewhat' normal... Assuming that it was, we then compute each coin's expected value:
+
+$$E = \frac{1}{4}\times ( 1c + 5c + 10c + 25c) = 10.25c$$
+and variance:
+
+$$\frac{1}{4}\times \Big( (1 - 10.25)^{2} + (5 - 10.25)^{2} + (10 - 10.25)^{2} + (25 - 10.25)^{2} \Big)  = 82.68$$
+
+Since we are dealing with a sum of 7 coins, expected value and variance add together
+
+```{r}
+exp.val  <- 7*10.25
+variance <- 7*82.68
+```
+
+Now we need to find the total area larger than 100.
+
+```{r, echo=FALSE}
+mean <- exp.val        # mean parameter 
+sd   <- sqrt(variance) # sd parameter
+lb   <- 100   # lower bound
+ub   <- 175   # upper bound
+
+x  <- seq(-25,175,length=1000)*sd + mean
+hx <- dnorm(x,mean,sd)
+
+plot(x, hx, type="n", xlab="y", ylab="Density", xlim = c(-25,175),
+     main="Normal Distribution")
+lines(x, hx)
+
+i <- x >= lb & x <= ub
+# polygon draws the polygons whose vertices are given in x and y
+polygon(c(lb,x[i],ub), c(0,hx[i],0), col="red")
+```
+```{r}
+1 - pnorm(100, mean, sd)
+```
+
+This result is quite close to the real value of $12.8\%$.
+
+### Lions Tigers and Bears 
+
+You are told that a certain area in a forest has lions, tigers and bears. You tour that area and observe 5 tigers, 2 lions and 1 bear. What is your estimate on the distribution of these animals? [ref](https://bayesianthink.blogspot.com/2013/01/lions-tigers-and-bears.html)
+
+Assume we have a urn with balls representing observations from these three types animals. We can model these type of problem using the multinomial distribution:
+
+```{r, collapse=TRUE}
+# egs:
+p.L <- .4
+p.T <- .25
+p.B <- 1 - p.L - p.T
+
+# generate 12 samples (shown one per column) of drawns of 6 balls
+rmultinom(10, size = 6, prob = c(p.L, p.T, p.B))
+
+# making 6 draws, what's the probability of finding 2 Lions, 5 Tigers and 1 Bear?
+dmultinom(c(2,5,1), prob=c(p.L, p.T, p.B))
+```
+
+The problem, however, asked for the reverse, given some observations, what is the estimated probabilities for each animal?
+
+We can find a solution using a Bayesian approach. For that we need a prior in order to process our evidence (5 tigers, 2 lions and 1 bear). In this particular case, the multinomial has a conjugate distribution, the Dirichlet, which is defined by a vector of positive real parameters, being a multivariate generalization of the beta distribution.
+
+We can use this vector to assign our prior information. In our case, since we know nothing else besides the observations, let's give a prior with parameters $(1,1,1)$. This means, we are not assuming that any animal has more specimens than the others.
+
+```{r, eval=FALSE, echo=FALSE}
+library(gtools)
+
+prior <- c(1,1,1)
+rdirichlet(4, prior)
+
+```
+
+The conjugate here works by adding the prior vector with the observations' count $(x_1, x_2, ...)$ in the following way.
+
+If we assumed the probabilities for each animal followed:
+
+$$(p_1,\ldots,p_k)\sim \mbox{Dirichlet}(\alpha_1,\ldots,\alpha_k)$$
+after the observations, we have:
+
+$$(p_1,\ldots,p_k)\Big|(x_1,\ldots,x_k)\sim \mbox{Dirichlet}(\alpha_1+x_1,\ldots,\alpha_k+x_k).$$
+
+In our example the posterior will be:
+
+$$(p_1,\ldots,p_k)\sim \mbox{Dirichlet}(3,6,2)$$
+The mean for each animal probability will be 
+
+$$E[p_i] = \frac{ \alpha_i } {\sum_j \alpha_j}$$
+```{r}
+prior              <- c(1,1,1)
+observations.count <- c(2,5,1)
+posterior          <- prior+observations.count
+
+mean.Lion  <- posterior[1]/sum(posterior)
+mean.Tiger <- posterior[2]/sum(posterior)
+mean.Bear  <- posterior[3]/sum(posterior)
+```
+
+So, we would have $p(Tiger) = 3/11$, $p(Lion) = 6/11$ and $p(Bear) = 2/11$.
+
+The MLE of frequentist methods that would say $p(Tiger) = 2/8$, $p(Lion) = 5/8$ and $p(Bear) = 1/8$.
+
+We can compare both methods using simulation:
+
+```{r}
+compute.RMSE <- function() {
+
+  actual    <- runif(3,1,100)    %>% round # make some actual values
+  observed  <- runif(3,1,actual) %>% round # make one observation
+  
+  alpha <- c(1,1,1) # bayesian prior
+  
+  prob.actual <- actual / sum(actual)
+  prob.bayes  <- (alpha+observed)/sum(alpha+observed)
+  prob.freq   <-        observed /sum(      observed)
+
+  c((prob.bayes-prob.actual)^2 %>% sum,
+    (prob.freq -prob.actual)^2 %>% sum)
+}
+
+n.tries <- 1e4
+# 1st row: bayes results, 2d row: freq results
+results <- replicate(n.tries, compute.RMSE())
+
+df <- data.frame(type = c(rep("bayes",n.tries), rep("freq",n.tries)),
+                 rmse = c(results[1,],results[2,]))
+```
+
+As we can see below, the errors of the bayesian procedure are smaller.
+
+```{r}
+library(ggplot2)
+ 
+# The mtcars dataset is natively available
+# head(mtcars)
+ 
+# A really basic boxplot.
+ggplot(df, aes(x=type, y=rmse)) + 
+    geom_boxplot(fill="slateblue", alpha=0.2) + 
+    xlab("rsme") + 
+    scale_y_sqrt() +
+    coord_flip()
+```
+
+Even a frequencist method tell us the difference of means is significative :-)
+
+```{r}
+t.test(results[1,], results[2,], conf.level = 0.99)
+```
+
+### Heads in a Row
+
+You have a fair unbiased coin. How many times on average do you need to toss it to get n heads in a row.  [ref](https://bayesianthink.blogspot.com/2013/02/getting-heads-in-row.html)
+
+Let's denote $x_n$ the throws to get $n$ heads in a row.
+
+To get $x_n+1$ we have two ways, toss the coin and if it get heads, we did it; otherwise it will we need to start over, but already tossed this one:
+
+$$x_{n+1} = x_{n} + \frac{1}{2}\times 1 + \frac{1}{2}(x_{n+1} + 1)$$
+if we simplify:
+
+$$x_{n} = 2^{n+1} - 2$$
+
+Let's simulate to check this theoretical result:
+
+```{r}
+wait.for.n.heads <- function(n) {
+  count <- 0
+  count.heads <- 0
+  repeat {
+    toss  <- sample(2, 1)
+    count <- count + 1
+    
+    if (toss==1)
+      count.heads <- count.heads + 1
+    else
+      count.heads <- 0
+    
+    if (count.heads == n)  
+      break
+  }
+  count
+}
+
+
+n <- 8
+results <- replicate(2500, wait.for.n.heads(n))
+mean(results)
+
+real.result <- 2^(n+1)-2
+real.result
+```
+
+### The Two mariners
+
+Two mariners report to the skipper of a ship that they are distances $d_1$ and $d_2$ from the shore. The skipper knows from historical data that the mariners A & B make errors that are normally distributed and have a standard deviation of $s_1$ and $s_2$. What should the skipper do to arrive at the best estimate of how far the ship is from the shore? [ref](https://bayesianthink.blogspot.com/2013/02/the-case-of-two-mariners.html)
+
+The answer is not to pick the mariner with less standard deviation.
+
+
+Assume we take a linear weighted sum
+
+$$d_{blended} = \omega\times d_1 + ( 1 - \omega)\times d_2$$
+
+assuming the reports are independent, [the variance is](https://en.wikipedia.org/wiki/Variance#Weighted_sum_of_variables)
+
+$$Var(d_{blended}) = \omega^{2}\times s_{1}^{2} + (1 - \omega)^{2}\times s_{2}^{2}$$
+
+So, we need to find a value for $\omega$ that minimizes $Var(d_{blended})$. We find the derivate and set it to zero
+
+$$\frac{d (Var(d_{blended}))}{d\omega} = 2\omega \times s_{1}^{2} - 2(1 - \omega) \times s_{2}^{2} = 0$$
+
+with solution
+
+$$\omega = \frac{s_{2}^{2}}{s_{1}^{2} + s_{2}^{2}}$$
+
+this means our estimate should be
+
+$$d_{blended} = \frac{s_{2}^{2}\times d_1}{s_{1}^{2} + s_{2}^{2}} + \frac{s_{1}^{2}\times d_2}{s_{1}^{2} + s_{2}^{2}}$$
+
+This will be better estimation than each of the mariner's estimates.
+
+
+### Three Random Numbers
+
+You play a game with a friend where he chooses two random numbers between 0 and 1. Next you choose a random number between 0 and 1. If your number falls between the prior two numbers you win. What is the probability that you would win? ([ref](https://bayesianthink.blogspot.com/2014/01/three-random-numbers.html))
+
+Let $x,y$ be the two first numbers. The probability of winning is the range of these numbers, $|x-y|$.
+
+$$P(\text{win}) = \int_{0}^{1}\int_{0}^{1}|y - x| dx dy$$
+We should split the integral to remove the modulus:
+
+$$P(\text{win}) = \int_{0}^{1}\Big[\int_{0}^{y}(y - x)dx + \int_{y}^{1}(x-y)dx\Big]dy$$
+
+The inner integral evaluates to $y^2 - y +\frac{1}{2}$ which at the ends is $1/3$.
+
+In simulation:
+
+```{r}
+is.number.in.range <- function() {
+  x <- runif(1)
+  y <- runif(1)
+  z <- runif(1)
+  z > min(x,y) && z < max(x,y)
+}
+
+results <- replicate(1e4, is.number.in.range())
+mean(results)
+```
+
+Another way is using combinatorics. After drawing 3 numbers $(x,y,z)$ there are six possible permutations
+
+```{r}
+library(gtools)
+
+permutations(3, 3, c('x','y','z'))
+```
+
+all of them with the same $1/6$ probability of happening. In our case, only two of them are of interest, the ones with 'z' in the middle. That gives the $1/3$ answer.
+
+### The Careless Receptionist and Derangements 
+
+A large number of drunk guests arrive at a hotel where they have booked specific rooms. A careless receptionists hands over keys at random. What is the probability that at least one guest ends up in a room she booked? ([ref](https://bayesianthink.blogspot.com/2013/08/the-careless-receptionist-and.html))
+
+Let's simulate for $1000$ guests:
+
+```{r}
+n.guests <- 1000
+
+# check if any value equals its index
+stat.any.guest.correct <- function(draws) {
+  1*(draws[draws == 1:length(draws)] %>% length >= 1)
+}
+
+bucket1 <- make.bucket1(1:n.guests)
+bucket2 <- make.bucket2(bucket1, n.guests, stat.any.guest.correct)
+
+results <- bucket2(1e4)
+mean(results)
+```
+The probability seems to be around $63\%-64\%$. The result does not change much for 100 or 10k guests. This seems suspiciously close to $1-1/e \approx 0.6321$.
+
+The notion of derangement is useful here. A derangement is the number of ways a set can be permuted such that none of the elements are in their respective positions.
+
+```{r, collapse=TRUE}
+library(gtools)
+
+set <- c('x','y','z')
+
+is.derangement <- function(perm) {
+  length(set[set==perm]) == 0
+}
+
+table <- permutations(3, 3, set)
+apply(table, 1, is.derangement) %>% cbind(table, .)
+```
+
+We can approximate the result using a larger set:
+
+```{r}
+size <- 8
+set <- 1:size
+
+results <- permutations(size, size, set) %>% apply(1, is.derangement) 
+1-mean(results) # the result for the original question is to find non-derangements
+```
+
+Again, that number close to $1-1/e$.
+
+The number of possible derangements of a set is denoted $!n$,
+
+$$!n = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!}$$
+
+given that the number of permutations for $n$ guests is $n!$, the probability of having at least one guest in his room is
+
+$$P(\text{at least one guest in own room}) =1 - \frac{!n}{n!}$$
+
+For large $n$ it is known that
+
+$$\lim_{n \rightarrow \infty} \frac{!n}{n!} = \frac{1}{e}$$
+
+And we finally find the expression $1/e$.
+
+### Balls and Empty Boxes
+
+$n$ balls are randomly dropped into $k$ boxes (k<=n). What is the probability that no box is empty?
+
+The simulation gives, say, for 100 balls and 27 boxes:
+
+```{r}
+n.boxes <- 27
+n.balls <- 100
+
+stat.all.urns.occupied <- function(draws) {
+  1*(length(unique(draws)) == n.boxes)
+}
+
+bucket1 <- make.bucket1(1:n.boxes,0)
+bucket2 <- make.bucket2(bucket1, n.balls, stat.all.urns.occupied)
+
+results <- bucket2(1e4)
+mean(results)
+```
+
+The exact answer ([ref](https://www.quora.com/N-balls-are-randomly-dropped-into-k-boxes-k-n-What-is-the-probability-that-no-box-is-empty)) is
+
+$$p(\text{no expty box|k,n}) = \sum_{i=0}^{k-1}(-1)^{i}{{k}\choose{i}}\Big(1-\frac{i}{k}\Big)^{n}$$
+```{r}
+p_given <- function(k,n) {
+  i <- 0:(k-1)
+  sum((-1)^i*choose(k,i)*(1-i/k)^n)
+}
+```
+
+Eg, with 100 balls and 27 boxes, the probability is just over $50\%$ as seen in the previous simulation
+
+```{r}
+p_given(27,100)
+```
+
+### All different balls
+
+An urn contains 20 uniquely identifiable balls. How many draws with replacement needs to be done to be 95\% sure that all will appear?
+
+The following simulation finds that 125 balls seem to be enough:
+
+```{r}
+n.balls <- 20
+n.draws <- 125
+
+stat.all.urns.occupied2 <- function(draws) {
+  1*(length(unique(draws)) == n.balls)
+}
+
+bucket1 <- make.bucket1(1:n.balls, 0)
+bucket2 <- make.bucket2(bucket1, n.draws, stat.all.urns.occupied2)
+
+results <- bucket2(1e3)
+mean(results)
+```
+
+Checking its quantiles, the $95\%$ result is inside the $95\%$ range (!)
+
+```{r, collapse=T}
+bucket3 <- make.bucket2(bucket2, 500, base::mean)
+
+results <- bucket3(200)
+quantile(results, probs=c(0.025, .5, .975))
+```
+
+To find an analytical solution, let's solve a new (identical) problem: if we draw, with replacement, from urn $U$ a ball marked with number 'i' we place a copy of that ball on urn $U_i$ (assume we have as many urns as different marked balls).
+
+We need to find the number of ways to place $k$ distinct balls into $n$ distinct boxes (leaving no empty box) which is 
+
+$$n! S(k,n)$$ 
+
+where $S(\cdot,\cdot)$ is the function computing the Stirling numbers of the second kind. 
+
+All possible placings of $k$ balls in $n$ urns is $n^k$. That means the probability is
+
+$$p(\text{All k balls drawn at least once|n,k}) = \frac{n! S(k,n)}{n^k}$$
+The R function for $S(\cdot,\cdot)$, `multicool:::Stirling2`, overflows easily, so let's program it here:
+
+```{r, warning=FALSE, message=FALSE}
+library(memoise) # speed up recursion
+library(gmp)     # deal with *large* integers 
+
+stirling2_ <- function(n,k) {
+  n_  <- as.bigz(n)
+  k_  <- as.bigz(k)
+
+  if (n==0 && k==0)
+    return(as.bigz(1))
+  if (n==0 || k==0)
+    return(as.bigz(0))
+  
+  # s2(n, k) = k*s2(n - 1, k), + s2(n - 1, k - 1)
+  add.bigz( mul.bigz(k_, stirling2(sub.bigz(n_,1),k_)),
+            stirling2(sub.bigz(n_,1),sub.bigz(k_,1))
+          )
+}
+
+stirling2 <- memoise(stirling2_)
+
+stirling2(50,6) # test: outputs same value as Wolfram Alpha
+```
+
+The next function computes the given probability:
+
+```{r}
+p_given <- function(n, k) {
+  n_  <- as.bigz(n)
+  k_  <- as.bigz(k)
+  
+  div.bigz( mul.bigz(stirling2(k,n),factorialZ(n_)),
+            pow.bigz(n_,k_)
+          ) %>% as.numeric()
+}
+
+p_given(n.balls, n.draws)
+```
+
+We are able to reduce the number of draws, $117$ would be enough:
+
+```{r}
+p_given(n.balls, 117)
+```
+
+### The Lazy Student
+
+You ask two students A & B to do a statistical task. The task is to roll two dies, sum the numbers and to repeat it a 100 times. You get back the set of numbers from both the students. However you know that one of them is a lazy student and has rolled just one die and doubled its value and reported it. How do you identify which one of the students is the lazy student? ([ref](https://bayesianthink.blogspot.com/2013/05/identifying-lazy-student.html))
+
+Let $X_1, X_2$ be the random variables for both dice. The sum of two rvs would have variance
+
+$$Var(X_{1} + X_{2}) = Var(X_{1}) + Var(X_{2})$$
+
+since these are the same (both die are assumed identical), and denoting $Var(X_i) =\alpha$
+
+$$Var(X_{1}) + Var(X_{2}) = 2\alpha$$
+But the lazy student double the score of one dice
+
+$$Var(2X) = 2^{2}Var{(X)} = 4 Var{(X)}$$
+So the lazy student results would have double the variance.
+
+```{r}
+dice <- function() {sample(1:6,1)}
+
+replicate(1e3, dice()+dice()) %>%  var
+replicate(1e3, 2*dice())      %>%  var  # lazy student results
+```
+
+### Even Split
+
+When 100 coins are tossed, what is the probability that exactly 50 are heads?
+
+There are $100 \choose 50$ ways to arrange 50 heads in 100 tosses. Each one of those tosses are independent with probability $\frac{1}{2^{100}}$.
+
+```{r, collapse=TRUE}
+choose(100,50)/2^100
+exp(lchoose(100,50) - 100*log(2)) # checking if R is not losing precision
+```
+
+

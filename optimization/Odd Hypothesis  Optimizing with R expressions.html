@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html class="v2 gr__oddhypothesis_blogspot_com" dir="ltr" lang="en"><head>
+<link href="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/3597120983-css_bundle_v2.css" rel="stylesheet" type="text/css">
+<meta content="width=1100" name="viewport">
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<meta content="blogger" name="generator">
+<link href="https://oddhypothesis.blogspot.com/favicon.ico" rel="icon" type="image/x-icon">
+<link href="http://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html" rel="canonical">
+<link rel="alternate" type="application/atom+xml" title="Odd Hypothesis - Atom" href="https://oddhypothesis.blogspot.com/feeds/posts/default">
+<link rel="alternate" type="application/rss+xml" title="Odd Hypothesis - RSS" href="https://oddhypothesis.blogspot.com/feeds/posts/default?alt=rss">
+<link rel="service.post" type="application/atom+xml" title="Odd Hypothesis - Atom" href="https://www.blogger.com/feeds/4493332405234657503/posts/default">
+
+<link rel="alternate" type="application/atom+xml" title="Odd Hypothesis - Atom" href="https://oddhypothesis.blogspot.com/feeds/6423713446427323996/comments/default">
+<!--[if IE]><script type="text/javascript" src="https://www.blogger.com/static/v1/jsbin/210157244-ieretrofit.js"></script>
+<![endif]-->
+<link href="http://1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/s1600/OddHypothesis-ModelFit-20140820.png" rel="image_src">
+<meta content="http://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html" property="og:url">
+<meta content="Optimizing with R expressions" property="og:title">
+<meta content="I recently discovered a powerful use for R expression() ’s   Say you are trying to fit some experimental data to the following nonlinear equ..." property="og:description">
+<meta content="//1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/w1200-h630-p-k-no-nu/OddHypothesis-ModelFit-20140820.png" property="og:image">
+<!--[if IE]> <script> (function() { var html5 = ("abbr,article,aside,audio,canvas,datalist,details," + "figure,footer,header,hgroup,mark,menu,meter,nav,output," + "progress,section,time,video").split(','); for (var i = 0; i < html5.length; i++) { document.createElement(html5[i]); } try { document.execCommand('BackgroundImageCache', false, true); } catch(e) {} })(); </script> <![endif]-->
+<title>Odd Hypothesis: Optimizing with R expressions</title>
+<style id="page-skin-1" type="text/css"><!--
+/*
+-----------------------------------------------
+Blogger Template Style
+Name:     Simple
+Designer: Blogger
+URL:      www.blogger.com
+----------------------------------------------- */
+
+/* Content
+----------------------------------------------- */
+body {
+font: normal normal 12px 'Trebuchet MS', Trebuchet, Verdana, sans-serif;
+color: #666666;
+background: #ffffff none repeat scroll top left;
+padding: 0 0 0 0;
+}
+html body .region-inner {
+min-width: 0;
+max-width: 100%;
+width: auto;
+}
+h2 {
+font-size: 22px;
+}
+a:link {
+text-decoration:none;
+color: #2288bb;
+}
+a:visited {
+text-decoration:none;
+color: #2288bb;
+}
+a:hover {
+text-decoration:underline;
+color: #33aaff;
+}
+.body-fauxcolumn-outer .fauxcolumn-inner {
+background: transparent none repeat scroll top left;
+_background-image: none;
+}
+.body-fauxcolumn-outer .cap-top {
+position: absolute;
+z-index: 1;
+height: 400px;
+width: 100%;
+}
+.body-fauxcolumn-outer .cap-top .cap-left {
+width: 100%;
+background: transparent none repeat-x scroll top left;
+_background-image: none;
+}
+.content-outer {
+-moz-box-shadow: 0 0 0 rgba(0, 0, 0, .15);
+-webkit-box-shadow: 0 0 0 rgba(0, 0, 0, .15);
+-goog-ms-box-shadow: 0 0 0 #333333;
+box-shadow: 0 0 0 rgba(0, 0, 0, .15);
+margin-bottom: 1px;
+}
+.content-inner {
+padding: 10px 40px;
+}
+.content-inner {
+background-color: #ffffff;
+}
+/* Header
+----------------------------------------------- */
+.header-outer {
+background: transparent none repeat-x scroll 0 -400px;
+_background-image: none;
+}
+.Header h1 {
+font: normal normal 40px 'Trebuchet MS',Trebuchet,Verdana,sans-serif;
+color: #000000;
+text-shadow: 0 0 0 rgba(0, 0, 0, .2);
+}
+.Header h1 a {
+color: #000000;
+}
+.Header .description {
+font-size: 18px;
+color: #000000;
+}
+.header-inner .Header .titlewrapper {
+padding: 22px 0;
+}
+.header-inner .Header .descriptionwrapper {
+padding: 0 0;
+}
+/* Tabs
+----------------------------------------------- */
+.tabs-inner .section:first-child {
+border-top: 0 solid #dddddd;
+}
+.tabs-inner .section:first-child ul {
+margin-top: -1px;
+border-top: 1px solid #dddddd;
+border-left: 1px solid #dddddd;
+border-right: 1px solid #dddddd;
+}
+.tabs-inner .widget ul {
+background: transparent none repeat-x scroll 0 -800px;
+_background-image: none;
+border-bottom: 1px solid #dddddd;
+margin-top: 0;
+margin-left: -30px;
+margin-right: -30px;
+}
+.tabs-inner .widget li a {
+display: inline-block;
+padding: .6em 1em;
+font: normal normal 12px 'Trebuchet MS', Trebuchet, Verdana, sans-serif;
+color: #000000;
+border-left: 1px solid #ffffff;
+border-right: 1px solid #dddddd;
+}
+.tabs-inner .widget li:first-child a {
+border-left: none;
+}
+.tabs-inner .widget li.selected a, .tabs-inner .widget li a:hover {
+color: #000000;
+background-color: #eeeeee;
+text-decoration: none;
+}
+/* Columns
+----------------------------------------------- */
+.main-outer {
+border-top: 0 solid transparent;
+}
+.fauxcolumn-left-outer .fauxcolumn-inner {
+border-right: 1px solid transparent;
+}
+.fauxcolumn-right-outer .fauxcolumn-inner {
+border-left: 1px solid transparent;
+}
+/* Headings
+----------------------------------------------- */
+div.widget > h2,
+div.widget h2.title {
+margin: 0 0 1em 0;
+font: normal bold 11px 'Trebuchet MS',Trebuchet,Verdana,sans-serif;
+color: #000000;
+}
+/* Widgets
+----------------------------------------------- */
+.widget .zippy {
+color: #999999;
+text-shadow: 2px 2px 1px rgba(0, 0, 0, .1);
+}
+.widget .popular-posts ul {
+list-style: none;
+}
+/* Posts
+----------------------------------------------- */
+h2.date-header {
+font: normal bold 11px Arial, Tahoma, Helvetica, FreeSans, sans-serif;
+}
+.date-header span {
+background-color: #bbbbbb;
+color: #ffffff;
+padding: 0.4em;
+letter-spacing: 3px;
+margin: inherit;
+}
+.main-inner {
+padding-top: 35px;
+padding-bottom: 65px;
+}
+.main-inner .column-center-inner {
+padding: 0 0;
+}
+.main-inner .column-center-inner .section {
+margin: 0 1em;
+}
+.post {
+margin: 0 0 45px 0;
+}
+h3.post-title, .comments h4 {
+font: normal normal 22px 'Trebuchet MS',Trebuchet,Verdana,sans-serif;
+margin: .75em 0 0;
+}
+.post-body {
+font-size: 110%;
+line-height: 1.4;
+position: relative;
+}
+.post-body img, .post-body .tr-caption-container, .Profile img, .Image img,
+.BlogList .item-thumbnail img {
+padding: 2px;
+background: #ffffff;
+border: 1px solid #eeeeee;
+-moz-box-shadow: 1px 1px 5px rgba(0, 0, 0, .1);
+-webkit-box-shadow: 1px 1px 5px rgba(0, 0, 0, .1);
+box-shadow: 1px 1px 5px rgba(0, 0, 0, .1);
+}
+.post-body img, .post-body .tr-caption-container {
+padding: 5px;
+}
+.post-body .tr-caption-container {
+color: #666666;
+}
+.post-body .tr-caption-container img {
+padding: 0;
+background: transparent;
+border: none;
+-moz-box-shadow: 0 0 0 rgba(0, 0, 0, .1);
+-webkit-box-shadow: 0 0 0 rgba(0, 0, 0, .1);
+box-shadow: 0 0 0 rgba(0, 0, 0, .1);
+}
+.post-header {
+margin: 0 0 1.5em;
+line-height: 1.6;
+font-size: 90%;
+}
+.post-footer {
+margin: 20px -2px 0;
+padding: 5px 10px;
+color: #666666;
+background-color: #eeeeee;
+border-bottom: 1px solid #eeeeee;
+line-height: 1.6;
+font-size: 90%;
+}
+#comments .comment-author {
+padding-top: 1.5em;
+border-top: 1px solid transparent;
+background-position: 0 1.5em;
+}
+#comments .comment-author:first-child {
+padding-top: 0;
+border-top: none;
+}
+.avatar-image-container {
+margin: .2em 0 0;
+}
+#comments .avatar-image-container img {
+border: 1px solid #eeeeee;
+}
+/* Comments
+----------------------------------------------- */
+.comments .comments-content .icon.blog-author {
+background-repeat: no-repeat;
+background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAAAAXNSR0IArs4c6QAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEgAACxIB0t1+/AAAAAd0SU1FB9sLFwMeCjjhcOMAAAD+SURBVDjLtZSvTgNBEIe/WRRnm3U8RC1neQdsm1zSBIU9VVF1FkUguQQsD9ITmD7ECZIJSE4OZo9stoVjC/zc7ky+zH9hXwVwDpTAWWLrgS3QAe8AZgaAJI5zYAmc8r0G4AHYHQKVwII8PZrZFsBFkeRCABYiMh9BRUhnSkPTNCtVXYXURi1FpBDgArj8QU1eVXUzfnjv7yP7kwu1mYrkWlU33vs1QNu2qU8pwN0UpKoqokjWwCztrMuBhEhmh8bD5UDqur75asbcX0BGUB9/HAMB+r32hznJgXy2v0sGLBcyAJ1EK3LFcbo1s91JeLwAbwGYu7TP/3ZGfnXYPgAVNngtqatUNgAAAABJRU5ErkJggg==);
+}
+.comments .comments-content .loadmore a {
+border-top: 1px solid #999999;
+border-bottom: 1px solid #999999;
+}
+.comments .comment-thread.inline-thread {
+background-color: #eeeeee;
+}
+.comments .continue {
+border-top: 2px solid #999999;
+}
+/* Accents
+---------------------------------------------- */
+.section-columns td.columns-cell {
+border-left: 1px solid transparent;
+}
+.blog-pager {
+background: transparent url(//www.blogblog.com/1kt/simple/paging_dot.png) repeat-x scroll top center;
+}
+.blog-pager-older-link, .home-link,
+.blog-pager-newer-link {
+background-color: #ffffff;
+padding: 5px;
+}
+.footer-outer {
+border-top: 1px dashed #bbbbbb;
+}
+/* Mobile
+----------------------------------------------- */
+body.mobile  {
+background-size: auto;
+}
+.mobile .body-fauxcolumn-outer {
+background: transparent none repeat scroll top left;
+}
+.mobile .body-fauxcolumn-outer .cap-top {
+background-size: 100% auto;
+}
+.mobile .content-outer {
+-webkit-box-shadow: 0 0 3px rgba(0, 0, 0, .15);
+box-shadow: 0 0 3px rgba(0, 0, 0, .15);
+}
+.mobile .tabs-inner .widget ul {
+margin-left: 0;
+margin-right: 0;
+}
+.mobile .post {
+margin: 0;
+}
+.mobile .main-inner .column-center-inner .section {
+margin: 0;
+}
+.mobile .date-header span {
+padding: 0.1em 10px;
+margin: 0 -10px;
+}
+.mobile h3.post-title {
+margin: 0;
+}
+.mobile .blog-pager {
+background: transparent none no-repeat scroll top center;
+}
+.mobile .footer-outer {
+border-top: none;
+}
+.mobile .main-inner, .mobile .footer-inner {
+background-color: #ffffff;
+}
+.mobile-index-contents {
+color: #666666;
+}
+.mobile-link-button {
+background-color: #2288bb;
+}
+.mobile-link-button a:link, .mobile-link-button a:visited {
+color: #ffffff;
+}
+.mobile .tabs-inner .section:first-child {
+border-top: none;
+}
+.mobile .tabs-inner .PageList .widget-content {
+background-color: #eeeeee;
+color: #000000;
+border-top: 1px solid #dddddd;
+border-bottom: 1px solid #dddddd;
+}
+.mobile .tabs-inner .PageList .widget-content .pagelist-arrow {
+border-left: 1px solid #dddddd;
+}
+/*.code {background-color: #ededed; color: #080880;}*/
+/*span.code {display: inline-block; font-family: monospace; padding: 0 1ex;}*/
+/*pre.code {padding: 1em; border: 1px dashed #808080;}*/
+/*blockquote {border-left: 2px solid #8e8eef; color: #8888cc; padding: 0 1ex;}*/
+code,pre{font-family:Monaco,Menlo,Consolas,"Courier New",monospace}
+code{padding:2px 4px;font-size:90%;color:#162029;background-color:rgba(102,128,153,0.075);white-space:nowrap;border-radius:4px}
+pre{display:block;padding:9.5px;margin:0 0 10px;font-size:13px;line-height:1.428571429;word-break:break-all;word-wrap:break-word;color:#333;background-color:rgba(102,128,153,0.05);border:1px solid rgba(102,128,153,0.075);border-radius:4px}pre.prettyprint{margin-bottom:20px}
+pre code{padding:0;font-size:inherit;color:inherit;white-space:pre-wrap;background-color:transparent;border:0}
+p,pre,pre.prettyprint,blockquote{margin:0 0 15px}
+code,pre{font-family:Menlo,Consolas,"Courier New",monospace;font-size:12px !important}
+pre,pre.prettyprint{border:0 solid rgba(102,128,153,0.075);border-left:10px solid rgba(102,128,153,0.075);border-radius:0;border-top-right-radius:5px;border-bottom-right-radius:5px;padding:10px 15px}pre code,pre.prettyprint code{background-color:transparent !important}
+--></style>
+<style id="template-skin-1" type="text/css"><!--
+body {
+min-width: 960px;
+}
+.content-outer, .content-fauxcolumn-outer, .region-inner {
+min-width: 960px;
+max-width: 960px;
+_width: 960px;
+}
+.main-inner .columns {
+padding-left: 0px;
+padding-right: 260px;
+}
+.main-inner .fauxcolumn-center-outer {
+left: 0px;
+right: 260px;
+/* IE6 does not respect left and right together */
+_width: expression(this.parentNode.offsetWidth -
+parseInt("0px") -
+parseInt("260px") + 'px');
+}
+.main-inner .fauxcolumn-left-outer {
+width: 0px;
+}
+.main-inner .fauxcolumn-right-outer {
+width: 260px;
+}
+.main-inner .column-left-outer {
+width: 0px;
+right: 100%;
+margin-left: -0px;
+}
+.main-inner .column-right-outer {
+width: 260px;
+margin-right: -260px;
+}
+#layout {
+min-width: 0;
+}
+#layout .content-outer {
+min-width: 0;
+width: 800px;
+}
+#layout .region-inner {
+min-width: 0;
+width: auto;
+}
+body#layout div.add_widget {
+padding: 8px;
+}
+body#layout div.add_widget a {
+margin-left: 32px;
+}
+--></style>
+<link href="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/authorization.css" media="all" onload="if(media!='all')media='all'" rel="stylesheet"><noscript><link href='https://www.blogger.com/dyn-css/authorization.css?targetBlogID=4493332405234657503&amp;zx=89f8cf1d-0eca-4556-b31a-0b926fcc6297' rel='stylesheet'/></noscript>
+
+<script src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/cbgapi.loaded_3" async=""></script><script src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/cbgapi.loaded_2" async=""></script><script src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/cbgapi.loaded_1" async=""></script><script src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/cbgapi.loaded_0" async=""></script><script type="text/javascript" language="javascript">
+  // Supply ads personalization default for EEA readers
+  // See https://www.blogger.com/go/adspersonalization
+  adsbygoogle = window.adsbygoogle || [];
+  if (typeof adsbygoogle.requestNonPersonalizedAds === 'undefined') {
+    adsbygoogle.requestNonPersonalizedAds = 1;
+  }
+</script>
+
+
+<script type="text/javascript" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/google_top_exp.js"></script><style>.gc-bubbleDefault{background-color:transparent !important;text-align:left;padding:0 !important;margin:0 !important;border:0 !important;table-layout:auto !important}.gc-reset{background-color:transparent !important;border:0 !important;padding:0 !important;margin:0 !important;text-align:left}.pls-bubbleTop{border-bottom:1px solid #ccc !important}.pls-topTail,.pls-vertShimLeft,.pls-contentLeft{background-image:url(//ssl.gstatic.com/s2/oz/images/stars/po/bubblev1/border_3.gif) !important}.pls-topTail{background-repeat:repeat-x !important;background-position:bottom !important}.pls-vertShim{background-color:#fff !important;text-align:right}.tbl-grey .pls-vertShim{background-color:#f5f5f5 !important}.pls-vertShimLeft{background-repeat:repeat-y !important;background-position:right !important;height:4px}.pls-vertShimRight{height:4px}.pls-confirm-container .pls-vertShim{background-color:#fff3c2 !important}.pls-contentWrap{background-color:#fff !important;position:relative !important;vertical-align:top}.pls-contentLeft{background-repeat:repeat-y;background-position:right;vertical-align:top}.pls-dropRight{background-image:url(//ssl.gstatic.com/s2/oz/images/stars/po/bubblev1/bubbleDropR_3.png) !important;background-repeat:repeat-y !important;vertical-align:top}.pls-vert,.pls-tailleft,.pls-dropTR .pls-dropBR,.pls-dropBL,.pls-vert img{vertical-align:top}.pls-dropBottom{background-image:url(//ssl.gstatic.com/s2/oz/images/stars/po/bubblev1/bubbleDropB_3.png) !important;background-repeat:repeat-x !important;width:100%;vertical-align:top}.pls-topLeft{background:inherit !important;text-align:right;vertical-align:bottom}.pls-topRight{background:inherit !important;text-align:left;vertical-align:bottom}.pls-bottomLeft{background:inherit !important;text-align:right}.pls-bottomRight{background:inherit !important;text-align:left;vertical-align:top}.pls-tailtop,.pls-tailright,.pls-tailbottom,.pls-tailleft{display:none;position:relative}.pls-tailbottom,.pls-tailtop,.pls-tailright,.pls-tailleft,.pls-dropTR,.pls-dropBR,.pls-dropBL{background-image:url(//ssl.gstatic.com/s2/oz/images/stars/po/bubblev1/bubbleSprite_3.png) !important;background-repeat:no-repeat}.tbl-grey .pls-tailbottom,.tbl-grey .pls-tailtop,.tbl-grey .pls-tailright,.tbl-grey .pls-tailleft,.tbl-grey .pls-dropTR,.tbl-grey .pls-dropBR,.tbl-grey .pls-dropBL{background-image:url(//ssl.gstatic.com/s2/oz/images/stars/po/bubblev1/bubbleSprite-grey.png) !important}.pls-tailbottom{background-position:-23px 0}.pls-confirm-container .pls-tailbottom{background-position:-23px -10px}.pls-tailtop{background-position:-19px -20px}.pls-tailright{background-position:0 0}.pls-tailleft{background-position:-10px 0}.pls-tailtop{vertical-align:top}.gc-bubbleDefault td{line-height:0;font-size:0}.pls-topLeft img,.pls-topRight img,.pls-tailbottom{vertical-align:bottom}.pls-bottomLeft img,.bubbleDropTR,.pls-dropBottomL img,.pls-dropBottom img,.pls-dropBottomR img,.pls-bottomLeft{vertical-align:top}.pls-dropTR{background-position:0 -22px}.pls-dropBR{background-position:0 -27px}.pls-dropBL{background-position:0 -16px}.pls-spacertop,.pls-spacerright,.pls-spacerbottom,.pls-spacerleft{position:static !important}.pls-spinner{bottom:0;position:absolute;left:0;margin:auto;right:0;top:0} </style><style class="singleton-element" type="text/css">.cookie-choices-info { position:fixed;width:100%;background-color:#666;margin:0;left:0;top:0;padding:0;z-index:4000;text-align:center;color:#fff;line-height:140%;padding:10px 0;font-family:roboto,Arial; } .cookie-choices-info .cookie-choices-inner { position:relative;width:initial;margin:0;left:0;top:0; } .cookie-choices-info .cookie-choices-text { display:inline-block;vertical-align:middle;font-size:16px;margin:10px 20px;color:#ccc;max-width:800px;text-align:left; }.cookie-choices-info .cookie-choices-buttons { display:inline-block;vertical-align:middle;white-space:nowrap;margin:0 10px; } .cookie-choices-info .cookie-choices-button:hover {  color: #fff; } .cookie-choices-info .cookie-choices-button { font-weight:bold;text-transform:UPPERCASE;white-space:nowrap;color:#eee;margin-left:8px;padding:0 6px; text-decoration:none; }</style><script async="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/lazy.js"></script></head>
+<body class=" variant-simplysimple" data-gr-c-s-loaded="true">
+<div class="navbar section" id="navbar" name="Navbar"><div class="widget Navbar" data-version="1" id="Navbar1"><script type="text/javascript">
+    function setAttributeOnload(object, attribute, val) {
+      if(window.addEventListener) {
+        window.addEventListener('load',
+          function(){ object[attribute] = val; }, false);
+      } else {
+        window.attachEvent('onload', function(){ object[attribute] = val; });
+      }
+    }
+  </script>
+<div id="navbar-iframe-container"><iframe ng-non-bindable="" hspace="0" marginheight="0" marginwidth="0" scrolling="no" style="" tabindex="0" vspace="0" id="navbar-iframe" name="navbar-iframe" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/navbar.html" width="100%" frameborder="0"></iframe></div>
+<script type="text/javascript" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/plusone.js" gapi_processed="true"></script>
+<script type="text/javascript">
+      gapi.load("gapi.iframes:gapi.iframes.style.bubble", function() {
+        if (gapi.iframes && gapi.iframes.getContext) {
+          gapi.iframes.getContext().openChild({
+              url: 'https://www.blogger.com/navbar.g?targetBlogID\x3d4493332405234657503\x26blogName\x3dOdd+Hypothesis\x26publishMode\x3dPUBLISH_MODE_BLOGSPOT\x26navbarType\x3dLIGHT\x26layoutType\x3dLAYOUTS\x26searchRoot\x3dhttps://oddhypothesis.blogspot.com/search\x26blogLocale\x3den\x26v\x3d2\x26homepageUrl\x3dhttps://oddhypothesis.blogspot.com/\x26targetPostID\x3d6423713446427323996\x26blogPostOrPageUrl\x3dhttps://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html\x26vt\x3d1260217339634128899',
+              where: document.getElementById("navbar-iframe-container"),
+              id: "navbar-iframe"
+          });
+        }
+      });
+    </script><script type="text/javascript">
+(function() {
+var script = document.createElement('script');
+script.type = 'text/javascript';
+script.src = '//pagead2.googlesyndication.com/pagead/js/google_top_exp.js';
+var head = document.getElementsByTagName('head')[0];
+if (head) {
+head.appendChild(script);
+}})();
+</script>
+</div></div>
+<div class="body-fauxcolumns">
+<div class="fauxcolumn-outer body-fauxcolumn-outer">
+<div class="cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left">
+<div class="fauxborder-right"></div>
+<div class="fauxcolumn-inner">
+</div>
+</div>
+<div class="cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+</div>
+<div class="content">
+<div class="content-fauxcolumns">
+<div class="fauxcolumn-outer content-fauxcolumn-outer">
+<div class="cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left">
+<div class="fauxborder-right"></div>
+<div class="fauxcolumn-inner">
+</div>
+</div>
+<div class="cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+</div>
+<div class="content-outer">
+<div class="content-cap-top cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left content-fauxborder-left">
+<div class="fauxborder-right content-fauxborder-right"></div>
+<div class="content-inner">
+<header>
+<div class="header-outer">
+<div class="header-cap-top cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left header-fauxborder-left">
+<div class="fauxborder-right header-fauxborder-right"></div>
+<div class="region-inner header-inner">
+<div class="header section" id="header" name="Header"><div class="widget Header" data-version="1" id="Header1">
+<div id="header-inner">
+<div class="titlewrapper">
+<h1 class="title">
+<a href="https://oddhypothesis.blogspot.com/">
+Odd Hypothesis
+</a>
+</h1>
+</div>
+<div class="descriptionwrapper">
+<p class="description"><span>The other other alternative to H0</span></p>
+</div>
+</div>
+</div></div>
+</div>
+</div>
+<div class="header-cap-bottom cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+</header>
+<div class="tabs-outer">
+<div class="tabs-cap-top cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left tabs-fauxborder-left">
+<div class="fauxborder-right tabs-fauxborder-right"></div>
+<div class="region-inner tabs-inner">
+<div class="tabs no-items section" id="crosscol" name="Cross-Column"></div>
+<div class="tabs no-items section" id="crosscol-overflow" name="Cross-Column 2"></div>
+</div>
+</div>
+<div class="tabs-cap-bottom cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+<div class="main-outer">
+<div class="main-cap-top cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left main-fauxborder-left">
+<div class="fauxborder-right main-fauxborder-right"></div>
+<div class="region-inner main-inner">
+<div class="columns fauxcolumns">
+<div class="fauxcolumn-outer fauxcolumn-center-outer">
+<div class="cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left">
+<div class="fauxborder-right"></div>
+<div class="fauxcolumn-inner">
+</div>
+</div>
+<div class="cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+<div class="fauxcolumn-outer fauxcolumn-left-outer">
+<div class="cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left">
+<div class="fauxborder-right"></div>
+<div class="fauxcolumn-inner">
+</div>
+</div>
+<div class="cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+<div class="fauxcolumn-outer fauxcolumn-right-outer">
+<div class="cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left">
+<div class="fauxborder-right"></div>
+<div class="fauxcolumn-inner">
+</div>
+</div>
+<div class="cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+<!-- corrects IE6 width calculation -->
+<div class="columns-inner">
+<div class="column-center-outer">
+<div class="column-center-inner">
+<div class="main section" id="main" name="Main"><div class="widget Blog" data-version="1" id="Blog1">
+<div class="blog-posts hfeed">
+
+          <div class="date-outer">
+        
+<h2 class="date-header"><span>2014/08/20</span></h2>
+
+          <div class="date-posts">
+        
+<div class="post-outer">
+<div class="post hentry uncustomized-post-template" itemprop="blogPost" itemscope="itemscope" itemtype="http://schema.org/BlogPosting">
+<meta content="http://1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/s1600/OddHypothesis-ModelFit-20140820.png" itemprop="image_url">
+<meta content="4493332405234657503" itemprop="blogId">
+<meta content="6423713446427323996" itemprop="postId">
+<a name="6423713446427323996"></a>
+<h3 class="post-title entry-title" itemprop="name">
+Optimizing with R expressions
+</h3>
+<div class="post-header">
+<div class="post-header-line-1"></div>
+</div>
+<div class="post-body entry-content" id="post-body-6423713446427323996" itemprop="description articleBody">
+I recently discovered a powerful use for R <code>expression()</code>’s<br>
+<br>
+Say you are trying to fit some experimental data to the following nonlinear equation:<br>
+<div class="se-section-delimiter">
+</div>
+<span class="MathJax_Preview"></span><br>
+<div aria-readonly="true" class="MathJax_Display" role="textbox" style="text-align: center;">
+<span class="MathJax" id="MathJax-Element-613-Frame"><nobr><span class="math" id="MathJax-Span-16419" style="display: inline-block; width: 25.387em;"><span style="display: inline-block; font-size: 121%; height: 0px; position: relative; width: 20.959em;"><span style="clip: rect(0.357em 1000.003em 3.427em -0.41em); left: 0.003em; position: absolute; top: -2.181em;"><span class="mrow" id="MathJax-Span-16420"><span class="mfrac" id="MathJax-Span-16421" style="padding-left: 0.121em; padding-right: 0.121em;"><span style="display: inline-block; height: 0px; position: relative; width: 9.153em;"><span style="clip: rect(1.066em 1000.003em 2.541em -0.469em); left: 50%; margin-left: -2.417em; position: absolute; top: -2.89em;"><span class="mrow" id="MathJax-Span-16422"><span class="mi" id="MathJax-Span-16423" style="font-family: MathJax_Math; font-style: italic;">K<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16424"><span style="display: inline-block; height: 0px; position: relative; width: 0.947em;"><span style="clip: rect(1.538em 1000.003em 2.482em -0.528em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16425" style="font-family: MathJax_Math; font-style: italic;">y<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.003em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mn" id="MathJax-Span-16426" style="font-family: MathJax_Main; font-size: 70.7%;">0</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="msubsup" id="MathJax-Span-16427"><span style="display: inline-block; height: 0px; position: relative; width: 2.955em;"><span style="clip: rect(1.538em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16428" style="font-family: MathJax_Math; font-style: italic;">e</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.475em; position: absolute; top: -2.476em;"><span class="texatom" id="MathJax-Span-16429"><span class="mrow" id="MathJax-Span-16430"><span class="mi" id="MathJax-Span-16431" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">u</span><span class="mo" id="MathJax-Span-16432" style="font-family: MathJax_Main; font-size: 70.7%;">(</span><span class="mi" id="MathJax-Span-16433" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">x</span><span class="mo" id="MathJax-Span-16434" style="font-family: MathJax_Main; font-size: 70.7%;">−</span><span class="mi" id="MathJax-Span-16435" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">t</span><span class="mi" id="MathJax-Span-16436" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">l</span><span class="mo" id="MathJax-Span-16437" style="font-family: MathJax_Main; font-size: 70.7%;">)</span></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="clip: rect(1.184em 1000.003em 2.6em -0.469em); left: 50%; margin-left: -4.483em; position: absolute; top: -1.355em;"><span class="mrow" id="MathJax-Span-16438"><span class="mi" id="MathJax-Span-16439" style="font-family: MathJax_Math; font-style: italic;">K<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="mo" id="MathJax-Span-16440" style="font-family: MathJax_Main; padding-left: 0.239em;">+</span><span class="msubsup" id="MathJax-Span-16441" style="padding-left: 0.239em;"><span style="display: inline-block; height: 0px; position: relative; width: 0.947em;"><span style="clip: rect(1.538em 1000.003em 2.482em -0.528em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16442" style="font-family: MathJax_Math; font-style: italic;">y<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.003em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mn" id="MathJax-Span-16443" style="font-family: MathJax_Main; font-size: 70.7%;">0</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16444" style="font-family: MathJax_Main;">(</span><span class="msubsup" id="MathJax-Span-16445"><span style="display: inline-block; height: 0px; position: relative; width: 3.309em;"><span style="clip: rect(1.538em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16446" style="font-family: MathJax_Math; font-style: italic;">e</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.475em; position: absolute; top: -2.417em;"><span class="texatom" id="MathJax-Span-16447"><span class="mrow" id="MathJax-Span-16448"><span class="mi" id="MathJax-Span-16449" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">u</span><span class="mo" id="MathJax-Span-16450" style="font-family: MathJax_Main; font-size: 70.7%;">∗</span><span class="mo" id="MathJax-Span-16451" style="font-family: MathJax_Main; font-size: 70.7%;">(</span><span class="mi" id="MathJax-Span-16452" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">x</span><span class="mo" id="MathJax-Span-16453" style="font-family: MathJax_Main; font-size: 70.7%;">−</span><span class="mi" id="MathJax-Span-16454" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">t</span><span class="mi" id="MathJax-Span-16455" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">l</span><span class="mo" id="MathJax-Span-16456" style="font-family: MathJax_Main; font-size: 70.7%;">)</span></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16457" style="font-family: MathJax_Main; padding-left: 0.239em;">−</span><span class="mn" id="MathJax-Span-16458" style="font-family: MathJax_Main; padding-left: 0.239em;">1</span><span class="mo" id="MathJax-Span-16459" style="font-family: MathJax_Main;">)</span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="clip: rect(0.829em 1000.003em 1.243em -0.528em); left: 0.003em; position: absolute; top: -1.296em;"><span style="border-left-style: solid; border-left-width: 9.153em; display: inline-block; height: 1.25px; overflow: hidden; vertical-align: 0.003em; width: 0px;"></span><span style="display: inline-block; height: 1.066em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16460" style="font-family: MathJax_Main; padding-left: 0.239em;">+</span><span class="msubsup" id="MathJax-Span-16461" style="padding-left: 0.239em;"><span style="display: inline-block; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.243em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16462" style="font-family: MathJax_Math; font-style: italic;">b</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.416em; position: absolute; top: -1.945em;"><span class="mn" id="MathJax-Span-16463" style="font-family: MathJax_Main; font-size: 70.7%;">1</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16464" style="font-family: MathJax_Main; padding-left: 0.239em;">+</span><span class="mo" id="MathJax-Span-16465" style="font-family: MathJax_Main; padding-left: 0.239em;">(</span><span class="msubsup" id="MathJax-Span-16466"><span style="display: inline-block; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.243em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16467" style="font-family: MathJax_Math; font-style: italic;">b</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.416em; position: absolute; top: -1.945em;"><span class="mn" id="MathJax-Span-16468" style="font-family: MathJax_Main; font-size: 70.7%;">0</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16469" style="font-family: MathJax_Main; padding-left: 0.239em;">−</span><span class="msubsup" id="MathJax-Span-16470" style="padding-left: 0.239em;"><span style="display: inline-block; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.243em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16471" style="font-family: MathJax_Math; font-style: italic;">b</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.416em; position: absolute; top: -1.945em;"><span class="mn" id="MathJax-Span-16472" style="font-family: MathJax_Main; font-size: 70.7%;">1</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16473" style="font-family: MathJax_Main;">)</span><span class="msubsup" id="MathJax-Span-16474"><span style="display: inline-block; height: 0px; position: relative; width: 1.833em;"><span style="clip: rect(1.538em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16475" style="font-family: MathJax_Math; font-style: italic;">e</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.475em; position: absolute; top: -2.535em;"><span class="texatom" id="MathJax-Span-16476"><span class="mrow" id="MathJax-Span-16477"><span class="mo" id="MathJax-Span-16478" style="font-family: MathJax_Main; font-size: 70.7%;">−</span><span class="mi" id="MathJax-Span-16479" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">k</span><span class="mi" id="MathJax-Span-16480" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">x</span></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16481" style="font-family: MathJax_Main; padding-left: 0.239em;">+</span><span class="msubsup" id="MathJax-Span-16482" style="padding-left: 0.239em;"><span style="display: inline-block; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.243em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16483" style="font-family: MathJax_Math; font-style: italic;">b</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.416em; position: absolute; top: -1.945em;"><span class="mn" id="MathJax-Span-16484" style="font-family: MathJax_Main; font-size: 70.7%;">2</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mi" id="MathJax-Span-16485" style="font-family: MathJax_Math; font-style: italic;">x</span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span></span><span style="border-left-style: solid; border-left-width: 0.004em; display: inline-block; height: 3.432em; overflow: hidden; vertical-align: -1.354em; width: 0px;"></span></span></nobr></span></div>
+<script id="MathJax-Element-613" type="math/tex; mode=display"> 
+\frac{K y_0 e^{u (x-tl)}}{K + y_0 (e^{u*(x-tl)}-1)} + 
+    b_1 + (b_0 - b_1) e^{-k x} + b_2 x
+</script><br>
+with the independent variable <code>x</code> using <code>nlminb()</code> as the minimization optimizer.<br>
+<br>
+This sort of work is significantly improved (i.e. faster with better 
+convergence) if an analytical gradient vector and a Hessian matrix for 
+the objective function are provided.  This means a lot of partial 
+differentiation of the model equation with respect to each parameter.<br>
+To get these partial derivatives one could:<br>
+<ol>
+<li>Review some calculus and derive them by hand</li>
+<li>Feed the equation into an online engine like Wolfram Alpha and copy/paste the results</li>
+</ol>
+The discovery I made is that there is a purely R solution via the combination of <code>expression()</code>’s and the functions <code>D()</code> and <code>all.vars()</code>.<br>
+<br>
+The <code>all.vars()</code> function extracts all variable and parameter names from an expression as a character vector.  For example:<br>
+<br>
+<div class="se-section-delimiter">
+</div>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pun">&gt;</span><span class="pln"> all</span><span class="pun">.</span><span class="pln">vars</span><span class="pun">(</span><span class="pln">expression</span><span class="pun">(</span><span class="pln">b1 </span><span class="pun">+</span><span class="pln"> </span><span class="pun">(</span><span class="pln">b0 </span><span class="pun">-</span><span class="pln"> b1</span><span class="pun">)*</span><span class="pln">exp</span><span class="pun">(-</span><span class="pln">k</span><span class="pun">*</span><span class="pln">x</span><span class="pun">)</span><span class="pln"> </span><span class="pun">+</span><span class="pln"> b2</span><span class="pun">*</span><span class="pln">x</span><span class="pun">))</span><span class="pln">
+</span><span class="pun">[</span><span class="lit">1</span><span class="pun">]</span><span class="pln"> </span><span class="str">"b1"</span><span class="pln"> </span><span class="str">"b0"</span><span class="pln"> </span><span class="str">"k"</span><span class="pln">  </span><span class="str">"x"</span><span class="pln">  </span><span class="str">"b2"</span></code></pre>
+<br>
+The <code>D()</code> function takes two arguments: an expression to differentiate and a character specifying the variable term to differentiate by:<br>
+<br>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pun">&gt;</span><span class="pln"> D</span><span class="pun">(</span><span class="pln">expression</span><span class="pun">(</span><span class="pln">b1 </span><span class="pun">+</span><span class="pln"> </span><span class="pun">(</span><span class="pln">b0 </span><span class="pun">-</span><span class="pln"> b1</span><span class="pun">)*</span><span class="pln">exp</span><span class="pun">(-</span><span class="pln">k</span><span class="pun">*</span><span class="pln">x</span><span class="pun">)</span><span class="pln"> </span><span class="pun">+</span><span class="pln"> b2</span><span class="pun">*</span><span class="pln">x</span><span class="pun">),</span><span class="pln"> </span><span class="str">'x'</span><span class="pun">)</span><span class="pln">
+b2 </span><span class="pun">-</span><span class="pln"> </span><span class="pun">(</span><span class="pln">b0 </span><span class="pun">-</span><span class="pln"> b1</span><span class="pun">)</span><span class="pln"> </span><span class="pun">*</span><span class="pln"> </span><span class="pun">(</span><span class="pln">exp</span><span class="pun">(-</span><span class="pln">k </span><span class="pun">*</span><span class="pln"> x</span><span class="pun">)</span><span class="pln"> </span><span class="pun">*</span><span class="pln"> k</span><span class="pun">)</span></code></pre>
+<br>
+The following code produces a list of the partial derivatives of the above equation with respect to each variable/parameter.<br>
+<br>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="com"># the model equation</span><span class="pln">
+expr </span><span class="pun">=</span><span class="pln"> expression</span><span class="pun">(</span><span class="pln">
+    </span><span class="pun">(</span><span class="pln">K</span><span class="pun">*</span><span class="pln">y0</span><span class="pun">*</span><span class="pln">exp</span><span class="pun">(</span><span class="pln">u</span><span class="pun">*(</span><span class="pln">x</span><span class="pun">-</span><span class="pln">tl</span><span class="pun">)))/(</span><span class="pln">K </span><span class="pun">+</span><span class="pln"> y0</span><span class="pun">*(</span><span class="pln">exp</span><span class="pun">(</span><span class="pln">u</span><span class="pun">*(</span><span class="pln">x</span><span class="pun">-</span><span class="pln">tl</span><span class="pun">))-</span><span class="lit">1</span><span class="pun">))</span><span class="pln"> </span><span class="pun">+</span><span class="pln"> 
+        b1 </span><span class="pun">+</span><span class="pln"> </span><span class="pun">(</span><span class="pln">b0 </span><span class="pun">-</span><span class="pln"> b1</span><span class="pun">)*</span><span class="pln">exp</span><span class="pun">(-</span><span class="pln">k</span><span class="pun">*</span><span class="pln">x</span><span class="pun">)</span><span class="pln"> </span><span class="pun">+</span><span class="pln"> b2</span><span class="pun">*</span><span class="pln">x
+</span><span class="pun">)</span><span class="pln">
+
+sapply</span><span class="pun">(</span><span class="pln">all</span><span class="pun">.</span><span class="pln">vars</span><span class="pun">(</span><span class="pln">expr</span><span class="pun">),</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">v</span><span class="pun">){</span><span class="pln">
+  D</span><span class="pun">(</span><span class="pln">expr</span><span class="pun">,</span><span class="pln"> v</span><span class="pun">)</span><span class="pln">
+</span><span class="pun">})</span><span class="pln">
+
+</span><span class="com"># returns:</span><span class="pln">
+</span><span class="com"># $K</span><span class="pln">
+</span><span class="com"># y0 * exp(u * (x - tl))/(K + y0 * (exp(u * (x - tl)) - 1)) - (K * </span><span class="pln">
+</span><span class="com">#     y0 * exp(u * (x - tl)))/(K + y0 * (exp(u * (x - tl)) - 1))^2</span><span class="pln">
+</span><span class="com"># </span><span class="pln">
+</span><span class="com"># $y0</span><span class="pln">
+</span><span class="com"># K * exp(u * (x - tl))/(K + y0 * (exp(u * (x - tl)) - 1)) - (K * </span><span class="pln">
+</span><span class="com">#     y0 * exp(u * (x - tl))) * (exp(u * (x - tl)) - 1)/(K + y0 * </span><span class="pln">
+</span><span class="com">#     (exp(u * (x - tl)) - 1))^2</span><span class="pln">
+</span><span class="com"># </span><span class="pln">
+</span><span class="com"># $u</span><span class="pln">
+</span><span class="com"># K * y0 * (exp(u * (x - tl)) * (x - tl))/(K + y0 * (exp(u * (x - </span><span class="pln">
+</span><span class="com">#     tl)) - 1)) - (K * y0 * exp(u * (x - tl))) * (y0 * (exp(u * </span><span class="pln">
+</span><span class="com">#     (x - tl)) * (x - tl)))/(K + y0 * (exp(u * (x - tl)) - 1))^2</span><span class="pln">
+</span><span class="com"># ...</span></code></pre>
+<br>
+Each element of the list returned by the <code>sapply()</code> statement
+ above is itself an expression. Evaluation of each will give rows of the
+ Jacobian matrix, which we’ll subsequently need to compute the gradient:<br>
+<br>
+<div class="se-section-delimiter">
+</div>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pln">p0 </span><span class="pun">=</span><span class="pln"> c</span><span class="pun">(</span><span class="pln">y0</span><span class="pun">=</span><span class="lit">0.01</span><span class="pun">,</span><span class="pln"> u</span><span class="pun">=</span><span class="lit">0.3</span><span class="pun">,</span><span class="pln"> tl</span><span class="pun">=</span><span class="lit">5</span><span class="pun">,</span><span class="pln"> K</span><span class="pun">=</span><span class="lit">2</span><span class="pun">,</span><span class="pln"> b0</span><span class="pun">=</span><span class="lit">0.01</span><span class="pun">,</span><span class="pln"> b1</span><span class="pun">=</span><span class="lit">1</span><span class="pun">,</span><span class="pln"> b2</span><span class="pun">=</span><span class="lit">0.001</span><span class="pun">,</span><span class="pln"> k</span><span class="pun">=</span><span class="lit">0.1</span><span class="pun">)</span><span class="pln">
+x </span><span class="pun">=</span><span class="pln"> seq</span><span class="pun">(</span><span class="lit">0</span><span class="pun">,</span><span class="lit">10</span><span class="pun">)</span><span class="pln">
+
+</span><span class="com"># notice that t() is applied to put parameters on rows</span><span class="pln">
+J </span><span class="pun">=</span><span class="pln"> t</span><span class="pun">(</span><span class="pln">sapply</span><span class="pun">(</span><span class="pln">all</span><span class="pun">.</span><span class="pln">vars</span><span class="pun">(</span><span class="pln">expr</span><span class="pun">),</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">v</span><span class="pun">,</span><span class="pln"> env</span><span class="pun">){</span><span class="pln">
+  </span><span class="kwd">eval</span><span class="pun">(</span><span class="pln">D</span><span class="pun">(</span><span class="pln">expr</span><span class="pun">,</span><span class="pln"> v</span><span class="pun">),</span><span class="pln"> env</span><span class="pun">)</span><span class="pln">
+</span><span class="pun">},</span><span class="pln"> env</span><span class="pun">=</span><span class="pln">c</span><span class="pun">(</span><span class="kwd">as</span><span class="pun">.</span><span class="pln">list</span><span class="pun">(</span><span class="pln">p0</span><span class="pun">),</span><span class="pln"> list</span><span class="pun">(</span><span class="pln">x</span><span class="pun">=</span><span class="pln">x</span><span class="pun">))))</span><span class="pln">
+
+J
+</span><span class="com"># returns:</span><span class="pln">
+</span><span class="com">#             [,1]          [,2]          [,3]          [,4] ...</span><span class="pln">
+</span><span class="com"># K  -4.367441e-06 -5.298871e-06 -6.067724e-06 -6.218461e-06 ...</span><span class="pln">
+</span><span class="com"># y0  2.248737e-01  3.033101e-01  4.089931e-01  5.512962e-01 ...</span><span class="pln">
+</span><span class="com"># u  -1.118747e-02 -1.207174e-02 -1.220845e-02 -1.097079e-02 ...</span><span class="pln">
+</span><span class="com"># x   1.006712e-01  9.148428e-02  8.327519e-02  7.598662e-02 ...</span><span class="pln">
+</span><span class="com"># tl -6.712481e-04 -9.053805e-04 -1.220845e-03 -1.645619e-03 ...</span><span class="pln">
+</span><span class="com"># b1  0.000000e+00  9.516258e-02  1.812692e-01  2.591818e-01 ...</span><span class="pln">
+</span><span class="com"># b0  1.000000e+00  9.048374e-01  8.187308e-01  7.408182e-01 ...</span><span class="pln">
+</span><span class="com"># k   0.000000e+00  8.957890e-01  1.621087e+00  2.200230e+00 ...</span><span class="pln">
+</span><span class="com"># b2  0.000000e+00  1.000000e+00  2.000000e+00  3.000000e+00 ...</span></code></pre>
+<br>
+Since <code>x</code> is the independent variable, the row corresponding to it can be safely removed from the Jacobian:<br>
+<br>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pln">J </span><span class="pun">=</span><span class="pln"> J</span><span class="pun">[</span><span class="pln">names</span><span class="pun">(</span><span class="pln">p0</span><span class="pun">),,</span><span class="pln">drop</span><span class="pun">=</span><span class="pln">F</span><span class="pun">]</span><span class="pln">
+J
+</span><span class="com"># returns:</span><span class="pln">
+</span><span class="com">#             [,1]          [,2]          [,3]          [,4] ...</span><span class="pln">
+</span><span class="com"># y0  2.248737e-01  3.033101e-01  4.089931e-01  5.512962e-01 ...</span><span class="pln">
+</span><span class="com"># u  -1.118747e-02 -1.207174e-02 -1.220845e-02 -1.097079e-02 ...</span><span class="pln">
+</span><span class="com"># tl -6.712481e-04 -9.053805e-04 -1.220845e-03 -1.645619e-03 ...</span><span class="pln">
+</span><span class="com"># K  -4.367441e-06 -5.298871e-06 -6.067724e-06 -6.218461e-06 ...</span><span class="pln">
+</span><span class="com"># b0  1.000000e+00  9.048374e-01  8.187308e-01  7.408182e-01 ...</span><span class="pln">
+</span><span class="com"># b1  0.000000e+00  9.516258e-02  1.812692e-01  2.591818e-01 ...</span><span class="pln">
+</span><span class="com"># b2  0.000000e+00  1.000000e+00  2.000000e+00  3.000000e+00 ...</span><span class="pln">
+</span><span class="com"># k   0.000000e+00  8.957890e-01  1.621087e+00  2.200230e+00 ...</span></code></pre>
+<br>
+The gradient vector is simply the inner product of the Jacobian and a vector of residuals:<br>
+<br>
+<div class="se-section-delimiter">
+</div>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pln">gr </span><span class="pun">=</span><span class="pln"> </span><span class="pun">-</span><span class="pln">J </span><span class="pun">%*%</span><span class="pln"> r</span></code></pre>
+<br>
+For the Hessian, the full form in Gibbs-Einstein notation is: <br>
+<span class="MathJax_Preview"></span><br>
+<div aria-readonly="true" class="MathJax_Display" role="textbox" style="text-align: center;">
+<span class="MathJax" id="MathJax-Element-622-Frame"><nobr><span class="math" id="MathJax-Span-16648" style="display: inline-block; width: 15.292em;"><span style="display: inline-block; font-size: 121%; height: 0px; position: relative; width: 12.636em;"><span style="clip: rect(0.416em 1000.003em 3.427em -0.469em); left: 0.003em; position: absolute; top: -2.181em;"><span class="mrow" id="MathJax-Span-16649"><span class="msubsup" id="MathJax-Span-16650"><span style="display: inline-block; height: 0px; position: relative; width: 1.597em;"><span style="clip: rect(1.243em 1000.003em 2.305em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16651" style="font-family: MathJax_Math; font-style: italic;">H<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.888em; position: absolute; top: -1.945em;"><span class="texatom" id="MathJax-Span-16652"><span class="mrow" id="MathJax-Span-16653"><span class="mi" id="MathJax-Span-16654" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">j</span><span class="mi" id="MathJax-Span-16655" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">k</span></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16656" style="font-family: MathJax_Main; padding-left: 0.298em;">=</span><span class="mfrac" id="MathJax-Span-16657" style="padding-left: 0.416em; padding-right: 0.121em;"><span style="display: inline-block; height: 0px; position: relative; width: 1.656em;"><span style="clip: rect(1.302em 1000.003em 2.6em -0.469em); left: 50%; margin-left: -0.705em; position: absolute; top: -2.89em;"><span class="mrow" id="MathJax-Span-16658"><span class="mi" id="MathJax-Span-16659" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16660"><span style="display: inline-block; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.243em 1000.003em 2.482em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16661" style="font-family: MathJax_Math; font-style: italic;">f<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mi" id="MathJax-Span-16662" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">i</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="clip: rect(1.302em 1000.003em 2.718em -0.469em); left: 50%; margin-left: -0.764em; position: absolute; top: -1.473em;"><span class="mrow" id="MathJax-Span-16663"><span class="mi" id="MathJax-Span-16664" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16665"><span style="display: inline-block; height: 0px; position: relative; width: 0.888em;"><span style="clip: rect(1.538em 1000.003em 2.482em -0.587em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16666" style="font-family: MathJax_Math; font-style: italic;">p</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mi" id="MathJax-Span-16667" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">j</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="clip: rect(0.829em 1000.003em 1.243em -0.528em); left: 0.003em; position: absolute; top: -1.296em;"><span style="border-left-style: solid; border-left-width: 1.656em; display: inline-block; height: 1.25px; overflow: hidden; vertical-align: 0.003em; width: 0px;"></span><span style="display: inline-block; height: 1.066em; width: 0px;"></span></span></span></span><span class="mfrac" id="MathJax-Span-16668" style="padding-left: 0.298em; padding-right: 0.121em;"><span style="display: inline-block; height: 0px; position: relative; width: 1.715em;"><span style="clip: rect(1.302em 1000.003em 2.6em -0.469em); left: 50%; margin-left: -0.705em; position: absolute; top: -2.89em;"><span class="mrow" id="MathJax-Span-16669"><span class="mi" id="MathJax-Span-16670" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16671"><span style="display: inline-block; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.243em 1000.003em 2.482em -0.469em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16672" style="font-family: MathJax_Math; font-style: italic;">f<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mi" id="MathJax-Span-16673" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">i</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="clip: rect(1.302em 1000.003em 2.6em -0.469em); left: 50%; margin-left: -0.764em; position: absolute; top: -1.473em;"><span class="mrow" id="MathJax-Span-16674"><span class="mi" id="MathJax-Span-16675" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16676"><span style="display: inline-block; height: 0px; position: relative; width: 0.947em;"><span style="clip: rect(1.538em 1000.003em 2.482em -0.587em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16677" style="font-family: MathJax_Math; font-style: italic;">p</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mi" id="MathJax-Span-16678" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">k</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="clip: rect(0.829em 1000.003em 1.243em -0.528em); left: 0.003em; position: absolute; top: -1.296em;"><span style="border-left-style: solid; border-left-width: 1.715em; display: inline-block; height: 1.25px; overflow: hidden; vertical-align: 0.003em; width: 0px;"></span><span style="display: inline-block; height: 1.066em; width: 0px;"></span></span></span></span><span class="mo" id="MathJax-Span-16679" style="font-family: MathJax_Main; padding-left: 0.239em;">+</span><span class="msubsup" id="MathJax-Span-16680" style="padding-left: 0.239em;"><span style="display: inline-block; height: 0px; position: relative; width: 0.77em;"><span style="clip: rect(1.538em 1000.003em 2.305em -0.528em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16681" style="font-family: MathJax_Math; font-style: italic;">r</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.475em; position: absolute; top: -1.945em;"><span class="mi" id="MathJax-Span-16682" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">i</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mfrac" id="MathJax-Span-16683" style="padding-left: 0.298em; padding-right: 0.121em;"><span style="display: inline-block; height: 0px; position: relative; width: 3.191em;"><span style="clip: rect(2.955em 1000.003em 4.371em -0.469em); left: 50%; margin-left: -0.942em; position: absolute; top: -4.661em;"><span class="mrow" id="MathJax-Span-16684"><span class="msubsup" id="MathJax-Span-16685"><span style="display: inline-block; height: 0px; position: relative; width: 1.125em;"><span style="clip: rect(1.302em 1000.003em 2.364em -0.469em); left: 0.003em; position: absolute; top: -2.181em;"><span class="mi" id="MathJax-Span-16686" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="left: 0.711em; position: absolute; top: -2.535em;"><span class="mn" id="MathJax-Span-16687" style="font-family: MathJax_Main; font-size: 70.7%;">2</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="msubsup" id="MathJax-Span-16688"><span style="display: inline-block; height: 0px; position: relative; width: 0.77em;"><span style="clip: rect(1.538em 1000.003em 2.305em -0.528em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16689" style="font-family: MathJax_Math; font-style: italic;">r</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.475em; position: absolute; top: -1.945em;"><span class="mi" id="MathJax-Span-16690" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">i</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 4.017em; width: 0px;"></span></span><span style="clip: rect(1.302em 1000.003em 2.718em -0.469em); left: 50%; margin-left: -1.532em; position: absolute; top: -1.473em;"><span class="mrow" id="MathJax-Span-16691"><span class="mi" id="MathJax-Span-16692" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16693"><span style="display: inline-block; height: 0px; position: relative; width: 0.888em;"><span style="clip: rect(1.538em 1000.003em 2.482em -0.587em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16694" style="font-family: MathJax_Math; font-style: italic;">p</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mi" id="MathJax-Span-16695" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">j</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="mi" id="MathJax-Span-16696" style="font-family: MathJax_Main;">∂<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span class="msubsup" id="MathJax-Span-16697"><span style="display: inline-block; height: 0px; position: relative; width: 0.947em;"><span style="clip: rect(1.538em 1000.003em 2.482em -0.587em); left: 0.003em; position: absolute; top: -2.122em;"><span class="mi" id="MathJax-Span-16698" style="font-family: MathJax_Math; font-style: italic;">p</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span><span style="left: 0.534em; position: absolute; top: -1.886em;"><span class="mi" id="MathJax-Span-16699" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">k</span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span><span style="clip: rect(0.829em 1000.003em 1.243em -0.528em); left: 0.003em; position: absolute; top: -1.296em;"><span style="border-left-style: solid; border-left-width: 3.191em; display: inline-block; height: 1.25px; overflow: hidden; vertical-align: 0.003em; width: 0px;"></span><span style="display: inline-block; height: 1.066em; width: 0px;"></span></span></span></span></span><span style="display: inline-block; height: 2.187em; width: 0px;"></span></span></span><span style="border-left-style: solid; border-left-width: 0.004em; display: inline-block; height: 3.361em; overflow: hidden; vertical-align: -1.354em; width: 0px;"></span></span></nobr></span></div>
+<script id="MathJax-Element-622" type="math/tex; mode=display">
+    H_{jk} = \frac{\partial f_i}{\partial p_j} \frac{\partial f_i}{\partial p_k} + r_i \frac{\partial^2 r_i}{\partial p_j \partial p_k}
+</script><br>
+<br>
+The first term is simply <span class="MathJax_Preview"></span><span aria-readonly="true" class="MathJax" id="MathJax-Element-623-Frame" role="textbox"><nobr><span class="math" id="MathJax-Span-16700" style="display: inline-block; width: 2.187em;"><span style="display: inline-block; font-size: 121%; height: 0px; position: relative; width: 1.774em;"><span style="clip: rect(1.184em 1000.003em 2.423em -0.528em); left: 0.003em; position: absolute; top: -2.24em;"><span class="mrow" id="MathJax-Span-16701"><span class="msubsup" id="MathJax-Span-16702"><span style="display: inline-block; height: 0px; position: relative; width: 1.125em;"><span style="clip: rect(1.361em 1000.003em 2.423em -0.528em); left: 0.003em; position: absolute; top: -2.24em;"><span class="texatom" id="MathJax-Span-16703"><span class="mrow" id="MathJax-Span-16704"><span class="mi" id="MathJax-Span-16705" style="font-family: MathJax_Main; font-weight: bold;">J</span></span></span><span style="display: inline-block; height: 2.246em; width: 0px;"></span></span><span style="left: 0.593em; position: absolute; top: -2.535em;"><span class="mi" id="MathJax-Span-16706" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">T<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="texatom" id="MathJax-Span-16707"><span class="mrow" id="MathJax-Span-16708"><span class="mi" id="MathJax-Span-16709" style="font-family: MathJax_Main; font-weight: bold;">J</span></span></span></span><span style="display: inline-block; height: 2.246em; width: 0px;"></span></span></span><span style="border-left-style: solid; border-left-width: 0.004em; display: inline-block; height: 1.218em; overflow: hidden; vertical-align: -0.068em; width: 0px;"></span></span></nobr></span><script id="MathJax-Element-623" type="math/tex"> \mathbf{J}^T \mathbf{J} </script>.  The second term is typically called the “Hessian of the residuals” and is referred to as a matrix <span class="MathJax_Preview"></span><span aria-readonly="true" class="MathJax" id="MathJax-Element-624-Frame" role="textbox"><nobr><span class="math" id="MathJax-Span-16710" style="display: inline-block; width: 1.006em;"><span style="display: inline-block; font-size: 121%; height: 0px; position: relative; width: 0.829em;"><span style="clip: rect(1.361em 1000.003em 2.423em -0.469em); left: 0.003em; position: absolute; top: -2.24em;"><span class="mrow" id="MathJax-Span-16711"><span class="texatom" id="MathJax-Span-16712"><span class="mrow" id="MathJax-Span-16713"><span class="mi" id="MathJax-Span-16714" style="font-family: MathJax_Main; font-weight: bold;">B</span></span></span></span><span style="display: inline-block; height: 2.246em; width: 0px;"></span></span></span><span style="border-left-style: solid; border-left-width: 0.004em; display: inline-block; height: 1.004em; overflow: hidden; vertical-align: -0.068em; width: 0px;"></span></span></nobr></span><script id="MathJax-Element-624" type="math/tex"> \mathbf{B} </script>.  I’m still trying to wrap my head around what it actually is in vector notation.<br>
+<br>
+Thankfully, in optimization cases where the initial guess is near the 
+optimum, the behavior of the system should be “linear enough” that one 
+can ignore the second term: <br>
+<span class="MathJax_Preview"></span><br>
+<div aria-readonly="true" class="MathJax_Display" role="textbox" style="text-align: center;">
+<span class="MathJax" id="MathJax-Element-625-Frame"><nobr><span class="math" id="MathJax-Span-16715" style="display: inline-block; width: 4.903em;"><span style="display: inline-block; font-size: 121%; height: 0px; position: relative; width: 4.017em;"><span style="clip: rect(1.184em 1000.003em 2.423em -0.469em); left: 0.003em; position: absolute; top: -2.24em;"><span class="mrow" id="MathJax-Span-16716"><span class="texatom" id="MathJax-Span-16717"><span class="mrow" id="MathJax-Span-16718"><span class="mi" id="MathJax-Span-16719" style="font-family: MathJax_Main; font-weight: bold;">H</span></span></span><span class="mo" id="MathJax-Span-16720" style="font-family: MathJax_Main; padding-left: 0.298em;">≈</span><span class="msubsup" id="MathJax-Span-16721" style="padding-left: 0.298em;"><span style="display: inline-block; height: 0px; position: relative; width: 1.125em;"><span style="clip: rect(1.361em 1000.003em 2.423em -0.528em); left: 0.003em; position: absolute; top: -2.24em;"><span class="texatom" id="MathJax-Span-16722"><span class="mrow" id="MathJax-Span-16723"><span class="mi" id="MathJax-Span-16724" style="font-family: MathJax_Main; font-weight: bold;">J</span></span></span><span style="display: inline-block; height: 2.246em; width: 0px;"></span></span><span style="left: 0.593em; position: absolute; top: -2.535em;"><span class="mi" id="MathJax-Span-16725" style="font-family: MathJax_Math; font-size: 70.7%; font-style: italic;">T<span style="display: inline-block; height: 1px; overflow: hidden; width: 0.062em;"></span></span><span style="display: inline-block; height: 2.128em; width: 0px;"></span></span></span></span><span class="texatom" id="MathJax-Span-16726"><span class="mrow" id="MathJax-Span-16727"><span class="mi" id="MathJax-Span-16728" style="font-family: MathJax_Main; font-weight: bold;">J</span></span></span></span><span style="display: inline-block; height: 2.246em; width: 0px;"></span></span></span><span style="border-left-style: solid; border-left-width: 0.004em; display: inline-block; height: 1.218em; overflow: hidden; vertical-align: -0.068em; width: 0px;"></span></span></nobr></span></div>
+<script id="MathJax-Element-625" type="math/tex; mode=display">
+    \mathbf{H} \approx \mathbf{J}^T \mathbf{J}
+</script><br>
+<br>
+The equivalent R code would be:<br>
+<br>
+<div class="se-section-delimiter">
+</div>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pln">H </span><span class="pun">=</span><span class="pln"> J </span><span class="pun">%*%</span><span class="pln"> t</span><span class="pun">(</span><span class="pln">J</span><span class="pun">)</span></code></pre>
+<br>
+(because linear algebra in R is a little strange, the transpose is applied to the second Jacobian)<br>
+<br>
+Putting it all together:<br>
+<br>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="com"># the model equation</span><span class="pln">
+expr </span><span class="pun">=</span><span class="pln"> expression</span><span class="pun">(</span><span class="pln">
+    </span><span class="pun">(</span><span class="pln">K</span><span class="pun">*</span><span class="pln">y0</span><span class="pun">*</span><span class="pln">exp</span><span class="pun">(</span><span class="pln">u</span><span class="pun">*(</span><span class="pln">x</span><span class="pun">-</span><span class="pln">tl</span><span class="pun">)))/(</span><span class="pln">K </span><span class="pun">+</span><span class="pln"> y0</span><span class="pun">*(</span><span class="pln">exp</span><span class="pun">(</span><span class="pln">u</span><span class="pun">*(</span><span class="pln">x</span><span class="pun">-</span><span class="pln">tl</span><span class="pun">))-</span><span class="lit">1</span><span class="pun">))</span><span class="pln"> </span><span class="pun">+</span><span class="pln"> 
+        b1 </span><span class="pun">+</span><span class="pln"> </span><span class="pun">(</span><span class="pln">b0 </span><span class="pun">-</span><span class="pln"> b1</span><span class="pun">)*</span><span class="pln">exp</span><span class="pun">(-</span><span class="pln">k</span><span class="pun">*</span><span class="pln">x</span><span class="pun">)</span><span class="pln"> </span><span class="pun">+</span><span class="pln"> b2</span><span class="pun">*</span><span class="pln">x
+</span><span class="pun">)</span><span class="pln">
+
+p0 </span><span class="pun">=</span><span class="pln"> c</span><span class="pun">(</span><span class="pln">y0</span><span class="pun">=</span><span class="lit">0.01</span><span class="pun">,</span><span class="pln"> u</span><span class="pun">=</span><span class="lit">0.3</span><span class="pun">,</span><span class="pln"> tl</span><span class="pun">=</span><span class="lit">5</span><span class="pun">,</span><span class="pln"> K</span><span class="pun">=</span><span class="lit">2</span><span class="pun">,</span><span class="pln"> b0</span><span class="pun">=</span><span class="lit">0.01</span><span class="pun">,</span><span class="pln"> b1</span><span class="pun">=</span><span class="lit">1</span><span class="pun">,</span><span class="pln"> b2</span><span class="pun">=</span><span class="lit">0.001</span><span class="pun">,</span><span class="pln"> k</span><span class="pun">=</span><span class="lit">0.1</span><span class="pun">)</span><span class="pln">
+x </span><span class="pun">=</span><span class="pln"> seq</span><span class="pun">(</span><span class="lit">0</span><span class="pun">,</span><span class="lit">48</span><span class="pun">,</span><span class="kwd">by</span><span class="pun">=</span><span class="lit">0.25</span><span class="pun">)</span><span class="pln">
+
+</span><span class="com"># let's say these are the residuals</span><span class="pln">
+r </span><span class="pun">=</span><span class="pln"> runif</span><span class="pun">(</span><span class="pln">length</span><span class="pun">(</span><span class="pln">x</span><span class="pun">))</span><span class="pln">
+
+</span><span class="com"># magic syntax that converts an equation expression into a jacobian matrix</span><span class="pln">
+J </span><span class="pun">=</span><span class="pln"> t</span><span class="pun">(</span><span class="pln">sapply</span><span class="pun">(</span><span class="pln">all</span><span class="pun">.</span><span class="pln">vars</span><span class="pun">(</span><span class="pln">expr</span><span class="pun">),</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">v</span><span class="pun">,</span><span class="pln"> env</span><span class="pun">){</span><span class="pln">
+  </span><span class="kwd">eval</span><span class="pun">(</span><span class="pln">D</span><span class="pun">(</span><span class="pln">expr</span><span class="pun">,</span><span class="pln"> v</span><span class="pun">),</span><span class="pln"> env</span><span class="pun">)</span><span class="pln">
+</span><span class="pun">},</span><span class="pln"> env </span><span class="pun">=</span><span class="pln"> c</span><span class="pun">(</span><span class="kwd">as</span><span class="pun">.</span><span class="pln">list</span><span class="pun">(</span><span class="pln">p0</span><span class="pun">),</span><span class="pln"> list</span><span class="pun">(</span><span class="pln">x</span><span class="pun">=</span><span class="pln">x</span><span class="pun">))))</span><span class="pln">
+
+</span><span class="com"># and then a gradient vector</span><span class="pln">
+gr </span><span class="pun">=</span><span class="pln"> </span><span class="pun">-</span><span class="pln">J </span><span class="pun">%*%</span><span class="pln"> r
+
+</span><span class="com"># and then an approximate Hessian matrix</span><span class="pln">
+H </span><span class="pun">=</span><span class="pln"> J </span><span class="pun">%*%</span><span class="pln"> t</span><span class="pun">(</span><span class="pln">J</span><span class="pun">)</span></code></pre>
+<br>
+Extending this further, one can now write a generic model object like so:<br>
+<br>
+<div class="se-section-delimiter">
+</div>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="typ">ModelObject</span><span class="pln"> </span><span class="pun">=</span><span class="pln"> setRefClass</span><span class="pun">(</span><span class="str">'ModelObject'</span><span class="pun">,</span><span class="pln"> 
+  fields </span><span class="pun">=</span><span class="pln"> list</span><span class="pun">(</span><span class="pln">
+    name </span><span class="pun">=</span><span class="pln"> </span><span class="str">'character'</span><span class="pun">,</span><span class="pln">
+    expr </span><span class="pun">=</span><span class="pln"> </span><span class="str">'expression'</span><span class="pln">
+  </span><span class="pun">),</span><span class="pln">
+  methods </span><span class="pun">=</span><span class="pln"> list</span><span class="pun">(</span><span class="pln">
+    value </span><span class="pun">=</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">){</span><span class="pln">
+      </span><span class="kwd">eval</span><span class="pun">(.</span><span class="kwd">self</span><span class="pln">$expr</span><span class="pun">,</span><span class="pln"> c</span><span class="pun">(</span><span class="kwd">as</span><span class="pun">.</span><span class="pln">list</span><span class="pun">(</span><span class="pln">p</span><span class="pun">),</span><span class="pln"> </span><span class="kwd">as</span><span class="pun">.</span><span class="pln">list</span><span class="pun">(</span><span class="pln">data</span><span class="pun">)))</span><span class="pln">
+    </span><span class="pun">},</span><span class="pln">
+    jacobian </span><span class="pun">=</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">){</span><span class="pln">
+      J </span><span class="pun">=</span><span class="pln"> t</span><span class="pun">(</span><span class="pln">sapply</span><span class="pun">(</span><span class="pln">all</span><span class="pun">.</span><span class="pln">vars</span><span class="pun">(.</span><span class="kwd">self</span><span class="pln">$expr</span><span class="pun">),</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">v</span><span class="pun">,</span><span class="pln"> p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">){</span><span class="pln">
+              </span><span class="kwd">eval</span><span class="pun">(</span><span class="pln">D</span><span class="pun">(.</span><span class="kwd">self</span><span class="pln">$expr</span><span class="pun">,</span><span class="pln"> v</span><span class="pun">),</span><span class="pln"> c</span><span class="pun">(</span><span class="kwd">as</span><span class="pun">.</span><span class="pln">list</span><span class="pun">(</span><span class="pln">p</span><span class="pun">),</span><span class="pln"> </span><span class="kwd">as</span><span class="pun">.</span><span class="pln">list</span><span class="pun">(</span><span class="pln">data</span><span class="pun">)))</span><span class="pln">
+            </span><span class="pun">},</span><span class="pln"> p</span><span class="pun">=</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">=</span><span class="pln">data</span><span class="pun">))</span><span class="pln">
+
+      </span><span class="kwd">return</span><span class="pun">(</span><span class="pln">J</span><span class="pun">[</span><span class="pln">names</span><span class="pun">(</span><span class="pln">p</span><span class="pun">),,</span><span class="pln">drop</span><span class="pun">=</span><span class="pln">F</span><span class="pun">])</span><span class="pln">
+    </span><span class="pun">},</span><span class="pln">
+    gradient </span><span class="pun">=</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">){</span><span class="pln">
+        r </span><span class="pun">=</span><span class="pln"> data$y </span><span class="pun">-</span><span class="pln"> value</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">)</span><span class="pln">
+        </span><span class="kwd">return</span><span class="pun">(-</span><span class="pln">jacobian</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">)</span><span class="pln"> </span><span class="pun">%*%</span><span class="pln"> r</span><span class="pun">)</span><span class="pln">
+    </span><span class="pun">},</span><span class="pln">
+    hessian </span><span class="pun">=</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">){</span><span class="pln">
+      J </span><span class="pun">=</span><span class="pln"> jacobian</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">)</span><span class="pln">
+      </span><span class="kwd">return</span><span class="pun">(</span><span class="pln">J </span><span class="pun">%*%</span><span class="pln"> t</span><span class="pun">(</span><span class="pln">J</span><span class="pun">))</span><span class="pln">
+    </span><span class="pun">}</span><span class="pln">
+  </span><span class="pun">)</span><span class="pln">
+</span><span class="pun">)</span></code></pre>
+<br>
+which is instantiated with simply an <code>expression</code> and can be used to provide gradient and Hessian functions to <code>nlminb()</code>:<br>
+<br>
+<div class="se-section-delimiter">
+</div>
+<pre class="prettyprint prettyprinted"><code class="language-{r}"><span class="pun">&gt;</span><span class="pln"> xy </span><span class="pun">=</span><span class="pln"> list</span><span class="pun">(</span><span class="pln">x</span><span class="pun">=</span><span class="pln">seq</span><span class="pun">(</span><span class="lit">0</span><span class="pun">,</span><span class="lit">10</span><span class="pun">,</span><span class="kwd">by</span><span class="pun">=</span><span class="lit">0.25</span><span class="pun">),</span><span class="pln"> y</span><span class="pun">=</span><span class="pln">dnorm</span><span class="pun">(</span><span class="pln">seq</span><span class="pun">(</span><span class="lit">0</span><span class="pun">,</span><span class="lit">10</span><span class="pun">,</span><span class="kwd">by</span><span class="pun">=</span><span class="lit">0.25</span><span class="pun">),</span><span class="lit">10</span><span class="pun">,</span><span class="lit">2</span><span class="pun">))</span><span class="pln"> </span><span class="com"># test data</span><span class="pln">
+</span><span class="pun">&gt;</span><span class="pln"> p0 </span><span class="pun">=</span><span class="pln"> c</span><span class="pun">(</span><span class="pln">y0</span><span class="pun">=</span><span class="lit">0.01</span><span class="pun">,</span><span class="pln"> u </span><span class="pun">=</span><span class="lit">0.2</span><span class="pun">,</span><span class="pln"> l</span><span class="pun">=</span><span class="lit">5</span><span class="pun">,</span><span class="pln"> A</span><span class="pun">=</span><span class="pln">log</span><span class="pun">(</span><span class="lit">1.5</span><span class="pun">/</span><span class="lit">0.01</span><span class="pun">))</span><span class="pln">
+</span><span class="pun">&gt;</span><span class="pln"> mo </span><span class="pun">=</span><span class="pln"> </span><span class="typ">ModelObject</span><span class="pun">(</span><span class="pln">
+         name </span><span class="pun">=</span><span class="pln"> </span><span class="str">'gompertz'</span><span class="pun">,</span><span class="pln"> 
+         expr </span><span class="pun">=</span><span class="pln"> expression</span><span class="pun">(</span><span class="pln"> y0</span><span class="pun">*</span><span class="pln">exp</span><span class="pun">(</span><span class="pln">A</span><span class="pun">*</span><span class="pln">exp</span><span class="pun">(-</span><span class="pln">exp</span><span class="pun">((</span><span class="pln">u</span><span class="pun">*</span><span class="pln">exp</span><span class="pun">(</span><span class="lit">1</span><span class="pun">)/</span><span class="pln">A</span><span class="pun">)*(</span><span class="pln">l</span><span class="pun">-</span><span class="pln">x</span><span class="pun">)+</span><span class="lit">1</span><span class="pun">)))</span><span class="pln"> </span><span class="pun">)</span><span class="pln">
+       </span><span class="pun">)</span><span class="pln">
+
+</span><span class="pun">&gt;</span><span class="pln"> fit </span><span class="pun">=</span><span class="pln"> nlminb</span><span class="pun">(</span><span class="pln">p0</span><span class="pun">,</span><span class="pln"> </span><span class="kwd">function</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">){</span><span class="pln">
+        r </span><span class="pun">=</span><span class="pln"> data$y </span><span class="pun">-</span><span class="pln"> mo$value</span><span class="pun">(</span><span class="pln">p</span><span class="pun">,</span><span class="pln">data</span><span class="pun">)</span><span class="pln">
+        </span><span class="kwd">return</span><span class="pun">(</span><span class="pln">r </span><span class="pun">%*%</span><span class="pln"> r</span><span class="pun">)</span><span class="pln">
+    </span><span class="pun">},</span><span class="pln"> gradient </span><span class="pun">=</span><span class="pln"> mo$gradient</span><span class="pun">,</span><span class="pln"> hessian </span><span class="pun">=</span><span class="pln"> mo$hessian</span><span class="pun">,</span><span class="pln"> data</span><span class="pun">=</span><span class="pln">xy</span><span class="pun">)</span><span class="pln">
+
+</span><span class="pun">&gt;</span><span class="pln"> fit$par
+         y0           u           l           A 
+</span><span class="lit">0.001125766</span><span class="pln"> </span><span class="lit">1.345796890</span><span class="pln"> </span><span class="lit">3.646340494</span><span class="pln"> </span><span class="lit">5.408138500</span><span class="pln"> 
+
+</span><span class="pun">&gt;</span><span class="pln"> fit$message
+</span><span class="pun">[</span><span class="lit">1</span><span class="pun">]</span><span class="pln"> </span><span class="str">"relative convergence (4)"</span><span class="pln">
+
+</span><span class="pun">&gt;</span><span class="pln"> plot</span><span class="pun">(</span><span class="pln">xy</span><span class="pun">,</span><span class="pln"> main</span><span class="pun">=</span><span class="str">'Fit Results'</span><span class="pun">);</span><span class="pln"> lines</span><span class="pun">(</span><span class="pln">xy$x</span><span class="pun">,</span><span class="pln"> mo$value</span><span class="pun">(</span><span class="pln">fit$par</span><span class="pun">,</span><span class="pln"> xy</span><span class="pun">))</span></code></pre>
+<br>
+Painless!<br>
+<div class="separator" style="clear: both; text-align: center;">
+<a href="https://1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/s1600/OddHypothesis-ModelFit-20140820.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/OddHypothesis-ModelFit-20140820.png" width="320" height="242" border="0"></a></div>
+<br>
+<blockquote>
+Written with <a href="https://stackedit.io/">StackEdit</a>.</blockquote>
+<div style="clear: both;"></div>
+</div>
+<div class="post-footer">
+<div class="post-footer-line post-footer-line-1">
+<span class="post-author vcard">
+Posted by
+<span class="fn" itemprop="author" itemscope="itemscope" itemtype="http://schema.org/Person">
+<meta content="https://plus.google.com/104883813097593366330" itemprop="url">
+<a class="g-profile" href="https://plus.google.com/104883813097593366330" rel="author" title="author profile" data-gapiscan="true" data-onload="true" data-gapiattached="true">
+<span itemprop="name">Unknown</span>
+</a>
+</span>
+</span>
+<span class="post-timestamp">
+at
+<meta content="http://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html" itemprop="url">
+<a class="timestamp-link" href="https://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html" rel="bookmark" title="permanent link"><abbr class="published" itemprop="datePublished" title="2014-08-20T23:14:00-07:00">11:14 PM</abbr></a>
+</span>
+<span class="reaction-buttons">
+</span>
+<span class="post-comment-link">
+</span>
+<span class="post-backlinks post-comment-link">
+</span>
+<span class="post-icons">
+<span class="item-control blog-admin pid-335488906">
+<a href="https://www.blogger.com/post-edit.g?blogID=4493332405234657503&amp;postID=6423713446427323996&amp;from=pencil" title="Edit Post">
+<img alt="" class="icon-action" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_edit_allbkg.gif" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="post-share-buttons goog-inline-block">
+</div>
+</div>
+<div class="post-footer-line post-footer-line-2">
+<span class="post-labels">
+Labels:
+<a href="https://oddhypothesis.blogspot.com/search/label/math" rel="tag">math</a>,
+<a href="https://oddhypothesis.blogspot.com/search/label/programming" rel="tag">programming</a>,
+<a href="https://oddhypothesis.blogspot.com/search/label/r" rel="tag">r</a>
+</span>
+</div>
+<div class="post-footer-line post-footer-line-3">
+<span class="post-location">
+</span>
+</div>
+</div>
+</div>
+<div class="comments" id="comments">
+<a name="comments"></a>
+<h4>No comments:</h4>
+<div id="Blog1_comments-block-wrapper">
+<dl class="avatar-comment-indent" id="comments-block">
+</dl>
+</div>
+<p class="comment-footer">
+</p><div class="comment-form">
+<a name="comment-form"></a>
+<h4 id="comment-post-message">Post a Comment</h4>
+<p>
+</p>
+<a href="https://www.blogger.com/comment-iframe.g?blogID=4493332405234657503&amp;postID=6423713446427323996&amp;blogspotRpcToken=6657229" id="comment-editor-src"></a>
+<iframe allowtransparency="true" class="blogger-iframe-colorize blogger-comment-from-post" id="comment-editor" name="comment-editor" src="https://www.blogger.com/comment-iframe.g?blogID=4493332405234657503&amp;postID=6423713446427323996&amp;blogspotRpcToken=6657229#%7B%22color%22%3A%22rgb(102%2C%20102%2C%20102)%22%2C%22backgroundColor%22%3A%22rgb(255%2C%20255%2C%20255)%22%2C%22unvisitedLinkColor%22%3A%22rgb(34%2C%20136%2C%20187)%22%2C%22fontFamily%22%3A%22%5C%22Trebuchet%20MS%5C%22%2C%20Trebuchet%2C%20Verdana%2C%20sans-serif%22%7D" data-resized="true" width="100%" height="213px" frameborder="0"></iframe>
+<script src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/3962873971-comment_from_post_iframe.js" type="text/javascript"></script>
+<script type="text/javascript">
+      BLOG_CMT_createIframe('https://www.blogger.com/rpc_relay.html');
+    </script>
+</div>
+<p></p>
+<div id="backlinks-container">
+<div id="Blog1_backlinks-container">
+</div>
+</div>
+</div>
+</div>
+
+        </div></div>
+      
+</div>
+<div class="blog-pager" id="blog-pager">
+<span id="blog-pager-newer-link">
+<a class="blog-pager-newer-link" href="https://oddhypothesis.blogspot.com/2014/08/r-oop-little-privacy-please.html" id="Blog1_blog-pager-newer-link" title="Newer Post">Newer Post</a>
+</span>
+<span id="blog-pager-older-link">
+<a class="blog-pager-older-link" href="https://oddhypothesis.blogspot.com/2014/04/deploying-self-contained-r-apps-to.html" id="Blog1_blog-pager-older-link" title="Older Post">Older Post</a>
+</span>
+<a class="home-link" href="https://oddhypothesis.blogspot.com/">Home</a>
+</div>
+<div class="clear"></div>
+<div class="post-feeds">
+<div class="feed-links">
+Subscribe to:
+<a class="feed-link" href="https://oddhypothesis.blogspot.com/feeds/6423713446427323996/comments/default" target="_blank" type="application/atom+xml">Post Comments (Atom)</a>
+</div>
+</div>
+</div></div>
+</div>
+</div>
+<div class="column-left-outer">
+<div class="column-left-inner">
+<aside>
+</aside>
+</div>
+</div>
+<div class="column-right-outer">
+<div class="column-right-inner">
+<aside>
+<div class="sidebar section" id="sidebar-right-1">
+<div class="widget BlogSearch" data-version="1" id="BlogSearch1">
+<h2 class="title">Search This Blog</h2>
+<div class="widget-content">
+<div id="BlogSearch1_form">
+<form action="https://oddhypothesis.blogspot.com/search" class="gsc-search-box" target="_top">
+<table class="gsc-search-box" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="gsc-input">
+<input autocomplete="off" class="gsc-input" name="q" size="10" title="search" type="text">
+</td>
+<td class="gsc-search-button">
+<input class="gsc-search-button" title="search" type="submit" value="Search">
+</td>
+</tr>
+</tbody>
+</table>
+</form>
+</div>
+</div>
+<div class="clear"></div>
+<span class="widget-item-control">
+<span class="item-control blog-admin">
+<a class="quickedit" href="https://www.blogger.com/rearrange?blogID=4493332405234657503&amp;widgetType=BlogSearch&amp;widgetId=BlogSearch1&amp;action=editWidget&amp;sectionId=sidebar-right-1" onclick='return _WidgetManager._PopupConfig(document.getElementById("BlogSearch1"));' rel="nofollow" target="configBlogSearch1" title="Edit">
+<img alt="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_wrench_allbkg.png" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="clear"></div>
+</div><div class="widget BlogList" data-version="1" id="BlogList1">
+<h2 class="title">Blog Roll</h2>
+<div class="widget-content">
+<div class="blog-list-container" id="BlogList1_container">
+<ul id="BlogList1_blogs">
+<li style="display: block;">
+<div class="blog-icon">
+<img data-lateloadsrc="https://lh3.googleusercontent.com/proxy/llX0dGxYB-Xp9fkJ5QYbTX9HIEfgl2nCC1VXk90Gz1uAt4vJETkc9f-pm-yiz7hFO3jECMAdIi3lBw=s0-d" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/llX0dGxYB-Xp9fkJ5QYbTX9HIEfgl2nCC1VXk90Gz1uAt4vJETkc9f-pm-yi.ico" width="16" height="16">
+</div>
+<div class="blog-content">
+<div class="blog-title">
+<a href="https://www.r-bloggers.com/" target="_blank">
+R-bloggers</a>
+</div>
+<div class="item-content">
+<span class="item-title">
+<a href="https://www.r-bloggers.com/azurermr-2-3-0-now-on-cran/" target="_blank">
+AzureRMR 2.3.0 now on CRAN
+</a>
+</span>
+<div class="item-time">
+1 day ago
+</div>
+</div>
+</div>
+<div style="clear: both;"></div>
+</li>
+</ul>
+<div class="clear"></div>
+<span class="widget-item-control">
+<span class="item-control blog-admin">
+<a class="quickedit" href="https://www.blogger.com/rearrange?blogID=4493332405234657503&amp;widgetType=BlogList&amp;widgetId=BlogList1&amp;action=editWidget&amp;sectionId=sidebar-right-1" onclick='return _WidgetManager._PopupConfig(document.getElementById("BlogList1"));' rel="nofollow" target="configBlogList1" title="Edit">
+<img alt="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_wrench_allbkg.png" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="clear"></div>
+</div>
+</div>
+</div><div class="widget Label" data-version="1" id="Label1">
+<h2>Labels</h2>
+<div class="widget-content list-label-widget-content">
+<ul>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/r">r</a>
+<span dir="ltr">(23)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/programming">programming</a>
+<span dir="ltr">(17)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/app%20development">app development</a>
+<span dir="ltr">(4)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/microfluidics">microfluidics</a>
+<span dir="ltr">(4)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/matlab">matlab</a>
+<span dir="ltr">(3)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/math">math</a>
+<span dir="ltr">(2)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/publication">publication</a>
+<span dir="ltr">(2)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/python">python</a>
+<span dir="ltr">(2)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/reading">reading</a>
+<span dir="ltr">(2)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/regex">regex</a>
+<span dir="ltr">(2)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/autocad">autocad</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/consumables">consumables</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/excel">excel</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/hacks">hacks</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/ikea">ikea</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/imaging">imaging</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/plotting">plotting</a>
+<span dir="ltr">(1)</span>
+</li>
+<li>
+<a dir="ltr" href="https://oddhypothesis.blogspot.com/search/label/visualization">visualization</a>
+<span dir="ltr">(1)</span>
+</li>
+</ul>
+<div class="clear"></div>
+<span class="widget-item-control">
+<span class="item-control blog-admin">
+<a class="quickedit" href="https://www.blogger.com/rearrange?blogID=4493332405234657503&amp;widgetType=Label&amp;widgetId=Label1&amp;action=editWidget&amp;sectionId=sidebar-right-1" onclick='return _WidgetManager._PopupConfig(document.getElementById("Label1"));' rel="nofollow" target="configLabel1" title="Edit">
+<img alt="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_wrench_allbkg.png" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="clear"></div>
+</div>
+</div><div class="widget BlogArchive" data-version="1" id="BlogArchive1">
+<h2>Blog Archive</h2>
+<div class="widget-content">
+<div id="ArchiveList">
+<div id="BlogArchive1_ArchiveList">
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2016/">
+2016
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2016/04/">
+April
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2015/">
+2015
+</a>
+<span class="post-count" dir="ltr">(3)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2015/10/">
+October
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2015/01/">
+January
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate expanded">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy toggle-open">
+
+        ▼&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2014/">
+2014
+</a>
+<span class="post-count" dir="ltr">(5)</span>
+<ul class="hierarchy">
+<li class="archivedate expanded">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy toggle-open">
+
+        ▼&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2014/08/">
+August
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+<ul class="posts">
+<li><a href="https://oddhypothesis.blogspot.com/2014/08/r-oop-little-privacy-please.html">R OOP - a little privacy please?</a></li>
+<li><a href="https://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html">Optimizing with R expressions</a></li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2014/04/">
+April
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2014/03/">
+March
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2014/02/">
+February
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2013/">
+2013
+</a>
+<span class="post-count" dir="ltr">(10)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2013/10/">
+October
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2013/08/">
+August
+</a>
+<span class="post-count" dir="ltr">(3)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2013/02/">
+February
+</a>
+<span class="post-count" dir="ltr">(3)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2013/01/">
+January
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2012/">
+2012
+</a>
+<span class="post-count" dir="ltr">(11)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2012/12/">
+December
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2012/10/">
+October
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2012/06/">
+June
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2012/05/">
+May
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2012/04/">
+April
+</a>
+<span class="post-count" dir="ltr">(3)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2011/">
+2011
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2011/05/">
+May
+</a>
+<span class="post-count" dir="ltr">(1)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2010/">
+2010
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2010/02/">
+February
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+</li>
+</ul>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2009/">
+2009
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+<ul class="hierarchy">
+<li class="archivedate collapsed">
+<a class="toggle" href="javascript:void(0)">
+<span class="zippy">
+
+        ►&nbsp;
+      
+</span>
+</a>
+<a class="post-count-link" href="https://oddhypothesis.blogspot.com/2009/12/">
+December
+</a>
+<span class="post-count" dir="ltr">(2)</span>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="clear"></div>
+<span class="widget-item-control">
+<span class="item-control blog-admin">
+<a class="quickedit" href="https://www.blogger.com/rearrange?blogID=4493332405234657503&amp;widgetType=BlogArchive&amp;widgetId=BlogArchive1&amp;action=editWidget&amp;sectionId=sidebar-right-1" onclick='return _WidgetManager._PopupConfig(document.getElementById("BlogArchive1"));' rel="nofollow" target="configBlogArchive1" title="Edit">
+<img alt="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_wrench_allbkg.png" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="clear"></div>
+</div>
+</div><div class="widget AdSense" data-version="1" id="AdSense1">
+<div class="widget-content">
+<script async="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/adsbygoogle.js"></script>
+<!-- oddhypothesis_sidebar-right-1_AdSense1_1x1_as -->
+<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-7718517106793594" data-ad-host="ca-host-pub-1556223355139109" data-ad-host-channel="L0001" data-ad-slot="7180170665" data-ad-format="auto"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+<div class="clear"></div>
+<span class="widget-item-control">
+<span class="item-control blog-admin">
+<a class="quickedit" href="https://www.blogger.com/rearrange?blogID=4493332405234657503&amp;widgetType=AdSense&amp;widgetId=AdSense1&amp;action=editWidget&amp;sectionId=sidebar-right-1" onclick='return _WidgetManager._PopupConfig(document.getElementById("AdSense1"));' rel="nofollow" target="configAdSense1" title="Edit">
+<img alt="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_wrench_allbkg.png" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="clear"></div>
+</div>
+</div></div>
+</aside>
+</div>
+</div>
+</div>
+<div style="clear: both"></div>
+<!-- columns -->
+</div>
+<!-- main -->
+</div>
+</div>
+<div class="main-cap-bottom cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+<footer>
+<div class="footer-outer">
+<div class="footer-cap-top cap-top">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+<div class="fauxborder-left footer-fauxborder-left">
+<div class="fauxborder-right footer-fauxborder-right"></div>
+<div class="region-inner footer-inner">
+<div class="foot no-items section" id="footer-1"></div>
+<table class="section-columns columns-2" cellspacing="0" cellpadding="0" border="0">
+<tbody>
+<tr>
+<td class="first columns-cell">
+<div class="foot no-items section" id="footer-2-1"></div>
+</td>
+<td class="columns-cell">
+<div class="foot no-items section" id="footer-2-2"></div>
+</td>
+</tr>
+</tbody>
+</table>
+<!-- outside of the include in order to lock Attribution widget -->
+<div class="foot section" id="footer-3" name="Footer"><div class="widget Attribution" data-version="1" id="Attribution1">
+<div class="widget-content" style="text-align: center;">
+Simple theme. Powered by <a href="https://www.blogger.com/" target="_blank">Blogger</a>.
+</div>
+<div class="clear"></div>
+<span class="widget-item-control">
+<span class="item-control blog-admin">
+<a class="quickedit" href="https://www.blogger.com/rearrange?blogID=4493332405234657503&amp;widgetType=Attribution&amp;widgetId=Attribution1&amp;action=editWidget&amp;sectionId=footer-3" onclick='return _WidgetManager._PopupConfig(document.getElementById("Attribution1"));' rel="nofollow" target="configAttribution1" title="Edit">
+<img alt="" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/icon18_wrench_allbkg.png" width="18" height="18">
+</a>
+</span>
+</span>
+<div class="clear"></div>
+</div></div>
+</div>
+</div>
+<div class="footer-cap-bottom cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+</footer>
+<!-- content -->
+</div>
+</div>
+<div class="content-cap-bottom cap-bottom">
+<div class="cap-left"></div>
+<div class="cap-right"></div>
+</div>
+</div>
+</div>
+<script type="text/javascript">
+    window.setTimeout(function() {
+        document.body.className = document.body.className.replace('loading', '');
+      }, 10);
+  </script>
+<script src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/plusone.js" type="text/javascript" gapi_processed="true"></script>
+<!--\xc9 da sua responsabilidade notificar os seus visitantes acerca dos cookies utilizados e dos dados recolhidos no seu blogue. O Blogger disponibiliza-lhe uma notifica\xe7\xe3o padr\xe3o que pode utilizar no seu blogue, e pode adapt\xe1-la ou substitu\xed-la pelo seu pr\xf3prio aviso. Consulte http://www.blogger.com/go/cookiechoices para obter mais informa\xe7\xf5es.-->
+<script defer="defer" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/cookienotice.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function(event) {
+      window.cookieChoices && cookieChoices.showCookieConsentBar && cookieChoices.showCookieConsentBar(
+          (window.cookieOptions && cookieOptions.msg) || 'Este site utiliza cookies da Google para disponibilizar os respetivos servi\xe7os e para analisar o tr\xe1fego. O seu endere\xe7o IP e agente do utilizador s\xe3o partilhados com a Google, bem como o desempenho e a m\xe9trica de seguran\xe7a, para assegurar a qualidade do servi\xe7o, gerar as estat\xedsticas de utiliza\xe7\xe3o e detetar e resolver abusos de endere\xe7o.',
+          (window.cookieOptions && cookieOptions.close) || 'Ok',
+          (window.cookieOptions && cookieOptions.learn) || 'Obter mais informa\xe7\xf5es',
+          (window.cookieOptions && cookieOptions.link) || 'https://www.blogger.com/go/blogspot-cookies');
+    });
+  </script>
+
+<script type="text/javascript" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/1068551213-widgets.js"></script>
+<script type="text/javascript">
+window['__wavt'] = 'AOuZoY4aWGn4v93lHx2cmfdSz2xXoVQt2w:1572718489628';_WidgetManager._Init('//www.blogger.com/rearrange?blogID\x3d4493332405234657503','//oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html','4493332405234657503');
+_WidgetManager._SetDataContext([{'name': 'blog', 'data': {'blogId': '4493332405234657503', 'title': 'Odd Hypothesis', 'url': 'https://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html', 'canonicalUrl': 'http://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html', 'homepageUrl': 'https://oddhypothesis.blogspot.com/', 'searchUrl': 'https://oddhypothesis.blogspot.com/search', 'canonicalHomepageUrl': 'http://oddhypothesis.blogspot.com/', 'blogspotFaviconUrl': 'https://oddhypothesis.blogspot.com/favicon.ico', 'bloggerUrl': 'https://www.blogger.com', 'hasCustomDomain': false, 'httpsEnabled': true, 'enabledCommentProfileImages': true, 'gPlusViewType': 'FILTERED_POSTMOD', 'adultContent': false, 'analyticsAccountNumber': '', 'encoding': 'UTF-8', 'locale': 'en', 'localeUnderscoreDelimited': 'en', 'languageDirection': 'ltr', 'isPrivate': false, 'isMobile': false, 'isMobileRequest': false, 'mobileClass': '', 'isPrivateBlog': false, 'feedLinks': '\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22Odd Hypothesis - Atom\x22 href\x3d\x22https://oddhypothesis.blogspot.com/feeds/posts/default\x22 /\x3e\n\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/rss+xml\x22 title\x3d\x22Odd Hypothesis - RSS\x22 href\x3d\x22https://oddhypothesis.blogspot.com/feeds/posts/default?alt\x3drss\x22 /\x3e\n\x3clink rel\x3d\x22service.post\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22Odd Hypothesis - Atom\x22 href\x3d\x22https://www.blogger.com/feeds/4493332405234657503/posts/default\x22 /\x3e\n\n\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22Odd Hypothesis - Atom\x22 href\x3d\x22https://oddhypothesis.blogspot.com/feeds/6423713446427323996/comments/default\x22 /\x3e\n', 'meTag': '', 'adsenseClientId': 'ca-pub-7718517106793594', 'adsenseHostId': 'ca-host-pub-1556223355139109', 'adsenseHasAds': true, 'ieCssRetrofitLinks': '\x3c!--[if IE]\x3e\x3cscript type\x3d\x22text/javascript\x22 src\x3d\x22https://www.blogger.com/static/v1/jsbin/210157244-ieretrofit.js\x22\x3e\x3c/script\x3e\n\x3c![endif]--\x3e', 'view': '', 'dynamicViewsCommentsSrc': '//www.blogblog.com/dynamicviews/4224c15c4e7c9321/js/comments.js', 'dynamicViewsScriptSrc': '//www.blogblog.com/dynamicviews/6025818dea14d91e', 'plusOneApiSrc': 'https://apis.google.com/js/plusone.js', 'disableGComments': true, 'sharing': {'platforms': [{'name': 'Get link', 'key': 'link', 'shareMessage': 'Get link', 'target': ''}, {'name': 'Facebook', 'key': 'facebook', 'shareMessage': 'Share to Facebook', 'target': 'facebook'}, {'name': 'BlogThis!', 'key': 'blogThis', 'shareMessage': 'BlogThis!', 'target': 'blog'}, {'name': 'Twitter', 'key': 'twitter', 'shareMessage': 'Share to Twitter', 'target': 'twitter'}, {'name': 'Pinterest', 'key': 'pinterest', 'shareMessage': 'Share to Pinterest', 'target': 'pinterest'}, {'name': 'Email', 'key': 'email', 'shareMessage': 'Email', 'target': 'email'}], 'disableGooglePlus': true, 'googlePlusShareButtonWidth': 300, 'googlePlusBootstrap': '\x3cscript type\x3d\x22text/javascript\x22\x3ewindow.___gcfg \x3d {\x27lang\x27: \x27en\x27};\x3c/script\x3e'}, 'hasCustomJumpLinkMessage': false, 'jumpLinkMessage': 'Read more', 'pageType': 'item', 'postId': '6423713446427323996', 'postImageThumbnailUrl': 'http://1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/s72-c/OddHypothesis-ModelFit-20140820.png', 'postImageUrl': 'http://1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/s1600/OddHypothesis-ModelFit-20140820.png', 'pageName': 'Optimizing with R expressions', 'pageTitle': 'Odd Hypothesis: Optimizing with R expressions'}}, {'name': 'features', 'data': {'sharing_get_link_dialog': 'true', 'sharing_native': 'false'}}, {'name': 'messages', 'data': {'edit': 'Edit', 'linkCopiedToClipboard': 'Link copied to clipboard!', 'ok': 'Ok', 'postLink': 'Post Link'}}, {'name': 'template', 'data': {'name': 'Simple', 'localizedName': 'Simple', 'isResponsive': false, 'isAlternateRendering': false, 'isCustom': false, 'variant': 'simplysimple', 'variantId': 'simplysimple'}}, {'name': 'view', 'data': {'classic': {'name': 'classic', 'url': '?view\x3dclassic'}, 'flipcard': {'name': 'flipcard', 'url': '?view\x3dflipcard'}, 'magazine': {'name': 'magazine', 'url': '?view\x3dmagazine'}, 'mosaic': {'name': 'mosaic', 'url': '?view\x3dmosaic'}, 'sidebar': {'name': 'sidebar', 'url': '?view\x3dsidebar'}, 'snapshot': {'name': 'snapshot', 'url': '?view\x3dsnapshot'}, 'timeslide': {'name': 'timeslide', 'url': '?view\x3dtimeslide'}, 'isMobile': false, 'title': 'Optimizing with R expressions', 'description': 'I recently discovered a powerful use for R expression() &#8217;s   Say you are trying to fit some experimental data to the following nonlinear equ...', 'featuredImage': '//1.bp.blogspot.com/---xxjAkbAQo/U_WM3lpKzNI/AAAAAAAAbrE/GxzyXDYnUyc/s1600/OddHypothesis-ModelFit-20140820.png', 'url': 'https://oddhypothesis.blogspot.com/2014/08/optimizing-with-r-expressions.html', 'type': 'item', 'isSingleItem': true, 'isMultipleItems': false, 'isError': false, 'isPage': false, 'isPost': true, 'isHomepage': false, 'isArchive': false, 'isLabelSearch': false, 'postId': 6423713446427323996}}]);
+_WidgetManager._RegisterWidget('_NavbarView', new _WidgetInfo('Navbar1', 'navbar', document.getElementById('Navbar1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_HeaderView', new _WidgetInfo('Header1', 'header', document.getElementById('Header1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_BlogView', new _WidgetInfo('Blog1', 'main', document.getElementById('Blog1'), {'cmtInteractionsEnabled': false, 'legacyCommentModerationUrl': 'https://www.blogger.com/moderate-legacy-comment.g?blogID\x3d4493332405234657503', 'iframeCommentsId': 'gpluscomments', 'viewType': 'FILTERED_POSTMOD', 'lightboxEnabled': true, 'lightboxModuleUrl': 'https://www.blogger.com/static/v1/jsbin/3421882774-lbx.js', 'lightboxCssUrl': 'https://www.blogger.com/static/v1/v-css/368954415-lightbox_bundle.css'}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_BlogSearchView', new _WidgetInfo('BlogSearch1', 'sidebar-right-1', document.getElementById('BlogSearch1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_BlogListView', new _WidgetInfo('BlogList1', 'sidebar-right-1', document.getElementById('BlogList1'), {'numItemsToShow': 0, 'totalItems': 1}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_LabelView', new _WidgetInfo('Label1', 'sidebar-right-1', document.getElementById('Label1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_BlogArchiveView', new _WidgetInfo('BlogArchive1', 'sidebar-right-1', document.getElementById('BlogArchive1'), {'languageDirection': 'ltr', 'loadingMessage': 'Loading\x26hellip;'}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_AdSenseView', new _WidgetInfo('AdSense1', 'sidebar-right-1', document.getElementById('AdSense1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_AttributionView', new _WidgetInfo('Attribution1', 'footer-3', document.getElementById('Attribution1'), {}, 'displayModeFull'));
+</script>
+
+<link type="text/css" rel="stylesheet" href="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/368954415-lightbox_bundle.css"><script type="text/javascript" src="Odd%20Hypothesis%20%20Optimizing%20with%20R%20expressions_ficheiros/3421882774-lbx.js"></script></body></html>

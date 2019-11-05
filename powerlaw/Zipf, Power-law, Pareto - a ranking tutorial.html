@@ -1,0 +1,277 @@
+<html class="gr__hpl_hp_com"><head>
+<title>Zipf, Power-law, Pareto - a ranking tutorial</title>
+    <meta http-equiv="Content-type" content="text/html; charset=UTF-8">
+    <meta http-equiv="Content-Style-Type" content="text/css">
+    <meta name="target_country" content="us">
+    <meta name="content_country_applicability" content="W1"> 
+    <meta name="web_section_id" content="R17">
+    <meta name="page_content" content="Company Information">
+    <meta name="segment" content="any">
+    <meta name="user_type" content="any">
+
+</head>
+<body data-gr-c-s-loaded="true">
+<center>
+<br>
+<h2>
+Zipf, Power-laws, and Pareto - a ranking tutorial
+</h2>
+<font size="+1"><b>Lada A. Adamic</b></font><br><br>
+<a href="https://www.hpl.hp.com/research/idl">Information Dynamics Lab</a><br>
+Information Dynamics Lab, HP Labs<br>
+Palo Alto, CA 94304<br>
+</center>
+<p>
+</p><center>
+<table width="80%">
+<tbody><tr><th>Abstract</th>
+</tr><tr><td><br><font size="-1">Many man made and naturally occurring 
+phenomena, including city sizes, incomes, word frequencies, and 
+earthquake magnitudes, are distributed according to a power-law 
+distribution. A power-law implies that small occurrences are extremely 
+common, whereas large instances are extremely rare. This regularity or 
+'law' is sometimes also referred to as Zipf and sometimes Pareto. To add
+ to the confusion, the laws alternately refer to ranked and unranked 
+distributions. Here we show that all three terms, Zipf, power-law, and 
+Pareto, can refer to the same thing, and how to easily move from the 
+ranked to the unranked distributions  and relate their exponents. </font>
+</td></tr>
+</tbody></table>
+</center>
+<br><br>
+A line appears on a log-log plot. 
+One hears shouts of "Zipf!","power-law!","Pareto"! Well, which one is 
+it? The answer is that it's quite possibly all three. Let's try to 
+disentangle some of the confusion surrounding these matters and then tie
+ it all back neatly together. 
+<p>
+All three terms are used to describe phenomena where large events are 
+rare, but small ones quite common. For example, there are few large 
+earthquakes but many small ones. There are a few mega-cities, but many 
+small towns. There are few words, such as 'and' and 'the' that occur 
+very frequently, but many which occur rarely. 
+</p><p><font color="#ff0000">Zipf's law</font> usually refers to the 'size' <b><i>y</i></b> of an occurrence of an event relative to it's rank <b><i>r</i></b>.
+ George Kingsley Zipf, a Harvard linguistics professor, sought to 
+determine the 'size' of the 3rd or 8th or 100th most common word. Size 
+here denotes the frequency of use of the word in English text, and not 
+the length of the word itself. Zipf's law states that the size of the 
+r'th largest occurrence of the event is inversely proportional to it's 
+rank:<br>
+<font size="+1"><b><i>y&nbsp;~&nbsp;r<sup>-b</sup></i></b></font>, with <b><i>b</i></b> close to unity.
+</p><p>Pareto was interested in the distribution of income. Instead of asking what the <b><i>r&nbsp;</i></b>th largest income is, he asked how many people have an income greater than <b><i>x</i></b>.  <font color="#ff0000">Pareto's law</font> is given in terms of the cumulative distribution function (CDF), i.e. the number of events larger than <b><i>x</i></b> is an inverse power of 
+<b><i>x</i></b>: 
+<br><b><i><font size="+1">P[X &gt; x]&nbsp;~&nbsp;x<sup>-k</sup></font></i></b>.
+<br>It states that there are a few multi-billionaires, but most people make only a modest income. 
+</p><p>
+What is usually called a <font color="#ff0000">power law distribution</font> tells us not how many people had an income greater than <b><i>x</i></b>, but the number of people whose income is exactly <b><i>x</i></b>. It is simply the probability distribution function (PDF) associated with the CDF given by Pareto's Law. This means that <br>
+<font size="+1"><b><i>
+P[X = x]&nbsp;~&nbsp;x<sup>-(k+1)</sup> = x<sup>-a</sup>.<br>
+</i></b></font>
+That is the exponent of the power law distribution <b><i>a = 1+k</i></b> (where <b><i>k</i></b> is
+the Pareto distribution shape parameter). <br>
+See <a href="#ap1">Appendix 1</a> for discussion of Pareto and power-law. 
+
+</p><p>
+Although the literature surrounding both the Zipf and Pareto 
+distributions is vast, there are very few direct connections made 
+between Zipf and Pareto, and when they exist, it is by way of a vague 
+reference [1] or an overly complicated mathematical analysis[2,3]. Here I
+ show a simple and direct relationship between the two by walking 
+through an example using real data. 
+</p><p>
+Recently, attention has turned to the internet which seems to display 
+quite a number of power-law distributions: the number of visits to a 
+site [4],  the number of pages within a site [5], and the number of 
+links to a page [6], to name a few. My example will be the distribution 
+of visits to web sites.
+<br>
+</p><p> Figure 1a below shows the distribution of AOL users' visits to 
+various sites on a December day in 1997. One can observe that a few 
+sites get upward of 2000 visitors, whereas most sites got only a few 
+visits (70,000 sites received only a single visit). The distribution is 
+so extreme that if the full range was shown on the axes, the curve would
+ be a perfect L shape. Figure 1b below shows the same plot, but on a 
+log-log scale the same distribution shows itself to be linear. This is 
+the characteristic signature of a power-law.
+
+<table>
+<tbody><tr>
+<td>
+<img src="Zipf,%20Power-law,%20Pareto%20-%20a%20ranking%20tutorial_ficheiros/linscale.jpg" alt="distribution of AOL users among sites - linear plot">
+</td>
+<td>
+<img src="Zipf,%20Power-law,%20Pareto%20-%20a%20ranking%20tutorial_ficheiros/histo.jpg" alt="histogram of the number of AOL users visiting each site">
+</td>
+</tr>
+<tr>
+<td align="center"><b> Fig. 1a</b> Linear scale plot of the distribution of users among web sites</td>
+<td align="center"><b> Fig. 1b</b> Log-log scale plot of the distribution of users among web sites</td>
+</tr>
+</tbody></table>
+
+</p><p>
+Let <b><i> y</i></b> = number of sites that were visited by <b><i>x</i></b> users.<br>
+In a power-law we have <b><i>y = C x<sup>-a</sup></i></b>
+which means that <b><i>log(y) = log(C) - a log(x)</i></b><br>
+So a power-law with exponent <b><i>a</i></b> is seen as a straight line with slope <b><i>-a</i></b> on a log-log plot.
+</p><p>
+Now one just might be tempted to fit the curve in Fig. 1b to a line to extract the exponent <b><i>a</i></b>.
+ A word of caution is in order here. The tail end of the distribution in
+ Fig. 1b is 'messy' - there are only a few sites with a large number of 
+visitors. For example, the most popular site, Yahoo.com, had 129,641 
+visitors, but the next most popular site had only 25,528. Because there 
+are so few data points in that range, simply fitting a straight line to 
+the data in Fig. 1b gives a slope that is too shallow (a = 1.17). To get
+ a proper fit, we need to bin the data into exponentially wider bins 
+(they will appear evenly spaced on a log scale) as shown in Fig. 2a. A 
+clean linear relationship now extends over 4 decades (1-10<sup>4</sup>) users vs. the earlier 2 decades: (1-100) users. We are now able to extract the correct exponent <b><i>a&nbsp;=&nbsp;2.07</i></b>.
+Rather than binning logarithmically, one can instead look at the Pareto cumulative distribution <b><i><font size="+1">P[X &gt; x]&nbsp;~&nbsp;x<sup>-k</sup></font></i></b>
+ to obtain a good fit. The tail naturally smooths out in the cumulative 
+distribution and no data is 'obscured' as in the logarithmic binning 
+procedure. Fitting the cumulative distribution, we find an exponent of <b><i>a = 2.16</i></b>, quite close to the <b><i>a=2.07</i></b> exponent found with the logarithmic binning procedure (both fits are shown in Figure 2b).</p><p>
+
+<table>
+<tbody><tr>
+<td>
+<img src="Zipf,%20Power-law,%20Pareto%20-%20a%20ranking%20tutorial_ficheiros/binned.jpg" alt="binned histogram of number of AOL users visiting each site">
+</td>
+<td>
+	<img src="Zipf,%20Power-law,%20Pareto%20-%20a%20ranking%20tutorial_ficheiros/cumulative.jpg" alt="cumulative histogram of number of AOL users visiting each site">
+</td>
+</tr>
+<tr>
+	<td align="center"><b> Fig. 2a </b> Binned distribution of users to sites</td>
+	<td align="center"><b> Fig. 2b </b> Cumulative distribution of users to sites</td>
+</tr>
+</tbody></table>
+
+</p><p>
+So far we have only looked at the power-law PDF of sites visits. In 
+order to 
+see Zipf's law, we need to plot the number of visitors to each site 
+against its rank.  Fig. 3 shows such a plot for the same data set of AOL
+ users' site visits. The relationship is nearly linear on a log-log 
+plot, and the slope is -1, which makes it Zipf. In order for there to be
+ perfectly linear relationship, the most popular sites would have to be 
+slightly popular, and the less popular sites slightly more numerous. It 
+might be worthwhile to fit this distribution with alternate 
+distributions, such as the stretched exponential [7], or parabolic 
+fractal [8]. In any case, most would happy to call this rank 
+distribution Zipf, and we will call it Zipf here as well. 
+
+<table>
+<tbody><tr>
+<td>
+<img src="Zipf,%20Power-law,%20Pareto%20-%20a%20ranking%20tutorial_ficheiros/rankplot.jpg" alt="ranked plot of the number of AOL users visiting each site">
+</td>
+</tr>
+<tr>
+<td align="center"><b> Fig. 3 </b> Sites rank ordered by their popularity</td>
+</tr>
+</tbody></table>
+
+</p><p> At first, it appears that we have discovered two separate power 
+laws, one produced by ranking the variables, the other by looking at the
+ frequency distribution.
+Some papers even make the mistake of saying so [9]. But the key is to 
+formulate the rank distribution in the proper way to see its direct 
+relationship to the Pareto. The phrase "The <b><i>r</i></b>&nbsp;th largest city has <b><i>n</i></b> inhabitants" is equivalent to saying "<b><i>r</i></b> cities have <b><i>n</i></b>
+ or more inhabitants". This is exactly the definition of the Pareto 
+distribution, except the x and y axes are flipped. Whereas for Zipf, <b><i>r</i></b> is on the x-axis and <b><i>n</i></b> is on 
+the y-axis, for Pareto, <b><i>r</i></b> is on the y-axis and <b><i>n</i></b> is on the x-axis. Simply inverting the axes, we get that if the rank exponent is <b><i>b</i></b>, i.e. <br>
+<font size="+1"><b><i>n ~ r<sup>-b</sup></i></b></font> in Zipf,
+<font color="#007000">&nbsp;&nbsp;(n = income, r = rank of person with income n)</font><br>
+then the Pareto exponent is <b><i>1/b</i></b> so that <br>
+<font size="+1"><b><i>r ~ n<sup>-1/b</sup></i></b></font>
+<font color="#007000">&nbsp;&nbsp;(n = income, r = number of people whose income is n or higher)</font>
+<br>
+
+(See <a href="#ap2">Appendix 2</a> for details). </p><p>Of course, since the power-law distribution is a direct derivative of Pareto's Law, its exponent is given  by <b><i>(1+1/b)</i></b>.
+ This also implies that any process generating an exact Zipf rank 
+distribution must have a strictly power-law probability density 
+function. As demonstrated with the AOL data, in the case <b><i>b&nbsp;=&nbsp;1</i></b>, the power-law exponent <b><i>a&nbsp;=&nbsp;2</i></b>. 
+</p><p>Finally, instead of touting two separate power-laws, we have 
+confirmed that they are different ways of looking at the same thing.
+</p><p>
+<br>
+</p><h3>Acknowledgements</h3>
+The author would like to thank Bernardo Huberman, Rajan Lukose, and Eytan Adar for their advice and comments.
+<p>
+<br>
+</p><h3>References</h3>
+<p>
+1. Per Bak, "How Nature Works: The science of self-organized criticality", Springer-Verlag, New York, 1996.
+</p><p>
+2. G. Troll and P. beim Graben (1998), "Zipf's law is not a consequence of the central limit theorem", Phys. Rev. E, <b>57(2)</b>:1347-1355.
+</p><p>
+3. R. Gunther, L. Levitin, B. Shapiro, P. Wagner (1996), "Zipf's law and
+ the effect of ranking on probability distributions", International 
+Journal of Theoretical Physics, <b>35(2)</b>:395-417
+</p><p>
+4. L.A. Adamic and B.A. Huberman (2000), <a href="https://www.parc.xerox.com/istl/groups/iea/abstracts/ECommerce/webmarkets.html">"The Nature of Markets in the World Wide Web"</a>, QJEC <b>1(1)</b>:5-12.
+</p><p>
+5. B.A. Huberman and L.A. Adamic (1999), "Growth Dynamics of the World Wide Web", Nature <b>401</b>:131.
+</p><p>
+6. R. Albert, H. Jeoung, A-L Barabasi, "The Diameter of the World Wide Web", Nature <b>401</b>:130.
+</p><p>
+
+7. Jean Laherrere, D Sornette (1998), "Stretched exponential 
+distributions in Nature and Economy: 'Fat tails' with characteristic 
+scales", European Physical Journals, B2:525-539. <a href="https://xxx.lanl.gov/abs/cond-mat/9801293">https://xxx.lanl.gov/abs/cond-mat/9801293</a>
+</p><p>
+8. Jean Laherrere (1996), <a href="https://www.hubbertpeak.com/laherrere/fractal.htm">"'Parabolic fractal' distributions in Nature"</a>.
+</p><p>
+9. M. Faloutsos, P. Faloutsos, and C. Faloutsos, <a href="https://www.acm.org/pubs/citations/proceedings/comm/316188/p251-faloutsos/">"On Power-Law Relationships of the Internet Topology"</a>, SIGCOMM '99 pp. 251-262.
+</p><p>
+10. N. Johnson, S. Kotz, N. Balakrishnan, "Continuous Univariate Distributions Vol. 1", Wiley, New York, 1994.
+</p><p>
+<br>
+<br>
+</p><h3><a name="ap1">Appendix 1</a>: The Pareto Distribution</h3>
+The Pareto distribution gives the probability that a person's income is greater than or equal to x and is expressed as [10]:<br><br>
+<font size="+1"><b><i>Pr[X &gt;= x] = (m/x)<sup>k</sup>,&nbsp;&nbsp;&nbsp;&nbsp; m &gt; 0, k &gt; 0, x &gt;= m</i></b></font>,<br><br>
+where <b><i>m</i></b> represents a minimum income.<br>
+As a consequence, the CDF<br><br>
+<font size="+1"><b><i>Pr[X &lt; x] = 1 - (m/x)<sup>k</sup></i></b></font><br><br>
+and the PDF is <br><br>
+<font size="+1"><b><i>p<sub>X</sub>(x) = k m<sup>k</sup>x<sup>-(k+1)</sup>,
+&nbsp;&nbsp;&nbsp;&nbsp;
+ m &gt; 0, k &gt; 0, x &gt;= m</i></b></font><br>
+<br>
+Note that the shape parameter of the Pareto distribution, <b><i>k</i></b>, equals <b><i>a-1</i></b>, where <b><i>a</i></b> is the power law slope. Also note that for <b><i>a &lt; 2</i></b> there is no finite mean for the distribution. Presumably because of this, the Pareto distribution is sometimes given with <b><i>k &gt; 1</i></b>, but the <b><i>k &gt; 0</i></b> definition is more widely used.
+<p>
+Another property, which holds for all <b><i>k</i></b>, not just those <b><i>k</i></b>
+ not giving a finite mean, is that the distribution is said to be 
+"scale-free", or lacking a "characteristic length scale". This means 
+that no matter what range of <b><i>x</i></b> one looks at, the 
+proportion of small to large events is the same, i.e., the slope of the 
+curve on any section of the log-log plot is the same.
+<br>
+<br>
+<br>
+</p><h3><a name="ap2">Appendix 2</a>: From Zipf's ranked distribution to powerlaw PDFs</h3>
+<p>
+Let the slope of the ranked plot be <b><i>b</i></b>.<br><br> Then the expected value <b><i>E[X<sub>r</sub>&nbsp;]</i></b> of the <i><b>r</b></i>th ranked variable <b><i>X<sub>r</sub></i></b> is given by<br><br>
+<font size="+1">
+<b><i>E[X<sub>r</sub>&nbsp;] ~ C<sub>1</sub>*r<sup>-b</sup></i></b></font>,
+&nbsp;&nbsp;&nbsp; <b><i>C<sub>1</sub></i></b> a normalization constant,<br><br>
+which means that there are <b><i>r</i></b> variables with expected value greater than or equal to <b><i>C<sub>1</sub>*r<sup>-b</sup></i></b>:<br><br>
+<font size="+1"><b><i>P[X &gt;= C<sub>1</sub>*r<sup>-b</sup>] = C<sub>2</sub>*r</i></b></font><br><br>
+Changing variables we get:<br><br>
+<font size="+1"><b><i>P[X &gt;= y] ~ y<sup>-(1/b)</sup></i></b></font><br><br>
+To get the PDF from the CDF, we take the derivative with respect to 
+<b><i>y</i></b>:<br><br>
+<font size="+1"><b><i>Pr[X == y] ~ y<sup>-(1+(1/b))</sup> = y<sup>-a</sup></i></b></font>.<br><br>
+Which gives the desired correspondence between the two exponents.
+<br><br>
+<font size="+1"><b><i>a = 1+(1/b)</i></b></font><br>
+<br>
+</p><p>&nbsp;</p>
+<hr>
+<p>
+</p><p><b><font size="2">This tutorial exists only in an online version but some of the discussion is included in<br>L.A. Adamic and B.A. 
+Huberman, <a href="https://www.hpl.hp.com/research/idl/papers/ranking/adamicglottometrics.pdf">'Zipf’s 
+law and the Internet'</a>, <i>Glottometrics</i> 3, 2002,143-150</font></b></p>
+
+
+</body></html>
