@@ -32,7 +32,7 @@ The most important concepts are:
 
 + Coordinate systems, **coord**, a map from the data coordinates to the graph coordinates (eg, cartesian, log-log, polar)
 
-+ **Facets** describing how to plit the data into subsets
++ **Facets** describing how to split the data into subsets
 
 ```{r, comment=FALSE}
 library(ggplot2)
@@ -213,16 +213,15 @@ Layers are responsible for creating the objects that we perceive on the plot. A 
 `ggplot` receives two arguments, the data which must be a data frame and which aesthetics mappings we want. An eg:
 
 ```{r, error=TRUE}
-p <- ggplot(d, aes(carat, price, colour=cut))
+p <- ggplot(d, aes(carat, price, colour=cut)) 
 p
 ```
 
-It gave an error because we still not defined geoms so that there is something to see.
-To add new layers we should use operator `+`:
+It gave an error because we still not defined geoms so that there is something to see. To add new layers we should use operator `+`:
 
 ```{r}
-plot1 <- p + layer(geom="point")
-plot2 <- p + layer(geom="line")
+plot1 <- p + geom_point()
+plot2 <- p + geom_line()  
 grid.arrange(plot1, plot2, ncol=2)  
 ```
 
@@ -230,10 +229,9 @@ grid.arrange(plot1, plot2, ncol=2)
 
 ```{r}
 p <- ggplot(diamonds, aes(x=carat)) 
-plot1 <- p + layer(geom="bar", 
-                   geom_params = list(fill = "steelblue"), 
-                   stat = "bin", 
-                   stat_params = list(binwidth = 0.25))
+plot1 <- p + geom_bar(geom_params = list(fill = "steelblue"), 
+                      stat = "bin", 
+                      stat_params = list(binwidth = 0.25))
 plot2 <- p + geom_histogram(binwidth = 0.25, fill = "steelblue")  # same graph
 grid.arrange(plot1, plot2, ncol=2)  
 ```
@@ -401,19 +399,58 @@ plot5 <- plot1 + coord_equal()
 plot6 <- plot1 + coord_trans(x = "log10")
 grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, nrow=2, ncol=3)
 ```
+Plots within plots:
+
+```{r}
+plot1  + annotation_custom(ggplotGrob(plot2), xmin = 100, xmax = 200,
+                                              ymin =  50, ymax = 100)
+```
+
+
 
 Eg with map coordinates:
 
 ```{r, message=FALSE}
-library("maps")
+library(maps)
+library(mapproj)
 
 m <- map_data("italy")
 p <- ggplot(m, aes(x=long, y=lat, group=group)) +
             geom_polygon(fill="white", colour="black")
-plot1 <- p                # Use cartesian coordinates
-plot2 <- p + coord_map()  # With default mercator projection
-grid.arrange(plot1, plot2, ncol=2)
+p + coord_map()  # With default mercator projection
 ```
+
+Source: [https://statisticaloddsandends.wordpress.com/2019/02/24/plots-within-plots-with-ggplot2-and-ggmap/](https://statisticaloddsandends.wordpress.com/2019/02/24/plots-within-plots-with-ggplot2-and-ggmap/)
+
+```{r}
+library(ggmap)
+ 
+us_bbox <- c(left = -125, bottom = 25, right = -55, top = 50)
+us_main_map <- get_stamenmap(us_bbox, zoom = 5, maptype = "terrain")
+p_main <- ggmap(us_main_map)
+
+alaska_bbox <- c(left = -180, bottom = 50, right = -128, top = 72)
+alaska_map <- get_stamenmap(alaska_bbox, zoom = 5, maptype = "terrain")
+p_alaska <- ggmap(alaska_map) +
+    #labs(subtitle = "Alaska") +
+    theme(axis.title = element_blank(),
+          axis.text  = element_blank(),
+          axis.ticks = element_blank())
+
+hawaii_bbox <- c(left = -160, bottom = 18.5, right = -154.5, top = 22.5)
+hawaii_map <- get_stamenmap(hawaii_bbox, zoom = 6, maptype = "terrain")
+p_hawaii <- ggmap(hawaii_map) +
+    #labs(subtitle = "Hawaii") +
+    theme(axis.title = element_blank(),
+          axis.text  = element_blank(),
+          axis.ticks = element_blank())
+
+library(grid)
+p_main +
+    inset(ggplotGrob(p_alaska), xmin = -76.7, xmax = -66.7, ymin = 26, ymax = 35) +
+    inset(ggplotGrob(p_hawaii), xmin = -66.5, xmax = -55.5, ymin = 26, ymax = 35)
+```
+
 
 ### Some more complex egs
 
@@ -489,16 +526,17 @@ ggplot(tgc, aes(x=dose, y=len, colour=supp, group=supp)) +
           legend.position=c(1,0))               # Position legend in bottom right
 ```
 
+<!-- The Population Pyramid functionality is temporarily disabled.
+
 Eg of a population pyramid taken from Kyle Walker's  [example](https://rpubs.com/walkerke/pyramids_ggplot2):
 
-```{r, include=FALSE}
+```{r, include=FALSE, eval=FALSE}
 library(XML)
 library(reshape2)
 library(plyr)
 
-
 get_data <- function(country, year) {
-  c1 <- "http://www.census.gov/population/international/data/idb/region.php?N=%20Results%20&T=10&A=separate&RT=0&Y="  
+  c1 <- "https://www.census.gov/data-tools/demo/idb/region.php?N=%20Results%20&T=10&A=separate&RT=0&Y="  
   c2 <- "&R=-1&C="
   url <- paste0(c1, year, c2, country)
   df <- data.frame(readHTMLTable(url))
@@ -522,7 +560,7 @@ get_data <- function(country, year) {
 portugal <- get_data("PO", 2014)
 ```
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, include=FALSE, eval=FALSE}
 # males are counted with negative numbers, while females are with positive numbers
 head(portugal) # check R markdown for code to produce this data frame
 
@@ -531,16 +569,19 @@ ggplot(portugal, aes(x = Age, y = Population, fill = Gender)) +
   geom_bar(subset = .(Gender == "Male"),   stat = "identity") + 
   scale_y_continuous(breaks = seq(-5e5, 5e5, 1.25e5), 
                      labels = paste0(as.character(c(seq(0.5, 0, -.125), seq(0.125, 0.5, .125))), "m")) + 
-  coord_flip() +   # rotates 90º
+  coord_flip() +   # rotates 90?
   scale_fill_brewer(palette = "Set1") + 
   theme_bw()
 ```
+-->
+
+<!-- 
 
 ## Using with maps
 
 This next eg in taken from *ggmap, Spatial Visualization with ggplot2* vignette:
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, include=FALSE, eval=FALSE}
 library(ggmap)
 
 head(crime)  # compiled from Houston Police Department's website
@@ -563,6 +604,8 @@ plot3 <- houstonMap +
           guides(alpha=FALSE) # remove alpha legend
 grid.arrange(plot1, plot2, plot3, ncol=3)
 ```
+
+-->
 
 This next eg is based on Robin Lovelace and James Cheshire's [tutorial](http://www.r-bloggers.com/introduction-to-spatial-data-and-ggplot2/) 
 (the Rpubs page is [here](http://rpubs.com/m_dev/Intro-to-Spatial-Data-and-ggplot2)
@@ -611,10 +654,9 @@ plot3 <- plot2 +
   geom_path(data = sport.f, aes(x = long, y = lat, group = group), color = "white") + 
   theme_classic()  # this line removes the distracting grey background
 
-new_theme <- theme(axis.line = element_blank(), axis.ticks = element_blank(), 
+new_theme <- theme(axis.line    = element_blank(), axis.ticks   = element_blank(), 
                    axis.title.x = element_blank(), axis.title.y = element_blank(),
-                   axis.text.y = element_blank(), axis.text.x = element_blank(),
-                   axis.text.y = element_blank(), axis.text.y = element_blank(), 
+                   axis.text.y  = element_blank(), axis.text.x  = element_blank(), 
                    panel.background = element_rect(fill = "lightgreen"))
 plot4 <- p + new_theme
 grid.arrange(plot1, plot2, plot3, plot4, nrow=2, ncol=2)
@@ -638,5 +680,60 @@ plot3 <- p + geom_polygon(data = sport.f,
 grid.arrange(plot1, plot2, plot3, nrow=2, ncol=2)
 ```
 
+## Ploting many points:
 
+A view of Clifford's strange attractors, with 1e6 points:
+
+```{r}
+library(Rcpp)
+library(ggplot2)
+library(dplyr)
+ 
+opt = theme(legend.position  = "none",
+            panel.background = element_rect(fill="white"),
+            axis.ticks       = element_blank(),
+            panel.grid       = element_blank(),
+            axis.title       = element_blank(),
+            axis.text        = element_blank())
+ 
+cppFunction('DataFrame createTrajectory(int n, double x0, double y0, 
+                             double a, double b, double c, double d) {
+              
+              NumericVector x(n);  // create the columns
+              NumericVector y(n);
+            
+              x[0]=x0;
+              y[0]=y0;
+              for(int i = 1; i < n; ++i) {
+                x[i] = sin(a*y[i-1])+c*cos(a*x[i-1]);
+                y[i] = sin(b*x[i-1])+d*cos(b*y[i-1]);
+              }
+              // return a new data frame
+              return DataFrame::create(_["x"]= x, _["y"]= y);
+            }
+      ')
+  
+a <- -1.24458046630025
+b <- -1.25191834103316 
+c <- -1.81590817030519 
+d <- -1.90866735205054
+ 
+df <- createTrajectory(1000000, 0, 0, a, b, c, d)
+ 
+#png("Clifford.png", units="px", width=1600, height=1600, res=300)
+ggplot(df, aes(x, y)) + geom_point(color="black", shape=46, alpha=.01) + opt
+```
+
+Source: [https://fronkonstin.com/2017/11/07/drawing-10-million-points-with-ggplot-clifford-attractors/](https://fronkonstin.com/2017/11/07/drawing-10-million-points-with-ggplot-clifford-attractors/)
+
+## Other Links:
+
++ [A Compendium of Clean Graphs in R](http://shinyapps.org/apps/RGraphCompendium/index.php)
+
++ [How to map your Google location history with R](https://shiring.github.io/maps/2016/12/30/Standortverlauf_post)
+
+
++ [ggplot2 - Easy Way to Mix Multiple Graphs on The Same Page](http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/81-ggplot2-easy-way-to-mix-multiple-graphs-on-the-same-page/)
+
++ 
 

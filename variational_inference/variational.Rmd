@@ -19,7 +19,7 @@ or using an integral for continuous distributions.
 
 We can implement KL divergence in R:
 
-```{r}
+```{r, collapse=TRUE}
 # KL for continuous functions
 KL <- function(q, p_tilde, lower, upper, ...) {
   f <- function(x) q(x, ...) * log(q(x, ...)/p_tilde(x))
@@ -43,7 +43,8 @@ Notice that this is not exactly a DL divergence, since $\widetilde{p}$ is a non-
 
 To see that cost function $J$ works as desired, let's develop the equation
 
-$$\begin{array}{lcll}
+$$
+\begin{array}{lcll}
 J(q)  & = & \sum_x q(x) \log \frac{q(x)}{\widetilde{p}(x)} &  \\
       & = & \sum_x q(x) \log \frac{q(x)}{p(x|D)p(D)}       &  \\
       & = & \sum_x q(x) \left( \log \frac{q(x)}{p(x|D)} - \log p(D) \right) &  \\
@@ -58,7 +59,7 @@ Since $p(D)$ is a constant, it means that minimizing $J(q)$ is minimizing $KL(q\
 
 Here's an eg where we want to approximate a gamma using log-normals:
 
-```{r}
+```{r, collapse=TRUE}
 variational_lnorm <- function(p_tilde, lower, upper) {
   q <- dlnorm # in this eg, q is a log-normal
   
@@ -82,9 +83,10 @@ curve(p_tilde, 0, 6, lwd=2, ylab="", ylim=c(0,1.25))
 curve(q,       0, 6, lwd=2, col="red",   add=T)
 ```
 
+
 We can simulate Laplace approximation (ie, gaussian approximation) of, say, a given beta:
 
-```{r}
+```{r, collapse=TRUE}
 variational_norm <- function(p_tilde, lower, upper) {
   q <- dnorm  # in this eg, q is a normal
   
@@ -106,12 +108,82 @@ KL(q,p_tilde,0,1) # compute their distance
 curve(p_tilde, 0, 1, lwd=2, ylab="", ylim=c(0,4))
 curve(q,       0, 1, lwd=2, col="red",   add=T)
 ```
+The next eg approximates beta distributions with Kumaraswamy distributions, which has simpler PDF function
 
-<!--
-## Mean-field Approximation
+$$f_\text{kumar}(x|a,b) = abx^{a-1}(1-x^a)^{b-1}$$
 
-$$p(\theta,Z) \approx q(\theta) \prod_i q_i(z_i)$$
+and has a closed CDF expression:
 
-where $\theta$ are the paremeters, and $Z$ the set of latent variables.
--->
+$$F_\text{kumar}(x|a,b) = 1-(1-x^a)^b$$
 
+In this [post](https://www.johndcook.com/blog/2009/11/24/kumaraswamy-distribution/), John Cook refers that, since the CDF is easy to invert, it's simple to generate random samples from $K(a,b)$ by generating $u \sim U(0,1)$ and return
+
+$$F^{-1} = (1-(1-u)^{1/b})^{1/a}$$
+
+```{r}
+library(extraDistr)
+
+n <- 1e4
+u <- runif(n)
+
+a <- 1/2
+b <- 1/2
+
+ku <- (1 - (1-u)^(1/b))^(1/a)
+
+hist(ku, breaks=50, prob=T)
+q <- function(x) dkumar(x,a,b) 
+curve(q, 0, 1, lwd=2, col="red", add=T)
+```
+
+Let's do the approximation:
+
+<!-- Also tried 
+
+  dfoptim::hjkb(c(0.5,0.5), J, lower=lower, upper=upper)$par
+  
+instead of optim -->
+
+```{r, collapse=TRUE}
+variational_kumaraswamy <- function(p_tilde, lower, upper) {
+  q <- dkumar
+  
+  J <- function(params) {
+    # TODO: somehow the KL-divergence function outputs negative values (?)
+    # included abs() in order to work
+    abs(KL(q, p_tilde, lower=lower, upper=upper, a=params[1], b=params[2]))
+  }
+  
+  optim(par=c(0.5, 0.5), fn=J, method="BFGS")$par  
+}
+
+p_tilde <- function(x) dbeta(x,1/2,1/2)
+
+approximation_params <- variational_kumaraswamy(p_tilde, lower=0.01, upper=0.99)
+# get the resulting approximation:
+q <- function(x) dkumar(x, approximation_params[1], approximation_params[2])
+
+KL(q,p_tilde,0.01,0.99) # compute their distance
+
+curve(p_tilde, 0, 1, lwd=2, ylab="", ylim=c(0,4))
+curve(q,       0, 1, lwd=2, col="red",   add=T)
+```
+
+Another eg:
+
+```{r}
+p_tilde <- function(x) dbeta(x,3,3)
+
+approximation_params <- variational_kumaraswamy(p_tilde, lower=0.01, upper=0.99)
+# get the resulting approximation:
+q <- function(x) dkumar(x, approximation_params[1], approximation_params[2])
+
+#q <- function(x) dkumar(x, 5, 251/40)
+
+KL(q,p_tilde,0.01,0.99) # compute their distance
+
+curve(p_tilde, 0, 1, lwd=2, ylab="", ylim=c(0,4))
+curve(q,       0, 1, lwd=2, col="red",   add=T)
+```
+
+But this method, for these two distributions, is very unstable. It diverges with many parameter values...

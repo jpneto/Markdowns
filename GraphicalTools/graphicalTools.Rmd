@@ -1,6 +1,6 @@
 ---
 title: "Graphical Tools"
-author: "Jo„o Neto"
+author: "Jo√£o Neto"
 date: "May 2014"
 output: 
   html_document:
@@ -119,16 +119,15 @@ sd   <- 1    # sd parameter
 lb   <- -1.5 # lower bound
 ub   <- 1.25 # upper bound
 
-x  <- seq(-4,4,length=100)*sd + mean
-hx <- dnorm(x,mean,sd)
+x  <- seq(-4, 4, length=101)
+hx <- dnorm(x, mean, sd)
 
-plot(x, hx, type="n", xlab="y", ylab="Density",
-     main="Normal Distribution")
-
-i <- x >= lb & x <= ub
+plot(x, hx, type="n", xlab="y", ylab="Density", main="Normal Distribution")
 lines(x, hx)
 # polygon draws the polygons whose vertices are given in x and y
-polygon(c(lb,x[i],ub), c(0,hx[i],0), col="red")
+i <- x >= lb & x <= ub
+polygon(c(lb,    lb,            x[i],        ub,         ub), 
+        c(0,dnorm(lb, mean, sd),hx[i],dnorm(ub, mean, sd),0), col="red")
 
 area <- pnorm(ub, mean, sd) - pnorm(lb, mean, sd)
 result <- paste("P(",lb,"< Y <",ub,") =", signif(area, digits=3))
@@ -142,18 +141,38 @@ ub   <- 60     # upper bound
 
 x  <- seq(lb,ub*1.5,length=100)
 hx <- dexp(x,lambda)
+
 plot(x, hx, type="n", xlab="y", ylab="Density")
-i <- x >= lb & x <= ub
 lines(x, hx)
 # polygon draws the polygons whose vertices are given in x and y
+i <- x >= lb & x <= ub
 polygon(c(lb,x[i],ub), c(0,hx[i],0), col="red")
 
 area <- pexp(ub, 1/20) - pexp(lb, 1/20)
 result <- paste("P(",lb,"< Y <",ub,") =", signif(area, digits=6))
 # place label on top of graph
 mtext(result,3)
-
 title(bquote(paste("Exponential Distribution with ", lambda, "= 1/20")))
+```
+
+Using a gradient [[ref](http://www.alisonsinclair.ca/2011/03/shading-between-curves-in-r/)]:
+
+```{r}
+x  <- seq(-3,3,0.01)
+y1 <- dnorm(x,0,1)
+y2 <- 0.5*dnorm(x,0,1)
+
+x.shade <- seq(-2,1,0.01)
+
+plot(x,y1,type="l",bty="L",xlab="X",ylab="dnorm(X)")
+points(x,y2,type="l",col="gray")
+l <- length(x.shade)
+color <- heat.colors(l)
+for (i in 1:l) {
+  polygon(c(x.shade[i],rev(x.shade[i])),
+          c(dnorm(x.shade[i],0,1),0.5*dnorm(rev(x.shade[i]),0,1)),
+          border=color[i],col=NA)
+}
 ```
 
 

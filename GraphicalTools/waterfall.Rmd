@@ -1,0 +1,193 @@
+---
+title: "Waterfall Problem"
+author: "João Neto"
+date: "09/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 100)
+
+set.seed(1)
+library(tidyverse)
+library(forcats)
+library(microbenchmark)
+```
+
+
+<style>
+.g b{background:#888;color:#eee}
+.g i{background:#ccc;color:#888}
+.g a{background:#1a6e8e;color:#1a6e8e;}
+.g u{background:#8f4e8b;color:#fff;text-decoration:none;}
+.g s{background:#397460;color:#fff;text-decoration:none;}
+.g b,.g i,.g a,.g u,.g s {padding:0.2em;display:block;border-radius:0.1em;width:1em;height:1em;float:left;margin:0.1em;line-height:1em;text-align:center;font-weight:normal;text-shadow:none;font-size: 80%;}
+.g em{clear:both;display:block}
+</style>
+
+Refs
+
++ [Twitter waterflow problem and loeb](https://chrisdone.com/posts/twitter-problem-loeb/)
+
++ [Using purrr to refactor imperative code](https://eric.netlify.com/2017/08/24/using-purrr-to-refactor-imperative-code/)
+
+## The Waterflow Problem
+
+The blocks here represent walls. What would happen if water were poured onto this structure? All water poured on the sides would run off, while some water would get trapped in the middle. 
+
+<center>
+<div class="g">
+<p><i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <em></em> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <b>7</b> <b>7</b> <i></i> <em></em> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <b></b> <b></b> <b>6</b> <em></em> <i></i> <b>5</b> <i></i> <i></i> <i></i> <i></i> <b></b> <b></b> <b></b> <em></em> <i></i> <b></b> <i></i> <i></i> <i></i> <b>4</b> <b></b> <b></b> <b></b> <em></em> <i></i> <b></b> <i></i> <i></i> <b>3</b> <b></b> <b></b> <b></b> <b></b> <em></em> <b>2</b> <b></b> <i></i> <b>2</b> <b></b> <b></b> <b></b> <b></b> <b></b> <em></em> <b></b> <b></b> <b>1</b> <b></b> <b></b> <b></b> <b></b> <b></b> <b></b> <em></em></p>
+</div>
+</center>
+
+After the pouring, we get this:
+
+<center>
+<div class="g">
+<p><i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <em></em> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <b>7</b> <b>7</b> <i></i> <em></em> <i></i> <i></i> <i></i> <i></i> <i></i> <i></i> <b></b> <b></b> <b>6</b> <em></em> <i></i> <b>5</b> <a></a> <a></a> <a></a> <a></a> <b></b> <b></b> <b></b> <em></em> <i></i> <b></b> <a></a> <a></a> <a></a> <b>4</b> <b></b> <b></b> <b></b> <em></em> <i></i> <b></b> <a></a> <a></a> <b>3</b> <b></b> <b></b> <b></b> <b></b> <em></em> <b>2</b> <b></b> <a></a> <b>2</b> <b></b> <b></b> <b></b> <b></b> <b></b> <em></em> <b></b> <b></b> <b>1</b> <b></b> <b></b> <b></b> <b></b> <b></b> <b></b> <em></em></p>
+</div>
+</center>
+
+Given a set of walls, where would water accumulate?
+
+```{r}
+wall <- c(2, 5, 1, 2, 3, 4, 7, 7, 6)
+
+water.loop <- function(wall) {
+  len <- length(wall)
+  # pre-allocate memory to make the loop more efficient
+  water <- rep(0, len)
+  for (i in seq_along(wall)) {
+    currentHeight <- wall[i]
+    maxLeftHeight <- if (i > 1) {
+      max(wall[1:(i - 1)])
+    } else {
+      0
+    }
+    maxRightHeight <- if (i == len) {
+      0
+    } else {
+      max(wall[(i + 1):len])
+    }
+    smallestMaxHeight <- min(maxLeftHeight, maxRightHeight)
+    water[i] <- if (smallestMaxHeight - currentHeight > 0) {
+      smallestMaxHeight - currentHeight
+    } else {
+      0
+    }
+  }
+  water
+}
+
+water.loop(wall)
+```
+
+Here an Haskell Solution:
+
+```{r, engine='haskell', engine.path='C:/Program Files/Haskell Platform/8.6.5/bin/ghc', cache=TRUE}
+:{ 
+  water :: [Int] -> [Int]
+  water hs = zipWith (-) (zipWith min (scanl1 max hs) 
+                                      (scanr1 max hs)) 
+                         hs
+:}
+
+water [2, 5, 1, 2, 3, 4, 7, 7, 6]
+```
+
+Translating to R:
+
+```{r}
+library(purrr)
+
+water.scan <- function(wall) {
+  map2_dbl(accumulate(wall, max), 
+           accumulate(wall, max, .dir="backward"), min) %>% 
+  map2_dbl(wall, `-`) 
+}
+
+water.scan(wall)
+```
+
+Here's another functional solution:
+
+```{r}
+# finds the max values for each part, and returns a list with the results
+get_heights <- function(wall, i) {
+  left  <- wall[seq_len(i - 1)]
+  right <- wall[seq(i + 1, length(wall))]
+  list(l = max(left, 0, na.rm = TRUE),
+       m = wall[i],
+       r = max(right, 0, na.rm = TRUE))
+}
+
+#  takes a list of heights h produced by get_heights as input
+#  and returns either their least difference, or zero
+get_depth <- function(h) {
+  max(min(h$l, h$r) - h$m, 0)
+}
+
+f <- compose(get_depth, get_heights)
+
+water.fp <- function(wall) {
+  map_dbl(seq_along(wall), f, wall = wall)
+}
+
+water.fp(wall)
+```
+
+Benchmarking these functions:
+
+```{r}
+big_wall <- sample(1:1000, 1000, TRUE)
+microbenchmark( water.loop(big_wall)
+              , water.scan(big_wall)
+              , water.fp(big_wall)
+              )
+```
+
+The next code plots a solution:
+
+```{r, fig.height=4}
+library(ggplot2)
+
+# returns a tidy data frame with needed info
+df_solution <- function(wall) {
+  tibble(x     = seq_along(wall),
+         wall  = wall, 
+         water = water.loop(wall)) %>% 
+  pivot_longer(c(wall, water), names_to = "key", values_to="y")
+}
+
+plot_solution <- function(df) {
+  ggplot(df, aes(x + 0.5, y, fill = fct_rev(key))) +
+    geom_col(position = "stack", show.legend = FALSE, width = 1) +
+    scale_fill_manual(values = c("steelblue", "grey")) +
+    scale_x_continuous(breaks = seq_along(wall)) +
+    scale_y_continuous(breaks = seq(0, max(wall), 1)) +
+    theme_void() +
+    theme(
+      strip.text = element_blank(),
+      panel.ontop = TRUE,
+      panel.grid.major.x = element_line(colour = "white", size = 0.1),
+      panel.grid.major.y = element_line(colour = "white", size = 0.1),
+      plot.margin = unit(rep(0.1, 4), "cm")
+    ) +
+    coord_equal()
+}
+
+wall %>% df_solution %>% plot_solution
+```
+
+We can use this plot to visually testing these algorithms:
+
+```{r}
+rerun(60, df_solution(sample(1:12, 12, TRUE))) %>% 
+  bind_rows(.id = "draw") %>% 
+  plot_solution() +
+  facet_wrap(~draw, ncol=6) +
+  ggtitle("Twitter Waterfall Challenge")
+```
+
