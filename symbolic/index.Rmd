@@ -1,6 +1,6 @@
 ---
 title: "Symbolic Computation in R"
-author: "João Neto"
+author: "JoÃ£o Neto"
 date: October 2014
 output: 
   html_document:
@@ -85,14 +85,14 @@ sympy("solve(x**2 - 2, x)")  # solve x^2-2=0
 sympy("limit(1/x, x, oo)")   # limit eg, x -> Inf
 sympy("limit(1/x, x, 0)")  
 sympy("integrate(exp(-x))")              # indefinite integral
-sympy("integrate(exp(-x*y),x)")              # indefinite integral
+sympy("integrate(exp(-x*y),x)")          # indefinite integral
 sympy("integrate(exp(-x), (x, 0, oo))")  # definite integral
 integrate( function(x) exp(-x), 0, Inf)  # integration is possible in R
 sympy("integrate(x**2 - y, (x, -5, 5), (y, -pi, pi))")  # definite integral
 sympy("diff(sin(2*x), x, 1)")  # first derivative
 D( expression(sin(2*x)), "x" ) # also possible in base R
-sympy("diff(sin(2*x), x, 2)") # second derivative
-sympy("diff(sin(2*x), x, 3)") # third  derivative
+sympy("diff(sin(2*x), x, 2)")  # second derivative
+sympy("diff(sin(2*x), x, 3)")  # third  derivative
 sympy("diff(exp(x*y*z), x, y, y)") # d^3/dxdy^2
 sympy("diff(exp(x*y*z), x, z, 3)") # d^4/dxdz^3
 sympy("(1/cos(x)).series(x, 0, 10)")  # taylor expansion
@@ -106,3 +106,77 @@ This can be used within the markup text
 `r sympy("latex(Integral(cos(x)**2,  (x, 0, pi)))")` = 
 `r sympy("latex(integrate(cos(x)**2, (x, 0, pi)))")`
 
+
+## Recognizing numbers:
+
+`nsimplify` takes a floating point number and tries to simplify it:
+
+```{r}
+sympy("nsimplify(4.242640687119286)")
+sympy("nsimplify(cos(pi/6))")
+sympy("nsimplify(6.28, [pi], tolerance=0.01)")
+sympy("nsimplify(pi, tolerance=1e-5)")
+sympy("nsimplify(pi, tolerance=1e-6)")
+sympy("nsimplify(29.60881, constants=[pi,E], tolerance=1e-5)")
+```
+
+## Euler's formula
+
+As seen above, `sympy` allows for the Taylor's expansion.
+
+To check on Euler's formula
+
+$$e^{i\theta} = cos~\theta + i ~ sin~\theta$$
+
+let's define Taylor series for $sin, cos, e^{i\theta}$,
+
+```{r}
+theta <- Var("theta")
+
+sin.series <- function(n) sympy(paste0(  "sin(theta).series(theta, 0, ", n, ")"))
+cos.series <- function(n) sympy(paste0(  "cos(theta).series(theta, 0, ", n, ")"))
+exp.series <- function(n) sympy(paste0("exp(I*theta).series(theta, 0, ", n, ")"))
+```
+
+We can see similarities from these expansions:
+
+$sin~\theta$ = `r sympy(paste0("latex(",sin.series(8),")"))`
+
+$cos~\theta$ = `r sympy(paste0("latex(",cos.series(8),")"))`
+
+$e^{i\theta}$ = `r sympy(paste0("latex(",exp.series(8),")"))`
+
+let's separate the terms according to $i$,
+
+$e^{i\theta}$ = `r sympy(paste0("latex(collect(",exp.series(8),",I))"))`
+
+and we see that it seems to follow
+
+$$e^{i\theta} = cos~\theta + i ~ sin~\theta$$
+
+We can check it by subtracting both expressions and confirm that all terms cancel:
+
+```{r}
+n <- 50
+
+# expansion(sin)*i
+isin.series <- 
+  function(n) sympy(paste0("expand(I*sin(theta).series(theta, 0, ", n, "))"))
+
+sympy( paste0( "nsimplify(",
+               exp.series(n),
+               "-(",
+               cos.series(n),"+", isin.series(n),
+               "))"   
+              ) 
+     )
+```
+
+`r sympy( paste0( "latex(nsimplify(",
+               exp.series(n),
+               "-(",
+               cos.series(n),
+               "+ ", isin.series(n),
+               ")))"   
+              ) 
+     )`
