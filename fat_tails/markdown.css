@@ -1,0 +1,12 @@
+blockquote {
+  font-size: 14px;
+  color: mediumblue;
+  font-style: italic;
+}
+
+.sidenote {
+  width: 25%;
+  float: right;
+  clear: right;
+  margin-right: -27%;
+}

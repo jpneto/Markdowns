@@ -496,8 +496,7 @@ legend("topright", c("from population", "from bootstrap", "true mean"), col=c(1,
 
 # Comparing statistics from different distributions
 
-Permutation tests are applicable whenever we can freely exchange labels under
-the null hypothesis; for eg, when testing the hypothesis that both samples are drawn from the same population.
+Permutation tests are applicable whenever we can freely exchange labels under the null hypothesis; for eg, when testing the hypothesis that both samples are drawn from the same population.
 
 To test, say, if two samples have the same mean but _assuming_ that they came from distributions with different variance, it is no longer possible to permute them between groups. One way to deal with it, is to resample twice, one per group, and check if the confidence interval of the differences includes the observed difference.
 

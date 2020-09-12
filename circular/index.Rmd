@@ -1,6 +1,6 @@
 ---
 title: "Circular Statistics with BUGS"
-author: "Jo„o Neto"
+author: "Jo√£o Neto"
 date: September 2015
 output: 
   html_document:
@@ -56,7 +56,8 @@ The package includes a rose diagram plot:
 
 ```{r}
 par(mfrow=c(1,2))
-rose.diag(df$eventhour, bins = 24, col = "lightblue", main = "Events by Hour (sqrt scale)",
+rose.diag(df$eventhour, bins = 24, col = "lightblue", 
+          main = "Events by Hour (sqrt scale)",
           radii.scale = "sqrt", prop=3)
 
 rose.diag(df$eventhour, bin = 24, col = "lightblue", main = "Events by Hour (linear scale)", 

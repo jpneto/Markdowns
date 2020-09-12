@@ -1,6 +1,6 @@
 ---
 title: "Regression"
-author: "Jo„o Neto"
+author: "Jo√£o Neto"
 date: October 2014
 output: 
   html_document:
@@ -46,6 +46,7 @@ The values of the coefficients mean that the maximal likehood estimation to the 
 The difference between a measured value of y and the value predicted by the model for the same value of x is called a residual.
 
 Let's see the residuals:
+
 ```{r}
 predt <- function(fit, x) {  # hand-made prediction function
   return (fit$coefficients[[1]] + x * fit$coefficients[[2]])
@@ -58,10 +59,15 @@ segments(tannin,predt(fit,tannin),tannin,growth,col="red",lty=2)
 # their specific values can also be accessed by this component:
 fit$residuals
 ```
+
 For these regression models there are several important assumptions:
+
 + The variance in y is constant (i.e. the variance does not change as y gets bigger).
+
 + The explanatory variable, x, is measured without error.
+
 + Residuals are measured on the scale of y (i.e. parallel to the y axis).
+
 + The residuals are normally distributed.
 
 Under these assumptions, the maximum likelihood is given by the method of least squares, ie, minimizing the sum of the squared errors (the residuals).

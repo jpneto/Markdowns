@@ -1,0 +1,1042 @@
+---
+title: "The Extremistan"
+author: "João Neto"
+date: "June 2020"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 10
+    fig_height: 6
+    css: "markdown.css"
+---
+
+Refs
+
++ [Statistical Consequences of Fat Tails](https://www.researchers.one/media/documents/260-m-Technical%20Incerto%20Vol%201.pdf), Nassim Taleb (all unnamed citations are Taleb's)
+
++ [Dilettante Data Science](https://david-salazar.github.io/post/), David Salazar
+
++ [Fooled by Correlation: Common Misinterpretations in Social "Science"](https://www.dropbox.com/s/18pjy7gmz0hl6q7/Correlation.pdf?dl=0), Nassim Taleb
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(magrittr)
+library(latex2exp)  # use latex expressions
+library(actuar)     # pareto distribution
+```
+
+```{r}
+# use case: sampler(rnorm, mean=1, sd=1)
+sampler.factory <- function(rng=runif, ...) {
+  function (n) rng(n, ...)
+}
+
+thin_rng <- function(n) {
+  sampler <- sampler.factory(rnorm, mean=0, sd=20)
+  sampler(n)
+}
+
+thick_rng <- function(n) {
+  sampler <- sampler.factory(rlnorm, meanlog=0, sdlog=5)
+  sampler(n)
+}
+```
+
+## Thin vs Thick tails
+
+Taleb introduce the two imaginary domains of Mediocristan (thin tails) and Extremistan (thick tails).
+
+> In Mediocristan, when a sample under consideration gets large, no single
+observation can really modify the statistical properties. In Extremistan, the tails (the rare events) play a disproportionately large role in determining the properties.
+
+> Assume a large deviation X. - In Mediocristan, the probability of sampling higher than X twice in a row is greater than sampling higher than 2X once. - In Extremistan, the probability of sampling higher than 2X once is greater than the probability of sampling higher than X twice in a row.
+
+```{r}
+par(mfrow=c(1,2))
+set.seed(131)
+
+xs     <- seq(0,3.45,0.05)
+two.xs <- 2*xs
+
+ratio.thin <-((1 -pnorm(xs))^2)/(1-pnorm(two.xs))
+plot(xs, ratio.thin, type="l", col="dodgerblue", lwd=2, main=TeX('$p(X)^2 / p(2X)$'))
+
+ratio.thick <-((1 -plnorm(xs,0,5))^2)/(1-plnorm(two.xs,0,5))
+plot(xs, ratio.thick, type="l", col="dodgerblue", lwd=2, main=TeX('$p(X)^2 / p(2X)$'))
+```
+
+In Mediocristan if a sum of two events is a $4\sigma$ event, the most probable hypothesis is that it is the sum of two $2\sigma$ events. In Extremistan, the most probable hypothesis is that it is the sum of small event plus one near $4\sigma$ event.
+
+An example: if the sum of two person heights is 4 meters, the most probable event was measuring 2m persons. If the sum of two persons' wealth is 40 millions, the most probable combination is not two persons with 20 millions, but something like one person with 40.999 millions and another with one thousand.
+
+## The law of large numbers (LLN)
+
+> According to the law, the average of the results obtained from a large number of trials should be close to the expected value and will tend to become closer to the expected value as more trials are performed. [[ref](https://en.wikipedia.org/wiki/Law_of_large_numbers)]
+
+$$X_i ~\text{iid} \wedge E[X_i]=\mu \implies \lim_{n \to +\infty} \frac{1}{n} \sum_{i=1}^n X_i = \mu$$
+
+The country of Mediocristan and many from Extremistan follow LLN, but _the problem is how many samples are needed to converge_. LLN guarantee results with an infinite amount of data, which is _never_ what we have.
+
+The next plots show how for a Gaussian even with large variance, the cumulative mean quickly goes to the expected mean, while the logNormal is much harder. This means the sample from the Gaussian is informative, but the logNormal sample not so much...
+
+```{r, fig.height=5, fig.width=12}
+set.seed(141)
+
+thins  <- thin_rng(2000)
+thicks <- thick_rng(1e6)
+
+cum_mean <- function(numbers) {
+    x <- seq(1, length(numbers))
+    cum_mean <- cumsum(numbers)/x 
+    cum_mean
+}
+
+par(mfrow=c(1,2))
+plot(cum_mean(thins), type="l", ylab="mean", xlab="", col="dodgerblue")
+abline(h=0, col="red", lty=2)
+plot(cum_mean(thicks), type="l", ylab="mean", xlab="",  col="dodgerblue")
+abline(h=exp(12.5), col="red", lty=2)
+```
+
+It goes as Taleb says:
+
+> The mean of a distribution will rarely correspond to the sample mean; it will have a persistent small sample effect (downward or upward)
+
+## The central limit theorem (CLT)
+
+> The central limit theorem (CLT) establishes that, in some situations [finite mean and variance], when independent random variables are added, their properly normalized sum tends toward a normal distribution (informally a bell curve) even if the original variables themselves are not normally distributed. [[ref](https://en.wikipedia.org/wiki/Central_limit_theorem)]
+
+The next plot shows, for the Gaussian, the density of a single random sample (blue) and the density of sample where each point is the mean of 30 random samples (yellow). We see how fast the samples approaches the average Gaussian.
+
+```{r, echo=FALSE}
+set.seed(141)
+
+n <- 1e4
+sample.mean.1  <- thin_rng(n)
+sample.mean.30 <- replicate(n, thin_rng(30) %>% mean)
+
+d1 <- density(sample.mean.1 , n=1e4)
+d2 <- density(sample.mean.30, n=2e4)
+
+plot(d1, ylim=c(0,max(d1$y,d2$y)), main="sample distribution for Gaussian", xlab="")
+polygon(d1, col=rgb(0,0,.7,.3), border="black") 
+polygon(d2, col=rgb(1,.7,0,.3), border="black") 
+abline(v=0, lty=2)
+text(0, 0.03, "mean", cex=.8)
+```
+
+A thick distribution also takes much longer to approach the average Gaussian. The next plot show densities for samples using means from 10, 100, 500 and 10000 random samples:
+
+```{r, echo=FALSE}
+set.seed(141)
+
+thick_rng2 <- function(n) {
+  # shape 1.13 is the "80-20" Pareto
+  sampler <- sampler.factory(actuar::rpareto, shape=1.13, scale=2)  # mean 17.38
+  sampler(n)
+}
+
+n <- 1e3
+sample.mean.10  <- replicate(n, thick_rng2(10)  %>% mean)
+sample.mean.100 <- replicate(n, thick_rng2(100) %>% mean)
+sample.mean.500 <- replicate(n, thick_rng2(500) %>% mean)
+sample.mean.1e4 <- replicate(n, thick_rng2(1e4) %>% mean)
+
+d1 <- density(sample.mean.10,  n=1e4)
+d2 <- density(sample.mean.100, n=1e4)
+d3 <- density(sample.mean.500, n=1e4)
+d4 <- density(sample.mean.1e4, n=1e4)
+
+pallete <- c(rgb(135, 206, 250, 100, maxColorValue = 255),
+             rgb(  0, 191, 255, 100, maxColorValue = 255),
+             rgb( 30, 144, 255, 100, maxColorValue = 255),
+             rgb( 65, 105, 225, 100, maxColorValue = 255))
+
+plot(d1, ylim=c(0,max(d1$y, d2$y, d3$y, d4$y)), xlim=c(0,25),
+     main="sample distribution for Pareto", xlab="")
+polygon(d1, col=pallete[1], border="black") 
+polygon(d2, col=pallete[2], border="black") 
+polygon(d3, col=pallete[3], border="black")
+polygon(d4, col=pallete[4], border="black") 
+abline(v=(1.13*2)/0.13, lty=2)
+text(1+(1.13*2)/0.13, 0.05, "mean", cex=.8)
+```
+
+A thick tailed distribution is determined by rare events. A sample from such a distribution will almost never be enough to infer the true parameters of the distribution. The intuition from studying the Gaussian will do us a disservice in this context.
+
+> the thicker the tails of the distribution, the more the tail wags the
+dog, that is, the information resides in the tails and less so in the "body" (the
+central part) of the distribution. Effectively, for very fat tailed phenomena, all
+deviations become informationally sterile except for the large ones. **The center becomes just noise.** This property also explains the slow functioning of the law of large numbers in certain domains as tail deviations, where the information resides, are – by definition - rare. [...] It also explains why one should never compare random variables driven by the tails (say, pandemics) to ones driven by the body (say, number of people who drown in their swimming pool).
+
+## The uselessness of PCA
+
+The PCA projects the data onto a lower dimensional hyperplane such that most of the variance is preserved. These hyperplanes should reflect some structure on the data.
+
+This works well in Mediocristan. With random data with no structure, if PCA processes enough data it will show all variances with the same magnitude:
+
+```{r, fig.height=4, fig.width=12}
+library(MASS)
+library(stats)
+library(Matrix)
+
+dim <- 20
+small.sample <- mvrnorm(1e2, rep(0,dim), Diagonal(dim, 1))
+large.sample <- mvrnorm(1e5, rep(0,dim), Diagonal(dim, 1))
+
+pca.small <- prcomp(small.sample)
+pca.large <- prcomp(large.sample)
+
+par(mfrow=c(1,2))
+barplot(pca.small$sdev, col="dodgerblue", main="small sample")
+barplot(pca.large$sdev, col="dodgerblue", main="large sample")
+```
+
+But what happens in Extremistan?
+
+```{r, message=FALSE}
+set.seed(101)
+
+dim <- 20
+small.sample <- matrix(rcauchy(1e2*dim, 0, 5), ncol=dim)
+large.sample <- matrix(rcauchy(1e5*dim, 0, 5), ncol=dim)
+
+pca.small <- prcomp(small.sample)
+pca.large <- prcomp(large.sample)
+
+par(mfrow=c(1,2))
+barplot(pca.small$sdev, col="dodgerblue", main="small sample")
+barplot(pca.large$sdev, col="dodgerblue", main="large sample")
+```
+
+Now PCA is fooled by the thick-tail distributions. Dimension reduction does not work.
+
+
+## Method of Moments does not work
+
+> The method of moments (MoM) fails to work. Higher moments are uninformative
+or do not exist.
+
+Let's try MoM with a Normal and a t-Student
+
+```{r}
+set.seed(121)
+
+n <- 1e3
+thin.sample <- rnorm(n, 3, 2)
+thick.sample <- rt(n, 15, 3)
+```
+
+For the normal
+
+$$\hat{\mu} = \frac{1}{n} \sum_{i=1}^n x_i = \overline{X}$$
+$$\hat{\sigma}^2 = \frac{1}{n} \sum_{i=1}^n (x_i - \overline{X})^2$$
+
+
+```{r}
+mu.hat <- mean(thin.sample)
+sigma.hat <- sd(thin.sample)
+
+n <- 50
+xs <- seq(-3,9,len=n)
+plot(xs, dnorm(xs, 3, 2), type='l', lwd=2, col='dodgerblue', ylab='', xlab='')
+curve(dnorm(x, mu.hat, sigma.hat), type='l', lwd=2, col='red', add=T)
+```
+
+For the t-Student, we [need](https://stats.stackexchange.com/questions/52688) the sample variance and the sample kurtosis $\kappa$:
+
+$$\hat{\nu} = \frac{6}{\kappa} + 4$$
+
+$$\hat{\beta} = \frac{\sigma^2}{\hat{\nu}/(\hat{\nu}-2)}$$
+
+```{r, message=FALSE, warning=FALSE}
+library(e1071)  
+
+hat.df <- 4 + 6/kurtosis(thick.sample)              # degrees of freedom
+hat.beta <- var(thick.sample) / (hat.df/(hat.df-2)) # non-centrality parameter
+
+n <- 50
+xs <- seq(-3,9,len=n)
+plot(xs, dt(xs, 15, 3), type='l', lwd=2, col='dodgerblue', ylab='', xlab='')
+curve(dt(x, hat.df, hat.beta), type='l', lwd=2, col='red', add=T)
+```
+
+## Fattening the Tails
+
+Let's assume we would like to fatten the tails of a given distribution. To do that we need to assign more probabilistic mass to the tails. But since the pdf must sum to 1, this mass must come from somewhere.
+
+Taleb presents a method to increase the higher moments of a distribution while keeping the lower moments invariant.
+
+We will create a fattened version of a Normal using the following algorithm:
+
++ with probability p=1/2, $X \sim \mathcal{N}(0,\sigma\sqrt{1-a})$
+
++ with probability 1-p=1/2, $X \sim \mathcal{N}(0,\sigma\sqrt{1+a})$
+
+```{r}
+set.seed(101)
+n <- 1e4
+
+fatten <- function(a) {
+  p <- runif(n) < 1/2
+  xs <- rep(NA, n)
+  xs[ p] <- rnorm(sum( p), sd=sqrt(1-a))
+  xs[!p] <- rnorm(sum(!p), sd=sqrt(1+a))
+  
+  xs
+}
+
+d1 <- density(rnorm(n)   , n=1e4)
+d2 <- density(fatten(0.7), n=1e4)
+d3 <- density(fatten(0.9), n=1e4)
+
+plot(NA, xlim=c(-4,4), ylim=c(0,max(d1$y,d2$y,d3$y)), 
+     main="Fattening the Normal", xlab="")
+lines(d1, lwd=2, col='red')
+lines(d2, lwd=2, col='blue')
+lines(d3, lwd=2, col='purple')
+legend(3, .8, legend=c('a=0.9', 'a=0.7', 'normal'), pch=15, 
+       col=c('purple', 'blue', 'red'))
+```
+
+By stochastize the variance of the distribution we found:
+
++ The tails grow fatter, the decay to zero slows
+
++ The peak becomes higher
+
++ Intermediate values are less likely
+
+And now we know: _the increased probabilistic mass for the tails comes from the intermediate events_. 
+
+## Standard Deviation vs Mean Absolute Deviation
+
+There are (at least) two known ways to quantify dispersion of a random sample:
+
++ Standard Deviation (STD) $\sqrt{\frac{1}{n} \sum (x_i-\overline{x})^2}$
+
++ Mean Absolute Deviation (MAD) $\frac{1}{n} \sum | x_i - \overline{x}|$
+
+Many people's intuitions are closer to MAD than to STD despite the almost universal use of STD. 
+
+When deciding between estimators, statistics textbooks talk about two asymptotic properties of the estimator: consistency and efficiency. Consistency means that the estimator with lots of observations has a distribution tightly centered around the parameter. Efficiency means that the asymptotic variance is the lowest possible. Here we are concerned with efficiency.
+
+The coefficient of variation is a measure of relative variability, computed by the ratio between the deviation and the mean. The Asymptotic Relative Efficiency (ARE) is a way to compare different measures of dispersion
+
+$$\text{ARE}(m_1, m_2) = \lim_{n \rightarrow +\infty} \frac{V(m_1)/E[m_1]^2}{V(m_2)/E[m_2]^2}$$
+
+Let's check $\text{ARE(STD,MAD)}$ in Mediocristan with a Gaussian:
+
+```{r}
+MAD <- function(xs) {
+  n     <- length(xs)
+  x_bar <- mean(xs)
+  
+  sum(abs(xs-x_bar))/n
+}
+
+STD <- function(xs) {
+  sd(xs)
+}
+
+ARE <- function(size, m1, m2, runs, rng, ...) {
+  
+  m1s <- rep(NA, runs)
+  m2s <- rep(NA, runs)
+  
+  for(i in 1:runs) {
+    xs <- rng(size, ...)
+    m1s[i] <- m1(xs)
+    m2s[i] <- m2(xs)
+  }
+  
+  (var(m1s)/mean(m1s)^2) / (var(m2s)/mean(m2s)^2)
+}
+```
+
+```{r}
+set.seed(101)
+
+sample.size <- c(10, 50, 100, 500, 1000, 5000)
+results <- rep(NA, length(sample.size))
+
+for(i in 1:length(results))
+  results[i] <- ARE(sample.size[i], STD, MAD, 1e4, rnorm)
+
+plot(sample.size, results, type='l', ylim=c(0.5,1.5), log='x',
+     ylab="Asymptotic Relative Efficiency")
+points(sample.size, results, pch=19)
+abline(h=1, col='black', lty=2)
+abline(h=0.875, col='red', lty=2)
+```
+
+The red line is the theoretical value of $0.875$. This means that STD is 12% more efficient than MAD _under Gaussian observations_. This result was found by Fisher in a 1920s dispute with Eddington (which favored MAD) and it settled the matter then. 
+
+But not everything is Gaussian...
+
+Let's check Extremistan with a t-Student:
+
+```{r}
+set.seed(101)
+
+sample.size <- c(10, 50, 100, 500, 1000, 5000)
+results <- rep(NA, length(sample.size))
+
+for(i in 1:length(results))
+  results[i] <- ARE(sample.size[i], STD, MAD, 1e4, rt, df=2)
+
+plot(sample.size, results, type='l', log='x', ylab="Asymptotic Relative Efficiency")
+points(sample.size, results, pch=19)
+abline(h=1, col='black', lty=2)
+```
+
+STD is completely destroyed. For large samples we got a value of 250 for ARE (!) in favor of MAD which makes it a much more efficient measure of dispersion.
+
+With fatter tails STD is worse than useless. It reports levels of efficiency that simply aren't there. This happens because every deviation from the mean is squared. A large 'outlier' will have enormous weight, being too sensitive to them.
+
+Let's check the cumulative results for a sample from a t-student:
+
+```{r, message=FALSE, warning=FALSE}
+library(cumstats)
+
+set.seed(101)
+
+n <- 50000
+df <- 2.1 # degrees of freedom
+samples <- rt(n, df)
+cumstd <- sqrt(cumvar(samples))
+means <- cummean(samples)
+cummad <- cummean(abs(samples - means))
+
+plot(1:n, cumstd, type='l', col='red', ylab="value of dispersion", ylim=c(0,8))
+points(1:n, cummad, type='l', col='blue')
+legend(4e4,8,legend=c('STD', 'MAD'), lty=1, col=c('red','blue'), cex=.8)
+abline(h=sqrt(df/(df-2)), col='red', lty=2)
+```
+
+In conclusion, in Extremistan MAD is a much better estimator of $E[|X-\mu|]$ than STD is an estimator of $\sigma$.
+
+> Many statistical phenomena and processes have "infinite variance" (such as
+the popular Pareto 80/20 rule) but have finite, and sometimes very well behaved,
+mean deviations. Whenever the mean exists, MAD exists. The reverse (infinite
+MAD and finite STD) is never true.
+
+## Correlation fails
+
+Correlation as several pitfalls
+
+### Subsampling problems
+
+Correlation is easily misused when people take non-random sub-samples from it and expect the same correlation. This mistake is the source of Berkson's and Simpson's paradoxes
+
+A simple example:
+
+```{r, fig.width=6, fig.height=6}
+set.seed(121)
+
+n <- 1e3
+xs <- mvrnorm(n, rep(0,2), matrix(c(1,.75,.75,1), ncol=2))
+
+correlation = round(cor(xs[,1],xs[,2]),3)
+plot(xs[,1],xs[,2], pch=20, col=rgb(0,1,0,0.2),
+     main=paste0('Correlation ',correlation))
+abline(v=0, h=0, lty=2)
+```
+
+The correlation is around $0.75$ as expected, $x,y$ are independent. However, if you non-randomly sub-sample, say per quadrant, we found that correlation is subadditive in Mediocristan:
+
+```{r, echo=FALSE, fig.width=6, fig.height=6}
+quad1 <- xs[,1]>0 & xs[,2]>0
+quad2 <- xs[,1]<0 & xs[,2]>0
+quad3 <- xs[,1]<0 & xs[,2]<0
+quad4 <- xs[,1]>0 & xs[,2]<0
+
+correlation = round(cor(xs[,1],xs[,2]),3)
+plot(xs[,1],xs[,2], pch=20, col=rgb(0,1,0,0.2),
+     main=paste0('Correlation ',correlation))
+abline(v=0, h=0, lty=2)
+text( 2, 2, round(cor(xs[quad1,1],xs[quad1,2]),3))
+text(-2, 2, round(cor(xs[quad2,1],xs[quad2,2]),3))
+text(-2,-2, round(cor(xs[quad3,1],xs[quad3,2]),3))
+text( 2,-2, round(cor(xs[quad4,1],xs[quad4,2]),3))
+```
+
+In Extremistan for a bivariate t-Student:
+
+```{r, message=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+library(fMultivar)
+
+set.seed(121)
+
+n <- 1e3
+xs <- rt2d(n, 0.75, nu=2/3)
+
+correlation = round(cor(xs[,1],xs[,2]),3)
+plot(xs[,1],xs[,2], pch=20, col=rgb(0,1,0,0.2),
+     main=paste0('Correlation ',correlation), log='xy')
+abline(v=1, h=1, lty=2) # log(1)=0
+```
+
+The sub-sampling effect reverses:
+
+```{r, echo=FALSE, warning=FALSE, fig.width=6, fig.height=6}
+quad1 <- xs[,1]>0 & xs[,2]>0
+quad2 <- xs[,1]<0 & xs[,2]>0
+quad3 <- xs[,1]<0 & xs[,2]<0
+quad4 <- xs[,1]>0 & xs[,2]<0
+
+correlation = round(cor(xs[,1],xs[,2]),3)
+plot(xs[,1],xs[,2], pch=20, col=rgb(0,1,0,0.2),
+     main=paste0('Correlation ',correlation), log='xy')
+abline(v=1, h=1, lty=2)
+text(100,100, round(cor(xs[quad1,1],xs[quad1,2]),3))
+text(0.1,100, round(cor(xs[quad2,1],xs[quad2,2]),3))
+text(0.1,0.01, round(cor(xs[quad3,1],xs[quad3,2]),3))
+text(100,0.01, round(cor(xs[quad4,1],xs[quad4,2]),3))
+```
+
+In Extremistan, correlation is super-additive.
+
+### Berkson's Paradox
+
+Berkson's Paradox is just a particular example of this phenomenon.
+
+Let's make another bivariate but without correlation. We also plot the linear regression between covariates:
+
+```{r, fig.width=6, fig.height=6}
+set.seed(121)
+
+n <- 1e3
+xs <- mvrnorm(n, rep(0,2), matrix(c(1,0,0,1), ncol=2))
+
+correlation = round(cor(xs[,1],xs[,2]),3)
+plot(xs[,1],xs[,2], pch=20, col=rgb(0,1,0,0.2),
+     main=paste0('Correlation ',correlation))
+abline(lm(xs[,1]~xs[,2]), lwd=2, col="purple")
+```
+
+Now let's filter out the third quadrant
+
+```{r, fig.width=6, fig.height=6}
+quad3 <- xs[,1]<0 & xs[,2]<0
+xs.new <- cbind( xs[!quad3,1], xs[!quad3,2])
+
+correlation = round(cor(xs.new[,1],xs.new[,2]),3)
+plot(xs[,1],xs[,2], pch=20, col='lightgrey',
+     main=paste0('Correlation ',correlation))
+points(xs.new[,1],xs.new[,2], pch=20, col=rgb(0,1,0,0.2))
+
+abline(lm(xs.new[,1]~xs.new[,2]), lwd=2, col="purple")
+```
+
+Expect the correlation to change when doing non-random sampling.
+
+### Non-linear information
+
+Correlation is a signal that does not convey a linear amount of information.
+
+Taleb proposes some measures to translate the correlation value into its information content. One is based on mutual information $I_{X,Y}$ with a the rescaling function $-\frac{1}{2} \log (1-\rho^2)$ for the Gaussian case.
+
+```{r}
+rescaling <- function(rho) {
+  -0.5 * log(1-rho^2)
+}
+
+xs <- seq(0,1,length=1e5)
+ys <- rescaling(xs)
+plot(xs,ys,type='l', xlab=TeX('$\\rho$'), ylab=TeX('$I_{X,Y}$'), 
+     lwd=2, col='dodgerblue')
+```
+
+```{r, echo=FALSE, eval=FALSE}
+round(rescaling(0.5)/rescaling(0.25),1)
+```
+
+For instance, a correlation of $0.75$ compared to a correlation of $0.5$ conveys three times more information. But even a correlation of $0.75$ does not convey that much information overall.
+
+### Small sample effects
+
+Assume again a Gaussian bivariate with independent variables. In Mediocristan we know that small sample correlations will disappear when the sample size increases:
+
+```{r, fig.width=8, fig.height=8}
+get.sample <- function(size) {
+  mvrnorm(size, rep(0,2), matrix(c(1,0,0,1), ncol=2))
+}
+
+runs <- 1e3
+results.small <- replicate(runs, cor(get.sample(20) )[1,2])
+results.large <- replicate(runs, cor(get.sample(1e3))[1,2])
+
+par(mfrow=c(2,2))
+barplot(results.small, ylim=c(-1,1), col="dodgerblue", border=NA, xlab="sample 20")
+barplot(results.large, ylim=c(-1,1), col="orange"    , border=NA, xlab="sample 1000")
+hist(results.small, breaks=20, col="dodgerblue", main="")
+hist(results.large, breaks=20, col="orange"    , main="")
+```
+
+But in Extremistan, as expected by now, all Hell continues to break loose:
+
+```{r, fig.width=8, fig.height=8}
+get.sample <- function(size) {
+  rt2d(size, 0, nu=2/3)
+}
+
+runs <- 1e3
+results.small <- replicate(runs, cor(get.sample(20) )[1,2])
+results.large <- replicate(runs, cor(get.sample(1e3))[1,2])
+
+par(mfrow=c(2,2))
+barplot(results.small, ylim=c(-1,1), col="dodgerblue", border=NA, xlab="sample 20")
+barplot(results.large, ylim=c(-1,1), col="orange"    , border=NA, xlab="sample 1000")
+hist(results.small, breaks=20, col="dodgerblue", main="")
+hist(results.large, breaks=20, col="orange"    , main="")
+```
+
+### Correlation fails under non-linearities
+
+Taleb poses the following problem:
+
+> You administer IQ tests to 10k people, then give them a “performance test” for anything, any task. 2000 of them are dead. Dead people score 0 on IQ and 0 on performance. The rest have the IQ uncorrelated to the performance to the performance. What is the spurious correlation IQ/Performance?
+
+```{r, message=FALSE, warning=FALSE}
+library(purrr)
+
+n <- 1e4
+test <- runif(n)
+iq   <- runif(n)
+
+dead <- rbernoulli(n, 0.2)
+test[dead] <- 0
+iq[dead]   <- 0
+```
+
+Let's plot the results:
+
+```{r}
+plot(iq, test, col=ifelse(dead, "black", rgb(0,1,0,0.2)), pch=20,
+     main="Seems unrelated but there's that dark spot")
+```
+
+If we now compute the correlation:
+
+```{r}
+cor(iq, test)
+```
+The problem stated that IQ and the test performance were uncorrelated. But a non-linear relationship was added affecting the correlation coefficient.
+
+
+## $R^2$ also fails
+
+The coefficient of determination, $R^2$, is the proportion of the variance for a dependent variable that's explained by an independent variable in a regression model.
+
+$$R^2 = 1 - \frac{\text{Unexplained Variation}}{\text{Total Variation}}$$
+
+Let's see an example from Mediocristan:
+
+```{r}
+n <- 1e3
+x <- rnorm(n)
+y <- rnorm(n, mean = 0.2 + 1.5*x)
+
+fit <- lm(y~1+x)
+
+plot(x, y, pch=20, col=rgb(0,.5,0,.2))
+abline(fit, col="purple", lwd=2)
+```
+
+The value of $R^2$ is the square of the correlation. 
+
+```{r}
+cor(x,y)^2
+summary(fit)$r.squared
+```
+
+Let's Monte Carlo this process to analyze the convergence of $R^2$
+
+```{r, fig.width=12}
+get.sample.R2 <- function(n) {
+  x <- rnorm(n)
+  y <- rnorm(n, mean = 0.2 + 1.5*x)
+  
+  summary(lm(y~1+x))$r.squared
+}
+
+n <- 5e3
+results.30  <- replicate(n, get.sample.R2( 30))
+results.100 <- replicate(n, get.sample.R2(100))
+results.1e3 <- replicate(n, get.sample.R2(1e3))
+
+par(mfrow=c(1,3))
+hist(results.30, col='dodgerblue', breaks=30)
+abline(v=cor(x,y)^2, col="orange", lwd=2)
+
+hist(results.100, col='dodgerblue', breaks=30)
+abline(v=cor(x,y)^2, col="orange", lwd=2)
+
+hist(results.1e3, col='dodgerblue', breaks=30)
+abline(v=cor(x,y)^2, col="orange", lwd=2)
+```
+
+In Mediocristan, at least with Gaussian regression, $R^2$ converges properly.
+
+Enter Extremistan.
+
+Here we will use the Pareto distribution to generate the errors. 
+
+This Pareto has no variance, that is, it is infinite. That means the explained variance from the model importance, no matter how much variance is explained, will approach zero, $E[R^2]=0$. 
+
+```{r}
+get.thick.sample.R2 <- function(n) {
+  x <- rnorm(n)
+  pareto_errors <- (1/runif(n)^(1/1.5))  # from a Pareto with tail exponent of 1.5 
+  y <- 0.2 + 10*x + pareto_errors
+  
+  summary(lm(y~1+x))$r.squared
+}
+
+n <- 5e3
+results.30  <- replicate(n, get.thick.sample.R2( 30))
+results.100 <- replicate(n, get.thick.sample.R2(100))
+results.1e3 <- replicate(n, get.thick.sample.R2(1e3))
+
+par(mfrow=c(1,3))
+hist(results.30, col='dodgerblue', breaks=30, xlim=c(0,1))
+abline(v=0, col='orange', lwd=2)
+hist(results.100, col='dodgerblue', breaks=30, xlim=c(0,1))
+abline(v=0, col='orange', lwd=2)
+hist(results.1e3, col='dodgerblue', breaks=30, xlim=c(0,1))
+abline(v=0, col='orange', lwd=2)
+```
+
+However, the results are completely wrong. It seems the model, in most cases, is explaining much of the variance, which goes against the theoretical value.
+
+> When a fat tailed random variable is regresed against a thin tailed one, the coefficient of determination $R^2$ will be biased higher, and requires a much larger sample size to converge (if it ever does) [...] $R^2$ is a stochastic variable that will be extremely sample dependent, and only stabilize for large n, perhaps even astronomically large n
+
+$R^2$ is estimating noise. Again, we have a standard stochastic variable that is useless when in Extremistan.
+
+## The Law of Large Numbers for Higher Moments
+
+A consequence of the Law of Large Numbers (LLN) is
+
+$$E[X^p] < \infty  \iff R_n^p = \dfrac{max(X_1^p, \dots, X_n^p)}{\sum_{i=1}^n X_i^p} \to 0, \ \text{as} \ n \to \infty$$
+
+If the theoretical moment exists, the ratio from the partial max to the partial sum converges to zero, while the sample size increases. 
+
+This is done by this R function:
+
+```{r}
+library(cumstats)
+
+ratios <- function(x, p) {
+  x <- abs(x)
+  rs <- matrix(rep(NA,p*length(x)), ncol=p)
+  
+  for (i in 1:p) {
+    y <- x^i
+    rs[,i] <- cummax(y) / cumsum(y)
+  }
+  rs
+}
+```
+
+The problem is how much the value of $n$ must be to show signs of convergence. The LLN does not provide with that information.
+
+Well, in Mediocristan it does not take long:
+
+```{r}
+set.seed(101)
+
+n <- 2000
+p <- 6
+rs <- ratios(rnorm(n), p)
+
+plot(1:n, rs[,1], type='n', lwd=2, col='dodgerblue', 
+     xlab='x', ylab='ratio', ylim=c(0,1))
+for (i in 1:p)
+  lines(1:n, rs[,i], lwd=2, col=topo.colors(p)[i])
+legend(1800, 1, legend=paste0("X^",1:p), col=topo.colors(p), pch=15)
+```
+
+But will it work on, say, a log-Normal?
+
+```{r}
+set.seed(101)
+n <- 25000
+p <- 6
+rs <- ratios(rlnorm(n, sd=2), p)
+
+plot(1:n, rs[,1], type='n', lwd=2, col='dodgerblue', 
+     xlab='x', ylab='ratio', ylim=c(0,1))
+for (i in 1:p) {
+  lines(1:n, rs[,i], lwd=2, col=topo.colors(p)[i])
+}
+legend(22000, .6, legend=paste0("X^",1:p), col=topo.colors(p), pch=15)
+```
+
+The higher the moment the more fat-tailed are they (a ratio of 1 means one sample overwhelms all others). So, higher moments will have more jumps and slower convergence.
+
+Now let's try with a distribution with no theoretical moments:
+
+```{r}
+rpareto <- function(n, alpha) {
+  (1/runif(n)^(1/alpha)) # inverse transform sampling
+}
+
+set.seed(101)
+n <- 25000
+p <- 6
+rs <- ratios(rpareto(n, 1.16), p)
+
+plot(1:n, rs[,1], type='n', lwd=2, col='dodgerblue', 
+     xlab='x', ylab='ratio', ylim=c(0,1))
+for (i in 1:p) {
+  lines(1:n, rs[,i], lwd=2, col=topo.colors(p)[i])
+}
+legend(0, .5, legend=paste0("X^",1:p), col=topo.colors(p), pch=15)
+```
+
+Only the mean seems to converge
+
+We can try with a Pareto that has the first two moments:
+
+```{r}
+set.seed(101)
+n <- 500000
+p <- 6
+rs <- ratios(rpareto(n, 2.1), p)
+
+plot(1:n, rs[,1], type='n', lwd=2, col='dodgerblue', 
+     xlab='x', ylab='ratio', ylim=c(0,1))
+for (i in 1:p) {
+  lines(1:n, rs[,i], lwd=2, col=topo.colors(p)[i])
+}
+legend(0, .5, legend=paste0("X^",1:p), col=topo.colors(p), pch=15)
+```
+
+The second moment seems to converge around iteration 250k but made big jumps afterwards. Convergence, according to LLT, will happen but it is very slow and will need too much data to be useful.
+
+## Empirical Distribution 
+
+An empirical distribution is a distribution function associated with a sample. It is used to estimate the moments of the 'true' distribution for the population
+
+However, if we use the empirical distribution to estimate the moments of a fat-tailed distribution... (you might guess what will happen).
+
+As seen, the tails in Extremistan contain most of the information. If we use the empirical distribution we are cutting the tail at our sample maximum. This means we are censoring an important contribution that will bias our estimations.
+
+Consider the estimation of the mean of a Pareto based on empirical distributions:
+
+```{r}
+set.seed(101)
+
+rpareto <- function(n, alpha) {
+  (1/runif(n)^(1/alpha)) # inverse transform sampling
+}
+
+alpha <- 1.2  # Pareto's theoretical mean = alpha/(alpha-1)
+n <- 1e4
+results <- replicate(n, rpareto(1000, alpha) %>%  mean)  
+results <- results[results<15] # filter large values for presentation purposes
+hist(results, breaks=50, prob=T, xlim=c(0,15), col='dodgerblue', xlab='mean')
+abline(v=alpha/(alpha-1), col='orange', lwd=2)
+```
+
+We need to extrapolate what are possible future maxima and how they influence the estimation. For the Pareto this can be done first by estimate the tail exponent $\alpha$, and then use that estimation to estimate the mean.
+
+> The tail exponent $\alpha$ captures, by extrapolation, the low probability deviation not seen in the data, but that plays a disproportionately large share in determining the mean.
+
+Taleb uses MLE to find an estimate to $\alpha$,
+
+$$\widehat \alpha = \frac{n}{\sum _i  \log(x_i) }$$
+```{r}
+pareto.alpha.MLE <- function(x) {
+  alpha.hat <- length(x) / sum(log(x))
+  if (alpha.hat < 1)    # prevent overflows
+    alpha.hat <- 1.0005 
+  alpha.hat 
+}
+```
+
+With this estimation, the estimate for the mean will be
+
+$$\dfrac{\widehat \alpha}{ \widehat \alpha - 1 }$$
+
+Let's repeat the previous procedure with this new estimation:
+
+```{r, fig.width=12}
+set.seed(101)
+
+alpha <- 1.2  # Pareto's theoretical mean = alpha/(alpha-1)
+n <- 1e4
+results <- replicate(n, rpareto(1000, alpha) %>% pareto.alpha.MLE)  
+
+par(mfrow=c(1,2))
+hist(results, breaks=40, prob=T, col='dodgerblue', 
+     xlab=TeX('$\\widehat{\\alpha}$'), main=TeX("Estimation of $\\widehat{\\alpha}$"))
+abline(v=alpha, col='orange', lwd=2)
+
+hist(results/(results-1), breaks=40, prob=T, col='dodgerblue', xlim=c(3,12),
+     xlab=TeX('$\\widehat{\\alpha}$'), main=TeX("Estimation of mean"))
+abline(v=alpha/(alpha-1), col='orange', lwd=2)
+```
+
+### Gini Coefficient
+
+This can be applied to the Gini index that is used in income and wealth inequalities. Wealth and income, for instance, tend to follow a Pareto distribution.
+
+The Gini coefficient is given by
+
+$$g=\frac{1}{2} \frac{\mathbb{E}\left(\left|X^{\prime}-X^{\prime \prime}\right|\right)}{\mathbb{E}(X)} \in[0,1]$$
+
+where $X^{\prime},X^{\prime \prime}$ are iid copies of random variable $X \sim f \in [c,\infty[, c>0$.
+
+using the empirical distribution, we can estimate $g$:
+
+$$g\left(X_{n}\right)=\frac{\sum_{1 \leq i<j \leq n}\left|X_{i}-X_{j}\right|}{(n-1) \sum_{i=1}^{n} X_{i}}$$
+
+```{r}
+gini <- function(x) {
+  n <- length(x)
+  
+  numerator <- 0
+  for (i in 1:(n-1))
+    for (j in i:n)
+      numerator <- numerator + abs(x[i] - x[j])
+  
+  denominator <- (n-1) * sum(x)
+  
+  numerator / denominator
+}
+```
+
+Let's check the behavior of the estimator in Mediocristan:
+
+We generate samples for the Gini coefficient [of an exponential](https://en.wikipedia.org/wiki/Gini_coefficient#Continuous_probability_distribution), which theoretical value is $1/2$.
+
+
+```{r}
+set.seed(101)
+
+n <- 5e3
+results <- replicate(n, rexp(100) %>% gini)
+
+hist(results, breaks=40, prob=T, col='dodgerblue', 
+     xlab='gini', main='Gini Estimation')
+abline(v=0.5, col='orange', lwd=2)
+```
+
+It works (as expected). 
+
+Let's now try Extremistan. We will generate samples from a $\text{Pareto}(\alpha=1.36)$ which theoretical Gini coefficient is 
+
+$$g = \dfrac{1}{2\alpha -1} \approx 0.58$$
+
+```{r}
+set.seed(101)
+
+alpha <- 1.36
+n <- 5e3
+results <- replicate(n, rpareto(100, alpha) %>% gini)
+
+hist(results, breaks=40, prob=T, col='dodgerblue', 
+     xlab='gini', main='Gini Estimation')
+abline(v=1/(2*alpha-1), col='orange', lwd=2)
+```
+
+Under fat-tails the Gini estimator will approach the true value from below, and much more slower than in Mediocristan.
+
+Again, Taleb uses MLE to provide us with a better estimation. For the Pareto we already know what to do: (1) compute estimator $\widehat{\alpha}$ for $\alpha$, and (2) estimate $g$.
+
+```{r}
+set.seed(101)
+
+alpha <- 1.36  # Pareto's theoretical mean = alpha/(alpha-1)
+n <- 5e3
+results <- replicate(n, rpareto(100, alpha) %>% pareto.alpha.MLE)  
+
+par(mfrow=c(1,2))
+hist(results, breaks=30, prob=T, col='dodgerblue', 
+     xlab=TeX('$\\widehat{\\alpha}$'), main=TeX("Estimation of $\\widehat{\\alpha}$"))
+abline(v=alpha, col='orange', lwd=2)
+
+hist(1/(2*results-1), breaks=20, prob=T, col='dodgerblue', xlim=c(0,1),
+     xlab='g', main=TeX("Estimation of Gini Coefficient"))
+abline(v=1/(2*alpha-1), col='orange', lwd=2)
+```
+
+## Normality and Six-sigma events
+
+> A six-sigma event is evidence it's not really a six-sigma event
+
+Assume that you assign a 99% chance that your data follows $\mathcal{N}(0,1)$ (model 1). But we concede a 1% chance that the data might follow a $\text{t-Student}$ with four degrees of freedom and rescaled to have also variance 1 (model 2).
+
+The following are the [location–scale family](https://en.wikipedia.org/wiki/Location%E2%80%93scale_family) of the t-Student (for rescaling to variance 1). More info [here](https://grollchristian.wordpress.com/2013/04/30/students-t-location-scale/).
+
+```{r}
+dt_ls <- function(x, df, mu, a)    1/a * dt((x - mu)/a, df)
+pt_ls <- function(x, df, mu, a)    pt((x - mu)/a, df)
+qt_ls <- function(prob, df, mu, a) qt(prob, df)*a + mu
+rt_ls <- function(n, df, mu, a)    rt(n,df)*a + mu
+```
+
+So, let's define the distributions and plot them.
+
+```{r}
+likelihood.thin  <- function(x) dnorm(x)
+likelihood.thick <- function(x) dt_ls(x, 4, 0, 1)
+
+xs <- seq(-4,4,len=1e3)
+plot(xs, likelihood.thick(xs), type='l', lwd=2, col='dodgerblue', ylim=c(0,.45))
+lines(xs, likelihood.thin(xs), lwd=2, col='orange')
+```
+They have similar shape, but the probability mass around the tails is very different.
+
+Let's use Bayes Theorem to update our prior odds of $99:1$ if we observe a _n-sigma_ event for different values of $n$:
+
+```{r, results='asis'}
+sigmas <- 9
+posteriors <- matrix(rep(NA,2*sigmas), ncol=2)
+
+for(i in 1:sigmas) { 
+  priors      <- c(0.99, 0.01)
+  likelihoods <- c(likelihood.thin(i), likelihood.thick(i))
+  posteriors[i,] <- priors * likelihoods / sum(priors * likelihoods)
+}
+
+post.odds <- posteriors[,1] / posteriors[,2]
+post.odds <- ifelse(post.odds>1, paste0(round(post.odds,0),':1'),
+                                 paste0('1:',round(1/post.odds,0)))
+  
+df <- as.data.frame(cbind(1:sigmas, round(posteriors,8), post.odds))
+colnames(df) <- c("sigma event", 'p(Model 1|event)', 'p(Model 2|event)', 'Posterior Odds')
+
+library(knitr)
+kable(df)
+```
+
+
+
+
+
+
+<!-- -------------------------------------------------------------
+
++ https://david-salazar.github.io/2020/04/17/fat-vs-thin-does-lln-work/ 
++ https://david-salazar.github.io/2020/04/27/spurious-pca-under-thick-tails/ 
++ https://david-salazar.github.io/2020/05/09/what-does-it-mean-to-fatten-the-tails/ 
++ https://david-salazar.github.io/2020/05/13/standard-deviation-and-fat-tails/ 
++ https://david-salazar.github.io/2020/05/22/correlation-is-not-correlation/ 
++ https://david-salazar.github.io/2020/05/26/r-squared-and-fat-tails/ 
++ https://david-salazar.github.io/2020/05/30/central-limit-theorem-in-action/ 
++ https://david-salazar.github.io/2020/06/02/lln-for-higher-p-moments/ 
++ https://david-salazar.github.io/2020/06/11/how-to-not-get-fooled-by-the-empirical-distribution/
++ https://david-salazar.github.io/2020/06/26/gini-index-under-fat-tails/
+
+TODO:
+
++ https://david-salazar.github.io/2020/05/19/understanding-the-tail-exponent/
+
+-->

@@ -371,14 +371,63 @@ abline(v=mean(group.F)-mean(group.M), col="red", lwd=2)
 quantile(results, c(.025,.975))
 ```
 
+# Replacing Friedman Rank Sum Test
 
+The Friedman Test is a frequencist test used to detect differences in several different treatments. Example: _n wine judges each rate k different wines. Are any of the k wines ranked consistently higher or lower than the others?_. To do this, this procedure ranks the same values across treatments, and has connections with ANOVA.
 
+The used statistic for the permutation test will be the [F value](https://en.wikipedia.org/wiki/F-test).
 
+```{r}
+# Computing the F statistic
+#  = variance of group means / 
+#    mean of within group variances
+# ref: https://statisticsbyjim.com/anova/f-tests-anova/
+f.stat <- function(df) {
+  means <- apply(df, 2, mean)
+  vars  <- apply(df, 2, var)
+  var(means) / mean(vars)
+}
+```
 
+So, what consists of the resampling procedure? We will compute the ranks for the observed data and find its F value. Then, we will resample these ranks by shuffling, for each row (each datum), the ranks of the different treatments and compute the resampling F values.
 
+```{r}
+rank.test <- function(observed.data, size=2500) {
+  # function for column-wise shuffling of data frame (row by row)
+  permute.rows <- function(df) {
+    apply(df, 1, function(row) sample(row))
+  }
 
+  observed.ranks   <- apply(observed.data, 1, rank) %>% t
+  permuted.data    <- replicate(size, observed.ranks %>% permute.rows %>% t)
+  permuted.effects <- apply(permuted.data, 3, f.stat)
 
+  list(permuted.effects = permuted.effects,
+       observed.effect  = observed.ranks %>% f.stat)
+}
+```
 
+Let's see it in action:
 
+```{r}
+# create fake data
+set.seed(101)
+n <- 100
+observed.data <- data.frame( gp1 = rnorm(n, 1.00, 0.5)
+                           , gp2 = rnorm(n, 1.00, 0.5)
+                           , gp3 = rnorm(n, 1.15, 0.5)
+                           , gp4 = rnorm(n, 1.00, 0.5)
+                           )
 
+results <- rank.test(observed.data) 
+
+present_results(results$permuted.effects, results$observed.effect, "Difference of Ranks")
+```
+
+Here's the  classic Friedman Rank Sum Test to compare its p-value:
+
+```{r}
+f.test <- observed.data %>% as.matrix %>% friedman.test
+f.test$p.value
+```
 
