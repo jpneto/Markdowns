@@ -19,13 +19,13 @@ library(magrittr)
 library(resampledata)
 ```
 
-Refs
+References
 
 + [Chihara, Hesterberg - Mathematical Statistics with Resampling and R 2ed (2018)](https://sites.google.com/site/chiharahesterberg/home), caps 1--4
 
 + [Cobb - The Intr Stats Course, A Ptolemaic Curriculum (2007)](https://escholarship.org/uc/item/6hb3k0nz)
 
-We will some of the resampling with the [two buckets model](http://www.di.fc.ul.pt/~jpn/r/bootstrap/buckets.html):
+We will do some of the resampling with the [two buckets model](http://www.di.fc.ul.pt/~jpn/r/bootstrap/buckets.html):
 
 ```{r}
 # multiplier == 0 represents infinite population (ie, no replacement)
@@ -55,8 +55,8 @@ compute.p.value <- function(results, observed.effect, precision=3) {
   list(mc.p.value=round((r+1)/(n+1), precision), r=r, n=n)
 }
 
-present_results <- function(results, observed.effect, label="", breaks=50) {
-  lst <- compute.p.value(results, observed.effect)
+present_results <- function(results, observed.effect, label="", breaks=50, precision=3) {
+  lst <- compute.p.value(results, observed.effect, precision=precision)
   
   hist(results, breaks=breaks, prob=T, main=label,
        sub=paste0("MC p-value for H0: ", lst$mc.p.value),
@@ -431,3 +431,83 @@ f.test <- observed.data %>% as.matrix %>% friedman.test
 f.test$p.value
 ```
 
+# Replacing One-Way ANOVA
+
+One-way ANOVA estimates how a quantitative dependent variable changes according to the levels of one of its categorical independent variables.
+
+```{r}
+# data set from https://www.scribbr.com/statistics/anova-in-r/
+crop.data <- read.csv("crop.data.csv", header = TRUE, 
+                      colClasses = c("factor", "factor", "factor", "numeric"))
+
+summary(crop.data)
+```
+
+In this data set we have three categorical independent variables that might or not be significant to the value of its yield.
+
+The next code will sample the categorical variable while keeping the original values of yield to compute the F statistic (check previous section). We do it lots of time and keep all permuted effects in order to compare with the observed effect.
+
+```{r}
+f.stat <- function(means, vars) {
+  var(means) / mean(vars)
+}
+
+# assume data frame has two columns, the first is the independent variable
+# the second is the dependent variable
+anova.test <- function(df, size=2500) {
+
+  vals <- sort(unique(df[,1]))
+  
+  permuted.effects <- replicate(size, 
+  {
+    permuted.data <- data.frame( x = sample(df[,1]),
+                                 y = df[,2])  
+    means <- sapply(vals, function(i) permuted.data[permuted.data$x==i,2] %>% mean)
+    vars  <- sapply(vals, function(i) permuted.data[permuted.data$x==i,2] %>% var)
+    f.stat(means, vars)
+  })
+  
+  # observed effect
+  means <- sapply(vals, function(i) df[df[,1]==i,2] %>% mean)
+  vars  <- sapply(vals, function(i) df[df[,1]==i,2] %>% var)
+  observed.effect <- f.stat(means, vars)
+  
+  list(permuted.effects = permuted.effects,
+       observed.effect  = observed.effect)
+}
+```
+
+Let's check the significance of fertilizer:
+
+```{r}
+df <- crop.data[,c(3,4)] # select fertilizer and yield
+results <- anova.test(df, 15000)
+present_results(results$permuted.effects, results$observed.effect, precision=5)
+```
+
+Comparing with the classical test:
+
+```{r}
+one.way <- aov(yield ~ fertilizer, data = crop.data)
+
+summary(one.way)
+```
+
+Let's try with the independent variable block:
+
+```{r}
+df <- crop.data[,c(2,4)] # select density and yield
+results <- anova.test(df,15000)
+present_results(results$permuted.effects, results$observed.effect, precision=5)
+```
+
+
+And the result from the classical test:
+
+```{r}
+one.way <- aov(yield ~ block, data = crop.data)
+
+summary(one.way)
+```
+
+The results of both methods are similar.
