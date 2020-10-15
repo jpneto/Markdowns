@@ -1,0 +1,177 @@
+---
+title: "Empirical Entropy"
+author: "João Neto"
+date: "October 2020"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 6
+---
+
+```{r}
+library(magrittr)
+```
+
+
+Probability distributions are functions that assign probability mass or density to a universe of outcomes, which are useful to model random events. Different distributions have different mappings from events to probabilities, and some are more uncertain than others.
+
+Since entropy is a measure of uncertainty, it is to no surprise that 
+distributions have an associated entropy.
+
+## Entropy for Discrete Distributions
+
+For discrete distributions, over all values $x$ inside the domain, the entropy $H$ is given by expression
+
+$$H = -\sum_x p(x) \log p(x)$$
+
+Consider the example of the Poisson where
+
+$$p(k~|~\lambda) = \frac{\lambda^k e^{-\lambda}}{k!}$$
+
+the analytic solution is
+
+$$\lambda (1- \log \lambda) + e^{-\lambda}\sum_{k=0}^\infty \frac{\lambda^k \log k!}{k!}$$
+
+The next function approximates this expression
+
+```{r}
+entropy.poisson <- function(lambda) {
+  lambda*(1-log(lambda)) + 
+    exp(-lambda) * 
+    sum(sapply(0:20, 
+               function(k) lambda^k * log(factorial(k)) / factorial(k)))
+}
+```
+
+Say, for $\lambda=5$ the entropy will be
+
+```{r}
+lambda <- 5
+entropy.poisson(lambda)
+```
+
+## Empirical Entropy for Discrete Distributions
+
+What if we have a discrete sample taken from some distribution?
+
+```{r}
+lambda <- 5
+xs1 <- rpois(1e6, lambda)
+head(xs1, 10)
+```
+
+If we know which distribution the sample was taken, we can infer the parameters and then apply the respective entropy formula.
+
+In our case, `xs1` was the result of a Poisson sampling, so:
+
+```{r, message=FALSE}
+lambda.hat <- mean(xs1)
+entropy.poisson(lambda.hat)
+```
+
+But if we don't have a clue about the underlining distribution?
+
+The first step is to compute the empirical point probabilities
+
+$$\hat{p}(x_i) = \frac{1}{n} \sum_{k=1}^n \delta_{x_i}(x_k)$$
+
+where $\delta_{x_i}(x_k)$ is 1 if $x_i = x_k$, zero otherwise.
+
+The empirical entropy is then
+
+$$\hat{H} = -\sum_x \hat{p}(x) \log \hat{p}(x)$$
+
+The next R function computes this value,
+
+```{r}
+# ref: https://stats.stackexchange.com/questions/28178
+empirical.entropy <- function(xs) {
+  # empirical point probabilities
+  epps <- (table(xs) / length(xs)) %>%  as.vector()
+  
+  -sum(epps * log(epps))
+}
+```
+
+Let's check the true entropy with the empirical entropy of the Poisson sample:
+
+```{r, collapse=TRUE}
+entropy.poisson(lambda) # true entropy
+empirical.entropy(xs1)  # empirical entropy
+```
+
+Another example, this time with a discrete uniform $\mathcal{U}\{a,b\}$, with theoretical entropy $\log (b-a+1)$,
+
+
+```{r, collapse=TRUE}
+xs2 <- sample(1:6, 1e6, rep=TRUE)  # uniform U{1,6}
+
+log(6-1+1)             # true entropy
+empirical.entropy(xs2) # empirical entropy
+```
+
+## Entropy for Continuous Distributions
+
+Claude Shannon tried to generalize his entropy formula for the continuous case simply replacing the sum with an integral,
+
+$$H = - \int_x f(x) \log(x) dx$$
+
+but without any mathematical derivation. This is denoted as _differential entropy_.
+
+This formula lacks many properties of the discrete case.
+
+For the classic continuous distributions, their entropy is known. For the Gaussian $\mathcal{N}(\mu, \sigma$ the entropy is $\frac{1}{2}\log(2\pi e \sigma^2)$
+
+```{r}
+entropy.normal <- function(mu, sigma) {
+  0.5 * log(2*pi*exp(1)*sigma^2)
+}
+```
+
+Let's check an example,
+
+```{r}
+mu <- 0
+sigma <- 0.35
+
+entropy.normal(mu, sigma)
+```
+
+ET Jaynes [argued](https://en.wikipedia.org/wiki/Limiting_density_of_discrete_points) that the continuous case should be defined as the limiting case of increasingly dense discrete distributions.
+
+## Empirical Entropy for Continuous Distributions
+
+One approximation is given by producing an histogram of the continuous values, and then accounting for the values $x_i$ inside bin $i$ with  width $w_i$,
+
+$$\hat{H} = -\sum_i \hat{p}(x_i) \log \frac{\hat{p}(x_i)}{w_i}$$
+
+In R:
+
+```{r}
+# ref: https://en.wikipedia.org/wiki/Entropy_estimation
+empirical.entropy.continuous <- function(xs, breaks=1e3) {
+  range.xs   <- max(xs)-min(xs)
+  width.bins <- range.xs/breaks # all bins have the same width
+
+  # bin the results into finite intervals
+  xs <- xs %>% cut(breaks=breaks) %>% as.numeric()
+  # empirical point probabilities
+  epps <- (table(xs) / length(xs)) %>%  as.vector()
+  
+  -sum(epps * (log(epps) - log(width.bins)))
+}
+```
+
+Let's compare the true and empirical entropy for a normal sample,
+
+```{r, collapse=TRUE}
+n <- 1e6
+xs3 <- rnorm(n, 0, sigma)
+
+entropy.normal(mu, sigma)         # true entropy
+empirical.entropy.continuous(xs3) # empirical entropy
+```
+
+
