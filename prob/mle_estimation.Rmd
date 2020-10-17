@@ -1,0 +1,194 @@
+---
+title: "A Probability Estimation"
+date: "October 2020"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    fig_width: 10
+    fig_height: 6
+---
+
+```{r, message=FALSE}
+library(rstan)
+library(rethinking)
+library(latex2exp)  # use latex expressions
+```
+
+References
+
++ [https://stats.stackexchange.com/questions/492260](https://stats.stackexchange.com/questions/492260)
+
+Consider the following problem:
+
+<center>Compute $p(X>12|X_1,...X_n)$ for $X,X_i \sim \mathcal{N}(\mu, \sigma)$</center>
+
+<p></p>
+
+We will use the following data,
+
+```{r}
+set.seed(101)
+
+mu   <- 10 # unknown values
+sigma <- 2
+
+n <- 1000
+xs <- rnorm(n, mu, sigma) # only this data is known
+```
+
+### Using MLE
+
+For the Gaussian, the maximum likelihood estimator of $(\mu, \sigma^2)$ given data $D = \{X_1,\ldots,X_n\}$ is
+
+$$(\hat\mu,\hat\sigma) = \left( \overline{D}, \operatorname{sd}(D)\right)$$
+The MLE of a function $f$ of the parameters is the value of $f$ applied to the MLEs of the parameters. So, given $f$,
+
+$$f(\mu,\sigma) = \Pr(X \gt 12~|~\mu,\sigma) = 1 - \Phi\left(\frac{12-\mu}{\sigma}\right)$$
+
+```{r}
+f <- function(threshold, mu, sigma) {
+  pnorm((threshold - mu) / sigma, lower.tail = FALSE)
+}
+```
+
+The MLE of $f$ is,
+
+$$\hat f = 1 - \Phi\left(\frac{12-\hat\mu}{\hat\sigma}\right)$$
+
+For the data defined above, the MLE is:
+
+```{r}
+threshold <- 12
+
+f(threshold, mean(xs), sd(xs))
+```
+
+Let's simulate this computation for many data sets to see how estimates are spread,
+
+```{r}
+set.seed(17)
+
+n.sim <- 1e4
+n <- 240
+x <- matrix(rnorm(n.sim*n, mu, sigma), n.sim)
+
+# Compute the MLEs.
+mu.hat     <- rowMeans(x)
+sigma2.hat <- rowMeans((x - mu.hat)^2)
+p.hat      <- f(threshold, mu.hat, sqrt(sigma2.hat))
+
+hist(p.hat, freq=FALSE, col="dodgerblue", breaks=50,
+     xlab=TeX("$\\hat{f}$"), cex.lab=1.25, main="")
+abline(v = f(threshold, mu, sigma), lwd=2, col="red")
+```
+
+### Using Bayesian Inference
+
+Given $D=\{X_1, \ldots, X_n\}$ we need to find $p(\mu~|~D)$ and $p(\sigma~|~D)$. With these two posteriors we can compute the posterior $p(X>12~|~D)$, since any function with random vars as parameters, is also a random variable.
+
+The respective Stan model is,
+
+```{stan output.var="model1"}
+data { 
+  int<lower=1> N;
+  real X[N]; 
+} 
+parameters {
+  real mu; 
+  real<lower=0> sigma;
+} 
+model {
+  mu ~ normal(0, 10);
+  sigma ~ cauchy(0, 5);
+  
+  X ~ normal(mu, sigma);
+}
+```
+
+Fitting the model with the available data,
+
+```{r}
+fit1 <- sampling( model1,   
+                  data    = list(X=xs, N=length(xs)), 
+                  iter    = 50000, 
+                  chains  = 2, 
+                  refresh = 0
+                )
+precis(fit1)
+```
+
+Let's extract the samples and show the posterior $p(X>12~|~D)$,
+
+```{r}
+samples <- rstan::extract(fit1)
+
+# fs is a sample based on mu and sigma samples
+fs <- f(threshold, samples$mu, samples$sigma)
+
+hist(fs, freq=FALSE, col="dodgerblue", breaks=50,
+     xlab=TeX("$\\hat{f}$"), cex.lab=1.25,
+     main=TeX("$p(X>12|D)$"))
+abline(v = f(threshold, mu, sigma), lwd=2, col="red")
+```
+
+This histogram and the MLE one are summarizing very different experiences. The histogram from the MLE summarizes thousands of different data sets, while this histogram shows the MCMC sampling of just the initial data set (which inherits its sample bias). The MLE of the initial data set is just one number.
+
+### Using Resampling
+
+I'm using here the [two bucket](http://www.di.fc.ul.pt/~jpn/r/bootstrap/buckets.html) factories to define and run the bootstrap:
+
+```{r, message=FALSE}
+library(magrittr)
+
+# multiplier == 0 represents infinite population (ie, no replacement)
+make.bucket1 <- function(universe, withReplacement=TRUE) {
+  function(n.sample) {
+    sample(universe, n.sample, rep=withReplacement)
+  }
+}
+
+# uses the bucket1 urn to generate a sample of size 'size.sample'
+# and applies the given statistic function 
+make.bucket2 <- function(bucket1, size.sample, statistic) {
+  function(n) {
+    replicate(n, bucket1(size.sample) %>% statistic) %>% 
+    as.vector 
+  }
+}
+```
+
+The statistic to apply returns the pair of empirical mean and standard deviation for the current bootstrap sample,
+
+```{r}
+stat <- function(sample) {
+  c(mu=mean(sample), sigma=sd(sample)) 
+}
+
+bucket1 <- make.bucket1(xs, TRUE)
+bucket2 <- make.bucket2(bucket1, length(xs), stat)
+```
+
+Let's sample and plot the results:
+
+```{r}
+bootstrap <- bucket2(5e4) %>% matrix(ncol=2,byrow=TRUE)
+
+fs <- f(threshold, bootstrap[,1], bootstrap[,2])
+
+hist(fs, freq=FALSE, col="dodgerblue", breaks=50,
+     xlab=TeX("$\\hat{f}$"), cex.lab=1.25,
+     main=TeX("$p(X>12|D)$"))
+abline(v = f(threshold, mu, sigma), lwd=2, col="red")
+```
+
+### Results Comparison
+
+Comparing the true probability, the MLE estimator, the mean of the posterior, and the mean of the bootstrap samples:
+
+```{r, collapse=TRUE}
+f(threshold, mu, sigma)          # True value
+f(threshold, mean(xs), sd(xs))   # MLE
+f(threshold, mean(samples$mu), mean(samples$sigma))    # Posterior mean
+f(threshold, mean(bootstrap[,1]), mean(bootstrap[,2])) # Bootstrap mean
+```
