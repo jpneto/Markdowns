@@ -174,4 +174,141 @@ entropy.normal(mu, sigma)         # true entropy
 empirical.entropy.continuous(xs3) # empirical entropy
 ```
 
+## Using Empirical Entropy to compare distributions
 
+From Efron's et al. "An Introduction to the Bootstrap" about how to compare distributions $F,G$ (chapter 16, pg 221)
+
+![](algorithm.png)
+
+The suggestion to bootstrap with replacement using a difference of means, or, for more accuracy, using the studentized test, a two sample t-statistic,
+
+$$t(x) = \frac{\bar{z}-\bar{y}}{\bar{\sigma}\sqrt{1/n + 1/m}}$$
+where $n,m$ are the size of the two sets, and $\bar{\sigma}^2 = \sum_i \left[ (z_i-\bar{z})^2 + (y_i-\bar{y})^2 \right] / (n+m-2)$
+
+```{r}
+# Efron and Tibshinari, Intro to Bootstrap, pag.221
+stat.student <- function(pop1, pop2) {
+  n <- length(pop1)
+  m <- length(pop2)
+
+  mean1 <- mean(pop1)
+  mean2 <- mean(pop2)
+
+  sigma <- (sum((pop1-mean1)^2) + sum((pop2-mean2)^2)) / (n+m-2)
+  sigma <- sigma**0.5
+
+  (mean1-mean2) / (sigma*(1/n+1/m)**0.5)
+}
+```
+
+Let's compare its performance against the difference of entropies,
+
+```{r}
+# Difference of Empirical Entropies
+stat.entropy <- function(pop1, pop2, sample_size) {
+  empirical.entropy.continuous(pop1, breaks=100) -
+  empirical.entropy.continuous(pop2, breaks=100)
+}
+```
+
+The simulation is performed by the next function,
+
+```{r}
+simulation <- function(xs, ys, stat, isBoot=TRUE, n.sims=2000) {
+  
+  universe <- c(xs,ys)
+  
+  replicate(n.sims, {
+    
+    if (isBoot) { # Bootstrap algorithm
+      xs.boot <- sample(universe, length(xs), rep=TRUE)
+      ys.boot <- sample(universe, length(ys), rep=TRUE)
+    } else {      # Permutation algorithm
+      indexes <- sample(1:length(universe), length(xs), rep=FALSE)
+      xs.boot <- universe[ indexes]
+      ys.boot <- universe[-indexes]
+    }
+    stat(xs.boot, ys.boot)
+    
+  })
+}
+```
+
+And the next function shows the histogram of results and summarizes the $\widehat{ASL}_{boot}$ given at the book, together with the ratio of the two partitions that are to the left and right of the observed effect,
+
+```{r}
+present_results <- function(results, observed.effect, label="", breaks=50, precision=3) {
+  partition.1 <- sum(results < observed.effect)
+  partition.2 <- length(results) - partition.1
+  
+  if (partition.1 < partition.2)
+    odds <- partition.1/partition.2
+  else
+    odds <- partition.2/partition.1
+  
+  ASL.boot <- sum(results > observed.effect) / length(results)
+    
+  hist(results, breaks=breaks, prob=T, main=label, col = "dodgerblue", 
+       sub=paste0("ASL.boot = ", ASL.boot),
+       xlab=paste("partition's sizes ", round(1/odds), ":1"))
+  abline(v=observed.effect, lty=2, lwd=2, col="red")
+}
+```
+
+Let's check what happens when we have two distributions with similar mean and variance:
+
+```{r}
+set.seed(101)
+
+n <- 250
+xs <- rnorm (n, 1.1, 1.2)
+ys <- rgamma(n, 1.0, 1.0)
+
+results <- simulation(xs, ys, stat.student, isBoot=TRUE)
+observed.effect <- stat.student(xs, ys)
+present_results(results, observed.effect)
+```
+
+The t statistic is not able to easily distinguish distributions. Also, with different random seeds, the results are unstable,
+
+```{r}
+set.seed(102)
+
+n <- 250
+xs <- rnorm (n, 1.1, 1.2)
+ys <- rgamma(n, 1.0, 1.0)
+
+results <- simulation(xs, ys, stat.student, isBoot=TRUE)
+observed.effect <- stat.student(xs, ys)
+present_results(results, observed.effect)
+```
+
+Let's try with a test statistic based on empirical entropy,
+
+```{r}
+set.seed(101)
+
+n <- 250
+xs <- rnorm (n, 1.1, 1.2)
+ys <- rgamma(n, 1.0, 1.0)
+
+results <- simulation(xs, ys, stat.entropy, isBoot=TRUE)
+observed.effect <- stat.entropy(xs, ys)
+present_results(results, observed.effect)
+```
+
+The results also seem more stable,
+
+```{r}
+set.seed(102)
+
+n <- 250
+xs <- rnorm (n, 1.1, 1.2)
+ys <- rgamma(n, 1.0, 1.0)
+
+results <- simulation(xs, ys, stat.entropy, isBoot=TRUE)
+observed.effect <- stat.entropy(xs, ys)
+present_results(results, observed.effect)
+```
+
+Check this [question](https://stats.stackexchange.com/questions/494166/bootstrap-permutation-test-for-equality-of-two-distributions)
